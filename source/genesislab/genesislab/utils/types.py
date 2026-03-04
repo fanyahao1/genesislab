@@ -15,10 +15,10 @@ class ArticulationActions:
     GenesisLab namespace so that actuator code does not depend on IsaacLab.
     """
 
-    joint_positions: torch.Tensor | None = None
-    joint_velocities: torch.Tensor | None = None
-    joint_efforts: torch.Tensor | None = None
-    joint_indices: torch.Tensor | Sequence[int] | slice | None = None
+    joint_positions: torch.Tensor = None
+    joint_velocities: torch.Tensor = None
+    joint_efforts: torch.Tensor = None
+    joint_indices: torch.Tensor | Sequence[int] | slice = None
 
 
 __all__ = ["ArticulationActions"]

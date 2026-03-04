@@ -24,7 +24,7 @@ class SceneCfg:
     env_spacing: tuple[float, float] = (2.0, 2.0)
     """Spacing between environments in the visualization grid (x, y)."""
 
-    n_envs_per_row: int | None = None
+    n_envs_per_row: int = None
     """Number of environments per row in the visualization grid. If None, computed automatically."""
 
     center_envs_at_origin: bool = True
@@ -51,7 +51,7 @@ class SceneCfg:
     robots: dict[str, "RobotCfg"] = field(default_factory=dict)
     """Dictionary of robot configurations keyed by logical entity name."""
 
-    terrain: dict[str, Any] | None = None
+    terrain: dict[str, Any] = None
     """Terrain configuration. If None, no terrain is added."""
 
     sensors: dict[str, Any] = field(default_factory=dict)

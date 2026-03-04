@@ -43,8 +43,8 @@ echo "🧩 Checking and cloning required repositories..."
 clone_repo git@github.com:Renforce-Dynamics/assetslib.git ./data/assets/assetslib
 
 modules=(
+    "./source/genesislab"
     "./source/genesis_tasks"
-    "./source/genesis_lab"
 )
 
 install_modules "${modules[@]}"

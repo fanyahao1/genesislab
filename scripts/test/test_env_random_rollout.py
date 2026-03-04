@@ -22,12 +22,13 @@ from genesislab.managers.action_manager import ActionTerm, ActionTermCfg
 from genesislab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from genesislab.managers.reward_manager import RewardTermCfg
 from genesislab.managers.termination_manager import TerminationTermCfg
+from genesislab.utils.configclass import configclass
 
 if TYPE_CHECKING:
-    from genesislab.envs.base_env import ManagerBasedGenesisEnv as _MBEnv
+    from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv as _MBEnv
 
 
-@dataclass(kw_only=True)
+@configclass
 class DemoActionTermCfg(ActionTermCfg):
     """Simple demo action term config used by the random rollout test."""
 

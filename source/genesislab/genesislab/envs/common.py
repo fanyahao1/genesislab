@@ -8,7 +8,7 @@ Gym or specific viewer implementations.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Literal, TypeVar
+from typing import Dict, Literal, TypeVar, Union
 
 import torch
 
@@ -39,10 +39,10 @@ class ViewerCfg:
     env_index: int = 0
     """Environment index used when ``origin_type`` is ``env`` or asset-relative."""
 
-    asset_name: str | None = None
+    asset_name: str = None
     """Optional asset name for asset-relative camera origins."""
 
-    body_name: str | None = None
+    body_name: str = None
     """Optional body name within the asset for asset-relative camera origins."""
 
 
@@ -51,7 +51,7 @@ class ViewerCfg:
 SpaceType = TypeVar("SpaceType")
 """Placeholder for a valid space type (Gym spaces or simple container types)."""
 
-VecEnvObs = Dict[str, torch.Tensor | Dict[str, torch.Tensor]]
+VecEnvObs = Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]
 """Observation returned by a vectorized environment.
 
 The top-level dict usually maps group names to either:

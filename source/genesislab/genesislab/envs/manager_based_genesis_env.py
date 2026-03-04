@@ -72,10 +72,10 @@ class ManagerBasedGenesisEnv:
         """Environment step size (physics_dt * decimation)."""
 
         # Episode management
-        self._max_episode_length_s: float | None = cfg.episode_length_s
+        self._max_episode_length_s: float = cfg.episode_length_s
         self.is_finite_horizon: bool = cfg.is_finite_horizon
         if self._max_episode_length_s is not None:
-            self._max_episode_length: int | None = int(self._max_episode_length_s / self.step_dt)
+            self._max_episode_length: int = int(self._max_episode_length_s / self.step_dt)
         else:
             self._max_episode_length = None
 
@@ -90,7 +90,7 @@ class ManagerBasedGenesisEnv:
         # Configure Gym-style spaces
         self._configure_spaces()
 
-    def seed(self, seed: int | None = None) -> None:
+    def seed(self, seed: int = None) -> None:
         """Set random seed for reproducibility.
 
         Args:
@@ -143,12 +143,12 @@ class ManagerBasedGenesisEnv:
     # -------------------------------------------------------------------------
 
     @property
-    def max_episode_length_s(self) -> float | None:
+    def max_episode_length_s(self) -> float:
         """Maximum episode length in seconds, if configured."""
         return self._max_episode_length_s
 
     @property
-    def max_episode_length(self) -> int | None:
+    def max_episode_length(self) -> int:
         """Maximum episode length in environment steps, if configured."""
         return self._max_episode_length
 
@@ -163,9 +163,9 @@ class ManagerBasedGenesisEnv:
 
     def reset(
         self,
-        seed: int | None = None,
-        env_ids: torch.Tensor | None = None,
-        options: dict[str, Any] | None = None,
+        seed: int = None,
+        env_ids: torch.Tensor = None,
+        options: dict[str, Any] = None,
     ) -> tuple[VecEnvObs, dict[str, Any]]:
         """Reset the environment.
 
@@ -320,14 +320,14 @@ class ManagerBasedGenesisEnvCfg:
     terminations: dict[str, object] = field(default_factory=dict)
     """Termination term configurations."""
 
-    commands: dict[str, object] | None = None
+    commands: dict[str, object] = None
     """Command term configurations. If None, no command manager is created."""
 
     # RL-specific configuration
-    seed: int | None = None
+    seed: int = None
     """Random seed for reproducibility."""
 
-    episode_length_s: float | None = None
+    episode_length_s: float = None
     """Episode length in seconds. If None, horizon is infinite unless terminated by terms."""
 
     is_finite_horizon: bool = False

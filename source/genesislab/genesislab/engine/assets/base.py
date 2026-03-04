@@ -79,7 +79,7 @@ class GenesisAssetBase(ABC):
         """
 
     @abstractmethod
-    def reset(self, env_ids: Sequence[int] | torch.Tensor | None = None) -> None:
+    def reset(self, env_ids: Sequence[int] | torch.Tensor = None) -> None:
         """Reset the asset state in the selected environments.
 
         Parameters

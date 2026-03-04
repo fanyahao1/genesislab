@@ -3,26 +3,29 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import MISSING
 from typing import TYPE_CHECKING, Any
 
 import torch
 from prettytable import PrettyTable
 
 from genesislab.managers.manager_base import ManagerBase, ManagerTermBaseCfg
+from genesislab.utils.configclass import configclass
 
 if TYPE_CHECKING:
   from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
 
 
-@dataclass(kw_only=True)
+@configclass
 class RewardTermCfg(ManagerTermBaseCfg):
   """Configuration for a reward term."""
 
-  func: Any
+  # Required fields: must have an associated class member. We use MISSING to
+  # indicate "no default" so configclass' mutable-type processing is satisfied.
+  func: Any = MISSING
   """The callable that computes this reward term's value."""
 
-  weight: float
+  weight: float = 1.0
   """Weight multiplier for this reward term."""
 
 
@@ -97,7 +100,7 @@ class RewardManager(ManagerBase):
   # Methods.
 
   def reset(
-    self, env_ids: torch.Tensor | slice | None = None
+    self, env_ids: torch.Tensor | slice = None
   ) -> dict[str, torch.Tensor]:
     if env_ids is None:
       env_ids = slice(None)
@@ -142,7 +145,7 @@ class RewardManager(ManagerBase):
 
   def _prepare_terms(self):
     for term_name, term_cfg in self.cfg.items():
-      term_cfg: RewardTermCfg | None
+      term_cfg: RewardTermCfg
       if term_cfg is None:
         print(f"term: {term_name} set to None, skipping...")
         continue

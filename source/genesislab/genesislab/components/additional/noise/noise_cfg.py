@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 import abc
-from dataclasses import dataclass, field
-from typing import ClassVar, Literal
+from dataclasses import MISSING, dataclass, field
+from typing import Any, ClassVar, Literal, Tuple, Union
 
 import torch
 from typing_extensions import override
 
 from genesislab.components.additional.noise import noise_model
+from genesislab.utils.configclass import configclass
 
 # Type alias for noise parameters: scalar or per-dimension values.
-NoiseParam = float | tuple[float, ...]
+NoiseParam = Union[float, Tuple[float, Any]]
 
 
-@dataclass(kw_only=True)
+@configclass
 class NoiseCfg(abc.ABC):
   """Base configuration for a noise term."""
 
@@ -40,7 +41,7 @@ class NoiseCfg(abc.ABC):
     """Apply noise to the input data."""
 
 
-@dataclass
+@configclass
 class ConstantNoiseCfg(NoiseCfg):
   bias: NoiseParam = 0.0
 
@@ -58,7 +59,7 @@ class ConstantNoiseCfg(NoiseCfg):
       raise ValueError(f"Unsupported noise operation: {self.operation}")
 
 
-@dataclass
+@configclass
 class UniformNoiseCfg(NoiseCfg):
   n_min: NoiseParam = -1.0
   n_max: NoiseParam = 1.0
@@ -86,7 +87,7 @@ class UniformNoiseCfg(NoiseCfg):
       raise ValueError(f"Unsupported noise operation: {self.operation}")
 
 
-@dataclass
+@configclass
 class GaussianNoiseCfg(NoiseCfg):
   mean: NoiseParam = 0.0
   std: NoiseParam = 1.0
@@ -118,11 +119,11 @@ class GaussianNoiseCfg(NoiseCfg):
 ##
 
 
-@dataclass(kw_only=True)
+@configclass
 class NoiseModelCfg:
   """Configuration for a noise model."""
 
-  noise_cfg: NoiseCfg
+  noise_cfg: NoiseCfg = MISSING
 
   class_type: ClassVar[type[noise_model.NoiseModel]] = noise_model.NoiseModel
 
@@ -130,13 +131,13 @@ class NoiseModelCfg:
     cls.class_type = class_type
 
 
-@dataclass(kw_only=True)
+@configclass
 class NoiseModelWithAdditiveBiasCfg(
   NoiseModelCfg, class_type=noise_model.NoiseModelWithAdditiveBias
 ):
   """Configuration for an additive Gaussian noise with bias model."""
 
-  bias_noise_cfg: NoiseCfg | None = None
+  bias_noise_cfg: NoiseCfg = None
   sample_bias_per_component: bool = True
 
   def __post_init__(self):

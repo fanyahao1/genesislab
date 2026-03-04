@@ -30,7 +30,7 @@ class TerrainGeneratorCfg:
     class_type: type = TerrainGenerator
     """The class to use for the terrain generator."""
 
-    seed: int | None = None
+    seed: int = None
     """The seed for the random number generator. Defaults to None, in which case the seed from the
     current NumPy's random state is used.
 
@@ -94,7 +94,7 @@ class TerrainGeneratorCfg:
     This value is passed on to all the height field sub-terrain configurations.
     """
 
-    slope_threshold: float | None = 0.75
+    slope_threshold: float = 0.75
     """The slope threshold above which surfaces are made vertical. Defaults to 0.75.
 
     If None no correction is applied.

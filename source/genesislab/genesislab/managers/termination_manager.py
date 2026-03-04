@@ -10,12 +10,13 @@ import torch
 from prettytable import PrettyTable
 
 from genesislab.managers.manager_base import ManagerBase, ManagerTermBaseCfg
+from genesislab.utils.configclass import configclass
 
 if TYPE_CHECKING:
   from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
 
 
-@dataclass
+@configclass
 class TerminationTermCfg(ManagerTermBaseCfg):
   """Configuration for a termination term."""
 
@@ -86,7 +87,7 @@ class TerminationManager(ManagerBase):
   # Methods.
 
   def reset(
-    self, env_ids: torch.Tensor | slice | None = None
+    self, env_ids: torch.Tensor | slice = None
   ) -> dict[str, torch.Tensor]:
     if env_ids is None:
       env_ids = slice(None)
@@ -129,7 +130,7 @@ class TerminationManager(ManagerBase):
 
   def _prepare_terms(self):
     for term_name, term_cfg in self.cfg.items():
-      term_cfg: TerminationTermCfg | None
+      term_cfg: TerminationTermCfg
       if term_cfg is None:
         print(f"term: {term_name} set to None, skipping...")
         continue

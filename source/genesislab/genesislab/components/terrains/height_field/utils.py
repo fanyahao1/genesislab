@@ -78,7 +78,7 @@ def height_field_to_mesh(func: Callable) -> Callable:
 
 
 def convert_height_field_to_mesh(
-    height_field: np.ndarray, horizontal_scale: float, vertical_scale: float, slope_threshold: float | None = None
+    height_field: np.ndarray, horizontal_scale: float, vertical_scale: float, slope_threshold: float = None
 ) -> tuple[np.ndarray, np.ndarray]:
     """Convert a height-field array to a triangle mesh represented by vertices and triangles.
 

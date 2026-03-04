@@ -88,7 +88,7 @@ class SubTerrainBaseCfg:
     attribute.
     """
 
-    flat_patch_sampling: dict[str, FlatPatchSamplingCfg] | None = None
+    flat_patch_sampling: dict[str, FlatPatchSamplingCfg] = None
     """Dictionary of configurations for sampling flat patches on the sub-terrain. Defaults to None,
     in which case no flat patch sampling is performed.
 

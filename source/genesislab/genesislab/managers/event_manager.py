@@ -5,13 +5,14 @@ from __future__ import annotations
 import enum
 from collections.abc import Callable
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import MISSING, dataclass
 from typing import TYPE_CHECKING, Literal
 
 import torch
 from prettytable import PrettyTable
 
 from genesislab.managers.manager_base import ManagerBase, ManagerTermBaseCfg
+from genesislab.utils.configclass import configclass
 
 if TYPE_CHECKING:
   from genesislab.envs import ManagerBasedRlEnv
@@ -95,7 +96,7 @@ def requires_model_fields(
   return decorator
 
 
-@dataclass(kw_only=True)
+@configclass
 class EventTermCfg(ManagerTermBaseCfg):
   """Configuration for an event term.
 
@@ -116,11 +117,11 @@ class EventTermCfg(ManagerTermBaseCfg):
     episodes (e.g., pushing the robot, external disturbances).
   """
 
-  mode: EventMode
+  mode: EventMode = MISSING
   """When the event triggers: ``"startup"`` (once at init), ``"reset"`` (every
   episode), or ``"interval"`` (periodically during simulation)."""
 
-  interval_range_s: tuple[float, float] | None = None
+  interval_range_s: tuple[float, float] = None
   """Time range in seconds for interval mode. The next trigger time is uniformly
   sampled from ``[min, max]``. Required when ``mode="interval"``."""
 
@@ -208,7 +209,7 @@ class EventManager(ManagerBase):
         return self._mode_term_cfgs[mode][index]
     raise ValueError(f"Event term '{term_name}' not found in active terms.")
 
-  def reset(self, env_ids: torch.Tensor | None = None):
+  def reset(self, env_ids: torch.Tensor = None):
     for mode_cfg in self._mode_class_term_cfgs.values():
       for term_cfg in mode_cfg:
         term_cfg.func.reset(env_ids=env_ids)
@@ -230,9 +231,9 @@ class EventManager(ManagerBase):
   def apply(
     self,
     mode: EventMode,
-    env_ids: torch.Tensor | slice | None = None,
-    dt: float | None = None,
-    global_env_step_count: int | None = None,
+    env_ids: torch.Tensor | slice = None,
+    dt: float = None,
+    global_env_step_count: int = None,
   ):
     if mode == "interval" and dt is None:
       raise ValueError(
@@ -322,7 +323,7 @@ class EventManager(ManagerBase):
     self._reset_term_last_triggered_once: list[torch.Tensor] = list()
 
     for term_name, term_cfg in self.cfg.items():
-      term_cfg: EventTermCfg | None
+      term_cfg: EventTermCfg
       if term_cfg is None:
         print(f"term: {term_name} set to None, skipping...")
         continue

@@ -28,7 +28,7 @@ class HfTerrainBaseCfg(SubTerrainBaseCfg):
     vertical_scale: float = 0.005
     """The discretization of the terrain along the z axis (in m). Defaults to 0.005."""
 
-    slope_threshold: float | None = None
+    slope_threshold: float = None
     """The slope threshold above which surfaces are made vertical. Defaults to None,
     in which case no correction is applied."""
 
@@ -50,7 +50,7 @@ class HfRandomUniformTerrainCfg(HfTerrainBaseCfg):
     noise_step: float = MISSING
     """The minimum height (in m) change between two points."""
 
-    downsampled_scale: float | None = None
+    downsampled_scale: float = None
     """The distance between two randomly sampled points on the terrain. Defaults to None,
     in which case the :obj:`horizontal scale` is used.
 

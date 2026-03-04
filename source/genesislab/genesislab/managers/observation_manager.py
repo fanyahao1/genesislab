@@ -1,20 +1,21 @@
 """Observation manager for computing observations."""
 
 from copy import deepcopy
-from dataclasses import dataclass
-from typing import Literal, Sequence
+from dataclasses import MISSING, dataclass
+from typing import Dict, Literal, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 from prettytable import PrettyTable
 
 from genesislab.managers.manager_base import ManagerBase, ManagerTermBaseCfg
+from genesislab.utils.configclass import configclass
 from genesislab.components.additional.buffers import CircularBuffer, DelayBuffer
 from genesislab.components.additional.noise import noise_cfg, noise_model
 from genesislab.components.additional.noise.noise_cfg import NoiseCfg, NoiseModelCfg
 
 
-@dataclass
+@configclass
 class ObservationTermCfg(ManagerTermBaseCfg):
   """Configuration for an observation term.
 
@@ -23,13 +24,13 @@ class ObservationTermCfg(ManagerTermBaseCfg):
   and can be combined.
   """
 
-  noise: NoiseCfg | NoiseModelCfg | None = None
+  noise: NoiseCfg = None
   """Noise model to apply to the observation."""
 
-  clip: tuple[float, float] | None = None
+  clip: tuple[float, float] = None
   """Range (min, max) to clip the observation values."""
 
-  scale: tuple[float, ...] | float | torch.Tensor | None = None
+  scale: Union[Tuple[float, ...], float] = None
   """Scaling factor(s) to multiply the observation by."""
 
   delay_min_lag: int = 0
@@ -65,7 +66,7 @@ class ObservationTermCfg(ManagerTermBaseCfg):
   See docs/source/observation.rst for details on ordering."""
 
 
-@dataclass
+@configclass
 class ObservationGroupCfg:
   """Configuration for an observation group.
 
@@ -74,7 +75,7 @@ class ObservationGroupCfg:
   for the actor, "critic" for the value function).
   """
 
-  terms: dict[str, ObservationTermCfg]
+  terms: Dict[str, ObservationTermCfg] = MISSING
   """Dictionary mapping term names to their configurations."""
 
   concatenate_terms: bool = True
@@ -88,7 +89,7 @@ class ObservationGroupCfg:
   """Whether to apply noise corruption to observations. Set to True during
   training for domain randomization, False during evaluation."""
 
-  history_length: int | None = None
+  history_length: int = None
   """Group-level history length override. If set, applies to all terms in
   this group. If None, each term uses its own ``history_length`` setting."""
 
@@ -145,7 +146,7 @@ class ObservationManager(ManagerBase):
       else:
         self._group_obs_dim[group_name] = group_term_dims
 
-    self._obs_buffer: dict[str, torch.Tensor | dict[str, torch.Tensor]] | None = None
+    self._obs_buffer: dict[str, torch.Tensor | dict[str, torch.Tensor]] = None
 
   def __str__(self) -> str:
     msg = f"<ObservationManager> contains {len(self._group_obs_term_names)} groups.\n"
@@ -215,7 +216,7 @@ class ObservationManager(ManagerBase):
     return self._group_obs_term_names
 
   @property
-  def group_obs_dim(self) -> dict[str, tuple[int, ...] | list[tuple[int, ...]]]:
+  def group_obs_dim(self) -> Union[dict[str, tuple[int, ...], list[tuple[int, ...]]]]:
     return self._group_obs_dim
 
   @property
@@ -236,7 +237,7 @@ class ObservationManager(ManagerBase):
     index = self._group_obs_term_names[group_name].index(term_name)
     return self._group_obs_term_cfgs[group_name][index]
 
-  def reset(self, env_ids: torch.Tensor | slice | None = None) -> dict[str, float]:
+  def reset(self, env_ids: torch.Tensor) -> dict[str, float]:
     # Invalidate cache since reset envs will have different observations.
     self._obs_buffer = None
 
@@ -303,7 +304,7 @@ class ObservationManager(ManagerBase):
 
   def compute(
     self, update_history: bool = False
-  ) -> dict[str, torch.Tensor | dict[str, torch.Tensor]]:
+  ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
     # Return cached observations if not updating and cache exists.
     # This prevents double-pushing to delay buffers when compute() is called
     # multiple times per control step (e.g., in get_observations() after step()).
@@ -318,7 +319,7 @@ class ObservationManager(ManagerBase):
 
   def compute_group(
     self, group_name: str, update_history: bool = False
-  ) -> torch.Tensor | dict[str, torch.Tensor]:
+  ) -> Union[torch.Tensor, dict[str, torch.Tensor]]:
     group_cfg = self.cfg[group_name]
     group_term_names = self._group_obs_term_names[group_name]
     group_obs: dict[str, torch.Tensor] = {}
@@ -397,7 +398,7 @@ class ObservationManager(ManagerBase):
     self._group_obs_term_history_buffer: dict[str, dict[str, CircularBuffer]] = dict()
 
     for group_name, group_cfg in self.cfg.items():
-      group_cfg: ObservationGroupCfg | None
+      group_cfg: ObservationGroupCfg
       if group_cfg is None:
         print(f"group: {group_name} set to None, skipping...")
         continue
@@ -417,7 +418,7 @@ class ObservationManager(ManagerBase):
       )
 
       for term_name, term_cfg in group_cfg.terms.items():
-        term_cfg: ObservationTermCfg | None
+        term_cfg: ObservationTermCfg
         if term_cfg is None:
           print(f"term: {term_name} set to None, skipping...")
           continue

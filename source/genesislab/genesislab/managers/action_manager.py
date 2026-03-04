@@ -3,19 +3,20 @@
 from __future__ import annotations
 
 import abc
-from dataclasses import dataclass
+from dataclasses import MISSING
 from typing import TYPE_CHECKING, Sequence
 
 import torch
 from prettytable import PrettyTable
 
 from genesislab.managers.manager_base import ManagerBase, ManagerTermBase
+from genesislab.utils.configclass import configclass
 
 if TYPE_CHECKING:
   from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
 
 
-@dataclass(kw_only=True)
+@configclass
 class ActionTermCfg(abc.ABC):
   """Configuration for an action term.
 
@@ -23,10 +24,11 @@ class ActionTermCfg(abc.ABC):
   in the scene (e.g., setting joint positions, velocities, or efforts).
   """
 
-  entity_name: str
+  # Required field; use MISSING to indicate no default.
+  entity_name: str = MISSING
   """Name of the entity in the scene that this action term controls."""
 
-  clip: dict[str, tuple] | None = None
+  clip: dict[str, tuple] = None
   """Optional clipping bounds per transmission type. Maps transmission name
   (e.g., 'position', 'velocity') to (min, max) tuple."""
 
@@ -141,7 +143,7 @@ class ActionManager(ManagerBase):
   def get_term(self, name: str) -> ActionTerm:
     return self._terms[name]
 
-  def reset(self, env_ids: torch.Tensor | slice | None = None) -> dict[str, float]:
+  def reset(self, env_ids: torch.Tensor | slice = None) -> dict[str, float]:
     if env_ids is None:
       env_ids = slice(None)
     # Reset action history.
@@ -203,7 +205,7 @@ class ActionManager(ManagerBase):
     self._terms: dict[str, ActionTerm] = dict()
 
     for term_name, term_cfg in self.cfg.items():
-      term_cfg: ActionTermCfg | None
+      term_cfg: ActionTermCfg
       if term_cfg is None:
         print(f"term: {term_name} set to None, skipping...")
         continue

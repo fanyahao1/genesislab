@@ -129,7 +129,7 @@ class CircularBuffer:
     self._batch_size = batch_size
     self._device = device
     self._pointer: int = -1
-    self._buffer: torch.Tensor | None = None
+    self._buffer: torch.Tensor = None
     self._all_indices = torch.arange(batch_size, device=device)
     self._num_pushes = torch.zeros(batch_size, dtype=torch.long, device=device)
     self._max_len_tensor = torch.full(
@@ -174,7 +174,7 @@ class CircularBuffer:
     buf = self._buffer.index_select(0, idx)  # (max_len, batch, ...)
     return buf.transpose(0, 1)  # (batch, max_len, ...)
 
-  def reset(self, batch_ids: Sequence[int] | torch.Tensor | None = None) -> None:
+  def reset(self, batch_ids: Sequence[int] | torch.Tensor = None) -> None:
     """Zero out values and counters for specified batch rows.
 
     Args:

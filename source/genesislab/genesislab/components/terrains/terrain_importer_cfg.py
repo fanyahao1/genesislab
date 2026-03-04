@@ -42,19 +42,19 @@ class TerrainImporterCfg:
     Available options are "plane", "usd", and "generator".
     """
 
-    terrain_generator: TerrainGeneratorCfg | None = None
+    terrain_generator: TerrainGeneratorCfg = None
     """The terrain generator configuration.
 
     Only used if ``terrain_type`` is set to "generator".
     """
 
-    usd_path: str | None = None
+    usd_path: str = None
     """The path to the USD file containing the terrain.
 
     Only used if ``terrain_type`` is set to "usd".
     """
 
-    env_spacing: float | None = None
+    env_spacing: float = None
     """The spacing between environment origins when defined in a grid. Defaults to None.
 
     Note:
@@ -70,7 +70,7 @@ class TerrainImporterCfg:
       This parameter is used only when the :attr:`terrain type` is "generator".
     """
 
-    visual_material: sim_utils.VisualMaterialCfg | None = sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 0.0))
+    visual_material: sim_utils.VisualMaterialCfg = sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 0.0))
     """The visual material of the terrain. Defaults to a dark gray color material.
 
     This parameter is used for both the "generator" and "plane" terrains.
@@ -90,7 +90,7 @@ class TerrainImporterCfg:
         This parameter is used only when the ``terrain_type`` is "generator" or "plane".
     """
 
-    max_init_terrain_level: int | None = None
+    max_init_terrain_level: int = None
     """The maximum initial terrain level for defining environment origins. Defaults to None.
 
     The terrain levels are specified by the number of rows in the grid arrangement of

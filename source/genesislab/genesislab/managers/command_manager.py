@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import MISSING
 from typing import TYPE_CHECKING, Any, Sequence
 
 import torch
 from prettytable import PrettyTable
 
 from genesislab.managers.manager_base import ManagerBase, ManagerTermBase
+from genesislab.utils.configclass import configclass
 
 if TYPE_CHECKING:
   # import viser
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
   from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
 
 
-@dataclass(kw_only=True)
+@configclass
 class CommandTermCfg(abc.ABC):
   """Configuration for a command generator term.
 
@@ -27,7 +28,9 @@ class CommandTermCfg(abc.ABC):
   intervals and can track metrics for logging.
   """
 
-  resampling_time_range: tuple[float, float]
+  # Required field without a natural default; mark as MISSING so configclass
+  # sees a matching class member for the annotation count.
+  resampling_time_range: tuple[float, float] = MISSING
   """Time range in seconds for command resampling. When the timer expires, a new
   command is sampled and the timer is reset to a value uniformly drawn from
   ``[min, max]``. Set both values equal for fixed-interval resampling."""
@@ -83,7 +86,7 @@ class CommandTerm(ManagerTermBase):
   def command(self):
     raise NotImplementedError
 
-  def reset(self, env_ids: torch.Tensor | slice | None) -> dict[str, float]:
+  def reset(self, env_ids: torch.Tensor | slice) -> dict[str, float]:
     assert isinstance(env_ids, torch.Tensor)
     extras = {}
     for metric_name, metric_value in self.metrics.items():
@@ -200,7 +203,7 @@ class CommandManager(ManagerBase):
       idx += term.command.shape[1]
     return terms
 
-  def reset(self, env_ids: torch.Tensor | None) -> dict[str, torch.Tensor]:
+  def reset(self, env_ids: torch.Tensor) -> dict[str, torch.Tensor]:
     extras = {}
     for name, term in self._terms.items():
       metrics = term.reset(env_ids=env_ids)
@@ -223,7 +226,7 @@ class CommandManager(ManagerBase):
 
   def _prepare_terms(self):
     for term_name, term_cfg in self.cfg.items():
-      term_cfg: CommandTermCfg | None
+      term_cfg: CommandTermCfg
       if term_cfg is None:
         print(f"term: {term_name} set to None, skipping...")
         continue
@@ -267,7 +270,7 @@ class NullCommandManager:
   ) -> Sequence[tuple[str, Sequence[float]]]:
     return []
 
-  def reset(self, env_ids: torch.Tensor | None = None) -> dict[str, torch.Tensor]:
+  def reset(self, env_ids: torch.Tensor = None) -> dict[str, torch.Tensor]:
     return {}
 
   def compute(self, dt: float) -> None:

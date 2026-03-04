@@ -8,12 +8,13 @@ from typing import TYPE_CHECKING
 import torch
 
 from genesislab.managers.action_manager import ActionTerm, ActionTermCfg
+from genesislab.utils.configclass import configclass
 
 if TYPE_CHECKING:
     from genesislab.envs.manager_based_rl_env import ManagerBasedGenesisEnv
 
 
-@dataclass(kw_only=True)
+@configclass
 class Go2ActionTermCfg(ActionTermCfg):
     """Configuration for Go2 joint position action term."""
 

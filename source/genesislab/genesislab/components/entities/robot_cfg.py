@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, MISSING
 from typing import Any, Literal
 
 from genesislab.utils.configclass import configclass
@@ -17,10 +17,12 @@ class RobotCfg:
     can be added incrementally as needed.
     """
 
-    morph_type: Literal['URDF', 'MJCF', 'USD']
+    # Required fields: must be annotated *and* have a class member.
+    # We use `dataclasses.MISSING` as the default value to signal "no default".
+    morph_type: Literal['URDF', 'MJCF', 'USD'] = MISSING
     """Type of morph to use: 'URDF', 'MJCF', 'USD', etc."""
 
-    morph_path: str
+    morph_path: str = MISSING
     """Path to the robot asset file (URDF, MJCF, USD, etc.)."""
 
     initial_pose: dict[str, Any] = field(
@@ -28,20 +30,20 @@ class RobotCfg:
     )
     """Initial pose of the robot. Dict with 'pos' (list[float]) and 'quat' (list[float])."""
 
-    material: dict[str, Any] | None = None
+    material: dict[str, Any] = None
     """Material configuration. If None, uses a default rigid material."""
 
-    surface: dict[str, Any] | None = None
+    surface: dict[str, Any] = None
     """Surface configuration for contact. If None, uses a default surface."""
 
     fixed_base: bool = False
     """Whether the robot base is fixed (non-floating)."""
 
     # Control configuration
-    control_dofs: list[str] | None = None
+    control_dofs: list[str] = None
     """List of joint names to control. If None, all actuated joints are controlled."""
 
-    pd_gains: dict[str, tuple[float, float]] | None = None
+    pd_gains: dict[str, tuple[float, float]] = None
     """Optional PD gains per joint name as (kp, kd). If None, env/task may set defaults."""
 
     # Additional morph options

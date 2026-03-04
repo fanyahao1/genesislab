@@ -415,7 +415,7 @@ Helper functions
 """
 
 
-def _skippable_class_member(key: str, value: Any, hints: dict | None = None) -> bool:
+def _skippable_class_member(key: str, value: Any, hints: dict = None) -> bool:
     """Check if the class member should be skipped in configclass processing.
 
     The following members are skipped:

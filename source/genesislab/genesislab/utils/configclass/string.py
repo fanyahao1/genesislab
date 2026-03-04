@@ -169,7 +169,7 @@ Regex operations.
 
 
 def resolve_matching_names(
-    keys: str | Sequence[str], list_of_strings: Sequence[str], preserve_order: bool = False
+    keys: Sequence[str], list_of_strings: Sequence[str], preserve_order: bool = False
 ) -> tuple[list[int], list[str]]:
     """Match a list of query regular expressions against a list of strings and return the matched indices and names.
 

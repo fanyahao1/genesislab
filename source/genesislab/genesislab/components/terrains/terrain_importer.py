@@ -45,7 +45,7 @@ class TerrainImporter:
     terrain_prim_paths: list[str]
     """A list containing the USD prim paths to the imported terrains."""
 
-    terrain_origins: torch.Tensor | None
+    terrain_origins: torch.Tensor
     """The origins of the sub-terrains in the added terrain mesh. Shape is (num_rows, num_cols, 3).
 
     If terrain origins is not None, the environment origins are computed based on the terrain origins.
@@ -288,7 +288,7 @@ class TerrainImporter:
     Operations - Origins.
     """
 
-    def configure_env_origins(self, origins: np.ndarray | torch.Tensor | None = None):
+    def configure_env_origins(self, origins: np.ndarray | torch.Tensor = None):
         """Configure the origins of the environments based on the added terrain.
 
         Args:

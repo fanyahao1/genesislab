@@ -113,7 +113,7 @@ class Go2VelocityEnvCfg(ManagerBasedRlEnv):
     )
 
     # Commands - velocity command generation
-    commands: dict[str, VelocityCommandCfg] | None = field(
+    commands: dict[str, VelocityCommandCfg] = field(
         default_factory=lambda: {
             "lin_vel": VelocityCommandCfg(
                 resampling_time_range=(5.0, 10.0),  # Resample every 5-10 seconds

@@ -44,7 +44,7 @@ class GenesisArticulationCfg:
     fixed_base: bool = False
     """Whether the base of the articulation is fixed."""
 
-    control_dofs: list[str] | None = None
+    control_dofs: list[str] = None
     """List of joint names to control. If None, all actuated joints are controlled."""
 
     morph_options: dict[str, Any] = field(default_factory=dict)
@@ -58,17 +58,28 @@ class GenesisArticulation(GenesisAssetBase):
     batched reset, control and state update operations.
     """
 
-    def __init__(self, cfg: GenesisArticulationCfg, device: str | torch.device = gs.device):
+    # NOTE:
+    # The original implementation used `device: str | torch.device = gs.device`.
+    # However, the public `genesis` PyPI package does not expose a `device` attribute,
+    # which results in `AttributeError: module 'genesis' has no attribute 'device'`
+    # at import time. To keep this class usable with the current `genesis`
+    # distribution, we provide a safe default ("cuda:0" if available, else "cpu")
+    # and still allow callers to pass an explicit device.
+    def __init__(self, cfg: GenesisArticulationCfg, device: str | torch.device = None):
         super().__init__(name=cfg.name)
         self.cfg = cfg
-        self.device = torch.device(device)
+        if device is None:
+            # Prefer CUDA when available; fall back to CPU otherwise.
+            self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = torch.device(device)
 
-        self._entity: Any | None = None
-        self._dof_indices: torch.Tensor | None = None
+        self._entity: Any = None
+        self._dof_indices: torch.Tensor = None
 
         # Runtime buffers (allocated lazily once entity is available)
-        self._targets_pos: torch.Tensor | None = None
-        self._targets_vel: torch.Tensor | None = None
+        self._targets_pos: torch.Tensor = None
+        self._targets_vel: torch.Tensor = None
 
     # ------------------------------------------------------------------ #
     # Scene construction
@@ -114,7 +125,7 @@ class GenesisArticulation(GenesisAssetBase):
     # ------------------------------------------------------------------ #
     # Core operations
     # ------------------------------------------------------------------ #
-    def reset(self, env_ids: Sequence[int] | torch.Tensor | None = None) -> None:
+    def reset(self, env_ids: Sequence[int] | torch.Tensor = None) -> None:
         """Reset root pose and joint state for the given environments."""
 
         if self._entity is None:

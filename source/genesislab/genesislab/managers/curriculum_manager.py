@@ -10,12 +10,13 @@ import torch
 from prettytable import PrettyTable
 
 from genesislab.managers.manager_base import ManagerBase, ManagerTermBaseCfg
+from genesislab.utils.configclass import configclass
 
 if TYPE_CHECKING:
   from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
 
 
-@dataclass(kw_only=True)
+@configclass
 class CurriculumTermCfg(ManagerTermBaseCfg):
   """Configuration for a curriculum term.
 
@@ -92,7 +93,7 @@ class CurriculumManager(ManagerBase):
         terms.append((term_name, data))
     return terms
 
-  def reset(self, env_ids: torch.Tensor | slice | None = None) -> dict[str, float]:
+  def reset(self, env_ids: torch.Tensor | slice = None) -> dict[str, float]:
     extras = {}
     for term_name, term_state in self._curriculum_state.items():
       if term_state is not None:
@@ -109,7 +110,7 @@ class CurriculumManager(ManagerBase):
       term_cfg.func.reset(env_ids=env_ids)
     return extras
 
-  def compute(self, env_ids: torch.Tensor | slice | None = None):
+  def compute(self, env_ids: torch.Tensor | slice = None):
     if env_ids is None:
       env_ids = slice(None)
     for name, term_cfg in zip(self._term_names, self._term_cfgs, strict=False):
@@ -118,7 +119,7 @@ class CurriculumManager(ManagerBase):
 
   def _prepare_terms(self):
     for term_name, term_cfg in self.cfg.items():
-      term_cfg: CurriculumTermCfg | None
+      term_cfg: CurriculumTermCfg
       if term_cfg is None:
         print(f"term: {term_name} set to None, skipping...")
         continue
@@ -148,8 +149,8 @@ class NullCurriculumManager:
   ) -> Sequence[tuple[str, Sequence[float]]]:
     return []
 
-  def reset(self, env_ids: torch.Tensor | None = None) -> dict[str, float]:
+  def reset(self, env_ids: torch.Tensor = None) -> dict[str, float]:
     return {}
 
-  def compute(self, env_ids: torch.Tensor | None = None) -> None:
+  def compute(self, env_ids: torch.Tensor = None) -> None:
     pass

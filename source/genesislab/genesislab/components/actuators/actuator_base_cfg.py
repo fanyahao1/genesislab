@@ -22,7 +22,7 @@ class ActuatorBaseCfg:
         This can be a list of joint names or a list of regex expressions (e.g. ".*").
     """
 
-    effort_limit: dict[str, float] | float | None = None
+    effort_limit: dict[str, float] | float = None
     """Force/Torque limit of the joints in the group. Defaults to None.
 
     This limit is used to clip the computed torque sent to the simulation. If None, the
@@ -44,7 +44,7 @@ class ActuatorBaseCfg:
 
     """
 
-    velocity_limit: dict[str, float] | float | None = None
+    velocity_limit: dict[str, float] | float = None
     """Velocity limit of the joints in the group. Defaults to None.
 
     This limit is used by the actuator model. If None, the limit is set to the value specified
@@ -66,7 +66,7 @@ class ActuatorBaseCfg:
         PhysX Tensor API.
     """
 
-    effort_limit_sim: dict[str, float] | float | None = None
+    effort_limit_sim: dict[str, float] | float = None
     """Effort limit of the joints in the group applied to the simulation physics solver. Defaults to None.
 
     The effort limit is used to constrain the computed joint efforts in the physics engine. If the
@@ -83,7 +83,7 @@ class ActuatorBaseCfg:
 
     """
 
-    velocity_limit_sim: dict[str, float] | float | None = None
+    velocity_limit_sim: dict[str, float] | float = None
     """Velocity limit of the joints in the group applied to the simulation physics solver. Defaults to None.
 
     The velocity limit is used to constrain the joint velocities in the physics engine. The joint will only
@@ -99,7 +99,7 @@ class ActuatorBaseCfg:
 
     """
 
-    stiffness: dict[str, float] | float | None = MISSING
+    stiffness: dict[str, float] | float = MISSING
     """Stiffness gains (also known as p-gain) of the joints in the group.
 
     The behavior of the stiffness is different for implicit and explicit actuators. For implicit actuators,
@@ -109,7 +109,7 @@ class ActuatorBaseCfg:
     If None, the stiffness is set to the value from the USD joint prim.
     """
 
-    damping: dict[str, float] | float | None = MISSING
+    damping: dict[str, float] | float = MISSING
     """Damping gains (also known as d-gain) of the joints in the group.
 
     The behavior of the damping is different for implicit and explicit actuators. For implicit actuators,
@@ -119,7 +119,7 @@ class ActuatorBaseCfg:
     If None, the damping is set to the value from the USD joint prim.
     """
 
-    armature: dict[str, float] | float | None = None
+    armature: dict[str, float] | float = None
     """Armature of the joints in the group. Defaults to None.
 
     The armature is directly added to the corresponding joint-space inertia. It helps improve the
@@ -130,7 +130,7 @@ class ActuatorBaseCfg:
     If None, the armature is set to the value from the USD joint prim.
     """
 
-    friction: dict[str, float] | float | None = None
+    friction: dict[str, float] | float = None
     r"""The static friction coefficient of the joints in the group. Defaults to None.
 
     The joint static friction is a unitless quantity. It relates the magnitude of the spatial force transmitted
@@ -148,13 +148,13 @@ class ActuatorBaseCfg:
     it is modeled as an effort (torque or force).
     """
 
-    dynamic_friction: dict[str, float] | float | None = None
+    dynamic_friction: dict[str, float] | float = None
     """The dynamic friction coefficient of the joints in the group. Defaults to None.
 
     Note: In Isaac Sim 4.5, this parameter is modeled as a coefficient. In Isaac Sim 5.0 and later,
     it is modeled as an effort (torque or force).
     """
 
-    viscous_friction: dict[str, float] | float | None = None
+    viscous_friction: dict[str, float] | float = None
     """The viscous friction coefficient of the joints in the group. Defaults to None.
     """

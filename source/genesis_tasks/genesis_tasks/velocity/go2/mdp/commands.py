@@ -8,12 +8,13 @@ from typing import TYPE_CHECKING
 import torch
 
 from genesislab.managers.command_manager import CommandTerm, CommandTermCfg
+from genesislab.utils.configclass import configclass
 
 if TYPE_CHECKING:
     from genesislab.envs.manager_based_rl_env import ManagerBasedGenesisEnv
 
 
-@dataclass(kw_only=True)
+@configclass
 class VelocityCommandCfg(CommandTermCfg):
     """Configuration for Go2 forward velocity command term."""
 

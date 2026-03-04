@@ -92,7 +92,7 @@ class DelayBuffer:
     per_env_phase (bool, optional): If True and `update_period > 0`, each
       environment uses a different phase offset in `[0, update_period)`, causing
       staggered refresh steps across the batch.
-    generator (torch.Generator | None, optional): Optional RNG for sampling lags.
+    generator (torch.Generator, optional): Optional RNG for sampling lags.
 
   Examples:
     Constant delay (lag = 2):
@@ -127,7 +127,7 @@ class DelayBuffer:
     hold_prob: float = 0.0,
     update_period: int = 0,
     per_env_phase: bool = True,
-    generator: torch.Generator | None = None,
+    generator: torch.Generator = None,
   ) -> None:
     if min_lag < 0:
       raise ValueError(f"min_lag must be >= 0, got {min_lag}")
@@ -180,7 +180,7 @@ class DelayBuffer:
   def set_lags(
     self,
     lags: torch.Tensor,
-    batch_ids: Sequence[int] | torch.Tensor | slice | None = None,
+    batch_ids: Sequence[int] | torch.Tensor | slice = None,
   ) -> None:
     """Set lag values for specified environments.
 
@@ -192,7 +192,7 @@ class DelayBuffer:
     self._current_lags[idx] = lags.clamp(self.min_lag, self.max_lag)
 
   def reset(
-    self, batch_ids: Sequence[int] | torch.Tensor | slice | None = None
+    self, batch_ids: Sequence[int] | torch.Tensor | slice = None
   ) -> None:
     """Reset specified environments to initial state.
 

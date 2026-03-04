@@ -33,7 +33,7 @@ class SceneEntityCfg:
     entity_name: str
     """Logical name of the entity as used in the scene / binding."""
 
-    resolved: Any | None = field(default=None, init=False, repr=False)
+    resolved: Any = field(default=None, init=False, repr=False)
     """Resolved engine-level entity handle. Set by :meth:`resolve`."""
 
     def resolve(self, container: Any) -> None:

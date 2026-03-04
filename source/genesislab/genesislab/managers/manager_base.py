@@ -3,19 +3,20 @@ from __future__ import annotations
 import abc
 import inspect
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import field, MISSING
 from typing import TYPE_CHECKING, Any
 
 import torch
 
 from genesislab.managers.scene_entity_config import SceneEntityCfg
+from genesislab.utils.configclass import configclass
 from genesislab.utils.imports import resolve_callable
 
 if TYPE_CHECKING:
   from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
 
 
-@dataclass
+@configclass
 class ManagerTermBaseCfg:
   """Base configuration for manager terms.
 
@@ -54,7 +55,9 @@ class ManagerTermBaseCfg:
   Class-based terms can optionally implement ``reset(env_ids)`` for per-episode state.
   """
 
-  func: Any
+  # Required callable: annotated and given a member value using MISSING to
+  # indicate "no default" for configclass' mutable-type processing.
+  func: Any = MISSING
   """The callable that computes this term's value. Can be a function or a class.
   Classes are auto-instantiated with ``(cfg=term_cfg, env=env)``."""
 
@@ -82,7 +85,7 @@ class ManagerTermBase:
 
   # Methods.
 
-  def reset(self, env_ids: torch.Tensor | slice | None) -> Any:
+  def reset(self, env_ids: torch.Tensor | slice) -> Any:
     """Resets the manager term."""
     del env_ids  # Unused.
     pass

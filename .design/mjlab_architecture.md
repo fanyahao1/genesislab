@@ -166,11 +166,11 @@ At a high level:
 - Fields:
   - `num_envs: int`
   - `env_spacing: float`
-  - `terrain: TerrainEntityCfg | None`
+  - `terrain: TerrainEntityCfg`
   - `entities: dict[str, EntityCfg]`
   - `sensors: tuple[SensorCfg, ...]`
-  - `extent: float | None`
-  - `spec_fn: Callable[[mujoco.MjSpec], None] | None`
+  - `extent: float`
+  - `spec_fn: Callable[[mujoco.MjSpec], None]`
 - This config describes the overall scene layout and what entities / sensors to include.
 
 **Scene**
@@ -422,7 +422,7 @@ All managers:
 
 - Config type: `ActionTermCfg` (abstract base) with:
   - `entity_name: str`
-  - `clip: dict[str, tuple] | None`
+  - `clip: dict[str, tuple]`
   - Abstract `build(self, env) -> ActionTerm`.
 - `ActionTerm`:
   - Inherits from `ManagerTermBase`.

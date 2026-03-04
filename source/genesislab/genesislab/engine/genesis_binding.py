@@ -42,7 +42,7 @@ class GenesisBinding:
         """
         self.cfg = cfg
         self.device = device
-        self._scene: gs.Scene | None = None
+        self._scene: gs.Scene = None
         self._entities: dict[str, Any] = {}
         self._dof_indices: dict[str, torch.Tensor] = {}
         self._num_envs = cfg.num_envs
@@ -184,7 +184,7 @@ class GenesisBinding:
 
                 self._dof_indices[entity_name] = torch.tensor(dof_indices, dtype=torch.long, device=self.device)
 
-    def reset(self, env_ids: torch.Tensor | None = None) -> None:
+    def reset(self, env_ids: torch.Tensor = None) -> None:
         """Reset specified environments to initial state.
 
         Args:

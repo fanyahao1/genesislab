@@ -310,7 +310,7 @@ class ActuatorBase(ABC):
             table.append([name, int(ids[idx]), default_usd_val, cfg_val_log, applied_val_log])
 
     def _parse_joint_parameter(
-        self, cfg_value: float | dict[str, float] | None, default_value: float | torch.Tensor | None
+        self, cfg_value: float | dict[str, float], default_value: float | torch.Tensor
     ) -> torch.Tensor:
         """Parse the joint parameter from the configuration.
 

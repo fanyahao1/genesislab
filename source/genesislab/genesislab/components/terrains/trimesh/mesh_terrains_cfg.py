@@ -217,7 +217,7 @@ class MeshRepeatedObjectsTerrainCfg(SubTerrainBaseCfg):
     object_params_end: ObjectCfg = MISSING
     """The object curriculum parameters at the end of the curriculum."""
 
-    max_height_noise: float | None = None
+    max_height_noise: float = None
     """"This parameter is deprecated, but stated here to support backward compatibility"""
 
     abs_height_noise: tuple[float, float] = (0.0, 0.0)

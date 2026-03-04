@@ -13,7 +13,7 @@ import genesis as gs
 import torch
 
 if TYPE_CHECKING:
-    from genesislab.configs.scene_cfg import SceneCfg
+    from genesislab.components.entities.scene_cfg import SceneCfg
 
 from genesislab.engine.assets.articulation import GenesisArticulation, GenesisArticulationCfg
 

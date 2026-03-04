@@ -5,7 +5,7 @@ This module provides a thin, IsaacLab-style wrapper around
 class for manager-based workflows.
 
 - ``ManagerBasedRlEnvCfg`` is a small specialization of
-  :class:`genesislab.configs.env_cfg.ManagerBasedGenesisEnvCfg` with RL-centric
+  :class:`genesislab.components.entities.env_cfg.ManagerBasedGenesisEnvCfg` with RL-centric
   documentation.
 - ``ManagerBasedRlEnv`` subclasses :class:`ManagerBasedGenesisEnv` and keeps
   the same reset/step semantics as used throughout GenesisLab.
@@ -59,7 +59,7 @@ class ManagerBasedRlEnvCfg(ManagerBasedGenesisEnvCfg):
 
     Key fields inherited from :class:`ManagerBasedGenesisEnvCfg`:
 
-    - ``scene``: :class:`genesislab.configs.scene_cfg.SceneCfg` describing the
+    - ``scene``: :class:`genesislab.components.entities.scene_cfg.SceneCfg` describing the
       Genesis scene (robots, terrain, sensors, simulation options).
     - ``decimation``: number of physics steps per environment step.
     - ``rewards`` / ``terminations`` / ``commands`` / ``observations`` /

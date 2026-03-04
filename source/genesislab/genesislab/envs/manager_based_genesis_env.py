@@ -8,7 +8,7 @@ from typing import Any, ClassVar
 import torch
 from dataclasses import dataclass, field
 
-from genesislab.configs.scene_cfg import SceneCfg
+from genesislab.components.entities.scene_cfg import SceneCfg
 from genesislab.utils.configclass import configclass
 
 from genesislab.engine.genesis_binding import GenesisBinding

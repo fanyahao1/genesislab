@@ -20,7 +20,7 @@ from typing import Dict, Optional, Sequence
 import genesis as gs
 import torch
 
-from genesislab.configs.binding_cfg import SceneBindingCfg
+from genesislab.components.entities.binding_cfg import SceneBindingCfg
 from genesislab.engine.entity_indexing import RobotIndexInfo
 from genesislab.engine.scene_builder import SceneBuildError, build_scene_from_cfg
 
@@ -156,7 +156,7 @@ class GenesisBinding:
         This is intended for early development and smoke tests; more advanced
         tasks should use fully-configured SceneBindingCfg instances.
         """
-        from genesislab.configs.binding_cfg import RobotBindingCfg, SceneBindingCfg, TerrainBindingCfg
+        from genesislab.components.entities.binding_cfg import RobotBindingCfg, SceneBindingCfg, TerrainBindingCfg
 
         robot_cfg = RobotBindingCfg(
             name="agent",

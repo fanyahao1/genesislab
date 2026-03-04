@@ -11,7 +11,7 @@ from typing import Dict, Tuple
 
 import genesis as gs
 
-from genesislab.configs.binding_cfg import RobotBindingCfg, SceneBindingCfg, TerrainBindingCfg
+from genesislab.components.entities.binding_cfg import RobotBindingCfg, SceneBindingCfg, TerrainBindingCfg
 from genesislab.engine.entity_indexing import RobotIndexInfo, build_robot_index_info
 
 

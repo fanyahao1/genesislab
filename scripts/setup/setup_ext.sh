@@ -41,13 +41,10 @@ install_modules() {
 echo "🧩 Checking and cloning required repositories..."
 
 clone_repo git@github.com:Renforce-Dynamics/assetslib.git ./data/assets/assetslib
-clone_repo git@github.com:Renforce-Dynamics/robotlib.git ./source/robotlib
 
 modules=(
     "./source/genesis_tasks"
     "./source/genesis_lab"
-    "./source/robotlib"
-    "./source/demo_tasks"
 )
 
 install_modules "${modules[@]}"

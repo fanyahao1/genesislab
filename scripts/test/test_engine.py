@@ -17,8 +17,8 @@ import argparse
 import genesis as gs
 import torch
 
-from genesislab.configs.scene_cfg import SceneCfg
-from genesislab.configs.robot_cfg import RobotCfg
+from genesislab.components.entities.scene_cfg import SceneCfg
+from genesislab.components.entities.robot_cfg import RobotCfg
 from genesislab.engine.genesis_binding import GenesisBinding
 
 

@@ -2,9 +2,9 @@
 
 from dataclasses import field
 
-from genesislab.envs.manager_based_rl_env import ManagerBasedGenesisEnvCfg
-from genesislab.configs.robot_cfg import RobotCfg
-from genesislab.configs.scene_cfg import SceneCfg
+from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
+from genesislab.components.entities.robot_cfg import RobotCfg
+from genesislab.components.entities.scene_cfg import SceneCfg
 from genesislab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from genesislab.managers.reward_manager import RewardTermCfg
 from genesislab.managers.termination_manager import TerminationTermCfg
@@ -14,7 +14,7 @@ from genesis_tasks.velocity.go2.mdp.commands import VelocityCommandCfg
 
 
 @configclass
-class Go2VelocityEnvCfg(ManagerBasedGenesisEnvCfg):
+class Go2VelocityEnvCfg(ManagerBasedRlEnv):
     """Minimal configuration for Go2 velocity tracking task.
 
     This config implements a simple velocity tracking task where the Go2 robot

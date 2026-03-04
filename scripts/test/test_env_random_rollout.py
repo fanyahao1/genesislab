@@ -14,9 +14,9 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from genesislab.configs.env_cfg import ManagerBasedGenesisEnvCfg
-from genesislab.configs.robot_cfg import RobotCfg
-from genesislab.configs.scene_cfg import SceneCfg
+from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
+from genesislab.components.entities.robot_cfg import RobotCfg
+from genesislab.components.entities.scene_cfg import SceneCfg
 from genesislab.envs import ManagerBasedGenesisEnv
 from genesislab.managers.action_manager import ActionTerm, ActionTermCfg
 from genesislab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
@@ -95,7 +95,7 @@ def test_random_rollout():
         terrain={"type": "plane"},
     )
 
-    env_cfg = ManagerBasedGenesisEnvCfg(
+    env_cfg = ManagerBasedRlEnv(
         decimation=10,
         scene=scene_cfg,
         observations={

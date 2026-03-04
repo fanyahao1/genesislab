@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from genesislab.utils.configclass import configclass
-
+from .robot_cfg import RobotCfg
 
 @configclass
 class SceneCfg:
@@ -66,7 +66,4 @@ class SceneCfg:
             "requires_grad": self.requires_grad,
             "gravity": self.gravity,
         }
-
-
-from .robot_cfg import RobotCfg  # isort:skip  # circular-friendly import
 

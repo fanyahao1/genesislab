@@ -6,7 +6,7 @@ This package mirrors IsaacLab's ``isaaclab_rl.rsl_rl`` helpers and exposes:
   :class:`rsl_rl.env.VecEnv` used by :class:`rsl_rl.runners.OnPolicyRunner`.
 """
 
-from .env_wrappers import GenesisRslRlVecEnv, ObsGroupMapping
+from .env_wrappers import GenesisRslRlVecEnv
 
-__all__ = ["GenesisRslRlVecEnv", "ObsGroupMapping"]
+__all__ = ["GenesisRslRlVecEnv"]
 

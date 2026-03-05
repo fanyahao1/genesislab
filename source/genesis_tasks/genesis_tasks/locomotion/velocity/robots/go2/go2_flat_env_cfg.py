@@ -5,7 +5,7 @@ from genesislab.components.entities.scene_cfg import SceneCfg, TerrainCfg
 from genesislab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from genesislab.managers.reward_manager import RewardTermCfg
 from genesislab.managers.termination_manager import TerminationTermCfg
-from genesislab.managers.scene_entity_config import SceneEntityCfg
+from genesislab.components.entities.scene_entity_cfg import SceneEntityCfg
 from genesis_tasks.locomotion.velocity.velocity_env_cfg import VelocityEnvCfg
 from genesis_tasks.locomotion.velocity.mdp import (
     JointPositionActionCfg,

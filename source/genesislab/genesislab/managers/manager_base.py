@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
-from genesislab.managers.scene_entity_config import SceneEntityCfg
+from genesislab.components.entities.scene_entity_cfg import SceneEntityCfg
 from genesislab.utils.configclass import configclass
 from genesislab.utils.imports import resolve_callable
 

@@ -10,11 +10,12 @@ time so that term functions can access the resolved handle efficiently.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import MISSING, field
 from typing import Any
 
+from genesislab.utils.configclass import configclass
 
-@dataclass
+@configclass
 class SceneEntityCfg:
     """Configuration for referencing a scene entity in manager term configs.
 
@@ -30,10 +31,10 @@ class SceneEntityCfg:
     - An object with attributes corresponding to entity names.
     """
 
-    entity_name: str
+    entity_name: str = MISSING
     """Logical name of the entity as used in the scene / binding."""
 
-    resolved: Any = field(default=None, init=False, repr=False)
+    resolved: Any = None
     """Resolved engine-level entity handle. Set by :meth:`resolve`."""
 
     def resolve(self, container: Any) -> None:

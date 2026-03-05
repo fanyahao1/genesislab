@@ -6,7 +6,6 @@ but is implemented for GenesisLab's manager-based RL environments.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any, Dict, Mapping, Sequence
 
 import torch
@@ -16,21 +15,6 @@ from rsl_rl.env import VecEnv
 
 from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
 from genesislab.envs.common import VecEnvObs
-
-
-@dataclass
-class ObsGroupMapping:
-    """Mapping from rsl_rl obs sets to Genesis observation groups.
-
-    In rsl_rl, the runner configuration uses an ``obs_groups`` dictionary to
-    decide which observation groups feed which models (actor, critic, etc.).
-
-    This small dataclass mirrors that idea on the environment side so that
-    ``GenesisRslRlVecEnv`` can assemble a TensorDict in the expected format.
-    """
-
-    policy: Sequence[str] = ("policy",)
-    critic: Sequence[str] = ("critic",)
 
 
 class GenesisRslRlVecEnv(VecEnv):
@@ -46,10 +30,8 @@ class GenesisRslRlVecEnv(VecEnv):
     def __init__(
         self,
         env: ManagerBasedRlEnv,
-        obs_mapping: ObsGroupMapping | None = None,
     ) -> None:
         self._env: ManagerBasedRlEnv = env
-        self.obs_mapping: ObsGroupMapping = obs_mapping or ObsGroupMapping()
 
         # Required VecEnv attributes
         self.num_envs: int = env.num_envs

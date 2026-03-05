@@ -9,7 +9,6 @@ This script validates that a GenesisLab environment can:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import genesis as gs

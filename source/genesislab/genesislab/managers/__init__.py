@@ -25,6 +25,6 @@ from genesislab.managers.observation_manager import ObservationManager as Observ
 from genesislab.managers.observation_manager import ObservationTermCfg as ObservationTermCfg
 from genesislab.managers.reward_manager import RewardManager as RewardManager
 from genesislab.managers.reward_manager import RewardTermCfg as RewardTermCfg
-from genesislab.managers.scene_entity_config import SceneEntityCfg as SceneEntityCfg
+from genesislab.components.entities.scene_entity_cfg import SceneEntityCfg as SceneEntityCfg
 from genesislab.managers.termination_manager import TerminationManager as TerminationManager
 from genesislab.managers.termination_manager import TerminationTermCfg as TerminationTermCfg

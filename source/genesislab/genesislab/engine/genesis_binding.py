@@ -75,8 +75,16 @@ class GenesisBinding:
         """
         # Create scene with simulation options
         sim_options = gs.options.SimOptions(**self.cfg.to_genesis_options())
+        # Viewer options: we respect ``SceneCfg.viewer`` to control whether a
+        # window is shown. This keeps the default behaviour (viewer on) but
+        # allows scripts to disable it for headless runs.
+        viewer_options = gs.options.ViewerOptions()
 
-        self._scene = gs.Scene(sim_options=sim_options)
+        self._scene = gs.Scene(
+            sim_options=sim_options,
+            viewer_options=viewer_options,
+            show_viewer=getattr(self.cfg, "viewer", True),
+        )
 
         # Add terrain if specified
         if self.cfg.terrain is not None:
@@ -89,6 +97,32 @@ class GenesisBinding:
         # Add sensors if specified
         for sensor_name, sensor_cfg in self.cfg.sensors.items():
             self._add_sensor(sensor_name, sensor_cfg)
+
+        # Optional: attach a simple camera and start video recording before
+        # building the scene, if requested via the scene config.
+        video_path = getattr(self.cfg, "record_video_path", None)
+        if video_path is not None:
+            # Simple chase camera looking at the origin / robot area.
+            camera = self._scene.add_camera(
+                res=(1280, 720),
+                pos=(3.5, 0.0, 2.5),
+                lookat=(0.0, 0.0, 0.5),
+                fov=40,
+                GUI=False,
+            )
+            self._scene.start_recording(
+                data_func=lambda: camera.render(
+                    rgb=True,
+                    depth=False,
+                    segmentation=False,
+                    normal=False,
+                )[0],
+                rec_options=gs.recorders.VideoFile(
+                    filename=str(video_path),
+                    codec="libx264",
+                    codec_options={"preset": "veryfast", "tune": "zerolatency"},
+                ),
+            )
 
         # Build the scene
         self._scene.build(

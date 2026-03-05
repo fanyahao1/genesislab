@@ -8,17 +8,26 @@ Usage:
 """
 
 import sys
+import time
+import argparse
 from pathlib import Path
 
 import genesis as gs
 import torch
 
+from genesislab.cli import add_viewer_args
 from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
 from genesis_tasks.locomotion.velocity.robots.go2.go2_flat_env_cfg import Go2FlatVelocityEnvCfg
 
 
-def test_vectorized():
-    """Run vectorized environment test."""
+def test_vectorized(window: bool = True, render: bool = False, video: str | None = None) -> bool:
+    """Run vectorized environment test.
+
+    Args:
+        window: Whether to show the Genesis viewer window.
+        render: Whether to slow down stepping for human-viewable rendering.
+        video: Optional path to save a rendered video (currently not implemented).
+    """
     print("=" * 60)
     print("GenesisLab Vectorization Test")
     print("=" * 60)
@@ -30,8 +39,14 @@ def test_vectorized():
 
     # Create config with multiple environments
     cfg = Go2FlatVelocityEnvCfg()
-    cfg.scene.num_envs = 4096  # Use 64 environments
+    # If we want to look at the motion, default to a single env; otherwise keep a large batch.
+    cfg.scene.num_envs = 1 if (window or render or video is not None) else 4096
     cfg.scene.backend = backend_str
+    # Control whether the viewer window is shown.
+    cfg.scene.viewer = bool(window)
+    # If a video path is provided, let the binding attach a camera and start recording.
+    if video is not None:
+        cfg.scene.record_video_path = str(Path(video))
 
     print(f"\nCreating environment with {cfg.scene.num_envs} env(s)...")
     try:
@@ -46,6 +61,7 @@ def test_vectorized():
         traceback.print_exc()
         return False
 
+    scene = env._binding.scene
     # Test reset
     print("\nTesting reset...")
     try:
@@ -71,7 +87,7 @@ def test_vectorized():
         total_reward = torch.zeros(env.num_envs, device=env.device)
         reset_count = 0
 
-        for step in range(200):
+        for step in range(int(220)):
             # Random actions
             action = torch.randn(
                 (env.num_envs, env.action_manager.total_action_dim),
@@ -81,6 +97,10 @@ def test_vectorized():
 
             # Step
             obs, reward, terminated, truncated, info = env.step(action)
+
+            # Optional slow stepping for visual inspection
+            if render or window:
+                time.sleep(1.0 / 60.0)
 
             # Verify batch shapes
             for key, value in obs.items():
@@ -115,10 +135,18 @@ def test_vectorized():
         print(f"  - Final avg reward: {total_reward.mean().item():.4f}")
         print(f"  - Total resets: {reset_count}")
         print(f"  - All batch shapes correct ✓")
+        # Finalize any active recordings started in GenesisBinding.
+        if video is not None:
+            scene.stop_recording()
     except Exception as e:
         print(f"✗ Vectorized stepping failed: {e}")
         import traceback
         traceback.print_exc()
+        if video is not None:
+            try:
+                scene.stop_recording()
+            except Exception:
+                pass
         return False
 
     print("\n" + "=" * 60)
@@ -128,5 +156,9 @@ def test_vectorized():
 
 
 if __name__ == "__main__":
-    success = test_vectorized()
+    parser = argparse.ArgumentParser()
+    add_viewer_args(parser)
+    args = parser.parse_args()
+
+    success = test_vectorized(window=args.window, render=args.render, video=args.video)
     sys.exit(0 if success else 1)

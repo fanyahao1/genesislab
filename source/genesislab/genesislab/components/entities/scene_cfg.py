@@ -56,6 +56,14 @@ class SceneCfg:
     gravity: tuple[float, float, float] = (0.0, 0.0, -9.81)
     """Gravity vector (x, y, z)."""
 
+    # Viewer / visualization options
+    viewer: bool = True
+    """Whether to show the Genesis viewer window for this scene."""
+
+    # Optional path for recording a video from a default camera.
+    record_video_path: str | None = None
+    """If set, GenesisBinding will attach a camera and start a VideoFile recorder."""
+
     # Entity configurations
     robots: dict[str, "RobotCfg"] = {}
     """Dictionary of robot configurations keyed by logical entity name."""

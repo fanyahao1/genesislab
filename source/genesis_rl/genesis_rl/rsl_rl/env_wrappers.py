@@ -29,8 +29,8 @@ class ObsGroupMapping:
     ``GenesisRslRlVecEnv`` can assemble a TensorDict in the expected format.
     """
 
-    actor: Sequence[str] = ("policy",)
-    critic: Sequence[str] = ("policy",)
+    policy: Sequence[str] = ("policy",)
+    critic: Sequence[str] = ("critic",)
 
 
 class GenesisRslRlVecEnv(VecEnv):
@@ -80,15 +80,16 @@ class GenesisRslRlVecEnv(VecEnv):
 
         - We assume the environment exposes a *concatenated* observation tensor
           for the policy group under the key ``"policy"``.
-        - We then create two views:
+        - We then create three views:
           - ``"actor"``: concatenated tensor used by the policy network.
-          - ``"critic"``: same tensor for the value network.
+          - ``"critic"``: same tensor for the value network (if no dedicated
+            critic group is defined, we fall back to the policy obs).
+          - ``"policy"``: mirrored policy set, for algorithms that expect an
+            explicit ``"policy"`` observation set.
 
         This matches the common configuration where both actor and critic share
-        the same input.
-
-        If you wish to expose multiple groups, you can extend this function and
-        the ``ObsGroupMapping`` dataclass accordingly.
+        the same input while also satisfying rsl_rl's expectation of a
+        ``"policy"`` observation set.
         """
         if "policy" not in obs_dict:
             raise KeyError(
@@ -106,7 +107,8 @@ class GenesisRslRlVecEnv(VecEnv):
         # We keep a minimal structure: a single tensor for each obs set.
         data = {
             "actor": policy_obs,
-            "critic": policy_obs,
+            "critic": policy_obs,  # default critic obs = policy obs
+            "policy": policy_obs,
         }
         return TensorDict(data, batch_size=[self.num_envs])
 

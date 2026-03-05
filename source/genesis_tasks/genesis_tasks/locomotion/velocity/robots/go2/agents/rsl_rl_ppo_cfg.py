@@ -64,7 +64,7 @@ class Go2FlatPPORunnerCfg(Go2RoughPPORunnerCfg):
     def __post_init__(self):
         super().__post_init__()
 
-        self.max_iterations = 300
+        self.max_iterations = 1500
         self.experiment_name = "go2_flat"
         self.policy.actor_hidden_dims = [128, 128, 128]
         self.policy.critic_hidden_dims = [128, 128, 128]

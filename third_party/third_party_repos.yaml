@@ -3,3 +3,4 @@ repos:
     url: https://github.com/leggedrobotics/rsl_rl.git
     path: ./third_party/rsl_rl
     editable: true
+    ref: v3.1.2

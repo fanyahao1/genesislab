@@ -11,15 +11,21 @@ YAML_FILE="${THIRD_PARTY_YAML:-$(dirname "$0")/third_party_repos.yaml"
 # Utility functions
 # ============================================================
 
-# Clone a repository if it doesn't already exist
+# Clone a repository if it doesn't already exist; optionally checkout a ref (tag/branch/commit)
 clone_repo() {
     local repo_url=$1
     local target_dir=$2
+    local repo_ref=$3
 
     if [ ! -d "$target_dir/.git" ]; then
         echo "→ Cloning $repo_url to $target_dir ..."
         mkdir -p "$(dirname "$target_dir")"
-        git clone "$repo_url" "$target_dir"
+        if [ -n "$repo_ref" ]; then
+            echo "   - Using ref: $repo_ref"
+            git clone --branch "$repo_ref" --depth 1 "$repo_url" "$target_dir"
+        else
+            git clone "$repo_url" "$target_dir"
+        fi
     else
         echo "✔ Repository already exists at $target_dir, skipping clone."
     fi
@@ -45,7 +51,7 @@ install_modules() {
     done
 }
 
-# Parse our simple YAML file and emit: URL<TAB>PATH<TAB>EDITABLE
+# Parse our simple YAML file and emit: URL<TAB>PATH<TAB>EDITABLE<TAB>REF
 parse_yaml_repos() {
     python - << 'PY'
 import os
@@ -94,8 +100,9 @@ for repo in repos:
     path = repo.get("path", "")
     editable_raw = str(repo.get("editable", "")).lower()
     editable = "true" if editable_raw in ("true", "1", "yes", "y") else "false"
+    ref = repo.get("ref", "")
     if url and path:
-        print(f"{url}\t{path}\t{editable}")
+        print(f"{url}\t{path}\t{editable}\t{ref}")
 PY
 }
 
@@ -114,10 +121,10 @@ echo "🧩 Checking and cloning required repositories..."
 
 editable_modules=()
 
-while IFS=$'\t' read -r repo_url repo_path editable; do
+while IFS=$'\t' read -r repo_url repo_path editable repo_ref; do
     [ -z "$repo_url" ] && continue
 
-    clone_repo "$repo_url" "$repo_path"
+    clone_repo "$repo_url" "$repo_path" "$repo_ref"
 
     if [ "$editable" = "true" ]; then
         editable_modules+=("$repo_path")

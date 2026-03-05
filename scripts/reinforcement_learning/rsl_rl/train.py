@@ -106,7 +106,7 @@ def main() -> None:
 
     # Optional override of num_learning_iterations.
     if args.num_iters is not None:
-        train_cfg["num_learning_iterations"] = args.num_iters
+        train_cfg["max_iterations"] = args.num_iters
 
     # Prepare log directory
     log_dir = os.path.abspath(args.log_dir)
@@ -114,23 +114,16 @@ def main() -> None:
 
     runner = OnPolicyRunner(vec_env, train_cfg=train_cfg, log_dir=log_dir, device=args.device)
 
-    num_learning_iterations = int(train_cfg.get("num_learning_iterations", 0))
-    if num_learning_iterations <= 0 and args.num_iters is None:
-        raise ValueError(
-            "Number of learning iterations must be specified either in 'train-cfg' "
-            "under 'num_learning_iterations' or via '--num-iters'."
-        )
-    if args.num_iters is not None:
-        num_learning_iterations = args.num_iters
+    max_iterations = int(train_cfg.get("max_iterations"))
 
-    print(f"[GenesisLab][rsl_rl] Starting training for {num_learning_iterations} iterations...")
-    runner.learn(num_learning_iterations=num_learning_iterations)
+    print(f"[GenesisLab][rsl_rl] Starting training for {max_iterations} iterations...")
+    runner.learn(num_learning_iterations=max_iterations)
     print("[GenesisLab][rsl_rl] Training finished.")
 
 
 if __name__ == "__main__":
     # Initialize Genesis engine before creating any environments.
-    gs.init()
+    gs.init(logging_level="WARNING")
 
     # Ensure TF32 is enabled for better performance when using CUDA.
     if torch.cuda.is_available():

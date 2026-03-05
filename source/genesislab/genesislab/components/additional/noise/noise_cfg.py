@@ -15,7 +15,7 @@ NoiseParam = Union[float, Tuple[float, Any]]
 
 
 @configclass
-class NoiseCfg(abc.ABC):
+class NoiseCfg:
   """Base configuration for a noise term."""
 
   operation: Literal["add", "scale", "abs"] = "add"
@@ -36,9 +36,12 @@ class NoiseCfg(abc.ABC):
       self._tensor_cache[device_key][name] = torch.tensor(value, device=device)
     return self._tensor_cache[device_key][name]
 
-  @abc.abstractmethod
   def apply(self, data: torch.Tensor) -> torch.Tensor:
-    """Apply noise to the input data."""
+    """Apply noise to the input data.
+    
+    This method must be implemented by subclasses.
+    """
+    raise NotImplementedError("Subclasses must implement apply()")
 
 
 @configclass

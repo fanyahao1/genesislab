@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 @configclass
-class CommandTermCfg(abc.ABC):
+class CommandTermCfg:
   """Configuration for a command generator term.
 
   Command terms generate goal commands for the agent (e.g., target velocity,
@@ -40,10 +40,12 @@ class CommandTermCfg(abc.ABC):
   the command term's ``_debug_vis_impl`` method is called each frame to render
   visual aids (e.g., velocity arrows, target markers)."""
 
-  @abc.abstractmethod
   def build(self, env: "ManagerBasedRlEnv") -> CommandTerm:
-    """Build the command term from this config."""
-    raise NotImplementedError
+    """Build the command term from this config.
+    
+    This method must be implemented by subclasses.
+    """
+    raise NotImplementedError("Subclasses must implement build()")
 
 
 class CommandTerm(ManagerTermBase):

@@ -38,7 +38,7 @@ def test_engine_binding(num_envs: int = 4, backend: str = "cpu") -> bool:
         robots={
             "robot": RobotCfg(
                 morph_type="URDF",
-                morph_path="urdf/go2/urdf/go2.urdf",
+                morph_path="./data/assets/assetslib/unitree/unitree_g1/urdf/g1_29dof.urdf",
                 initial_pose={"pos": [0.0, 0.0, 0.42], "quat": [0.0, 0.0, 0.0, 1.0]},
                 fixed_base=False,
             )

@@ -12,9 +12,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import genesis as gs
 import torch
 
-from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
+from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnvCfg
 from genesislab.components.entities.robot_cfg import RobotCfg
 from genesislab.components.entities.scene_cfg import SceneCfg
 from genesislab.envs import ManagerBasedGenesisEnv
@@ -78,16 +79,20 @@ def test_random_rollout():
     """Test random policy rollout."""
     print("Testing random policy rollout...")
 
+    # Initialize Genesis
+    backend_str = "cuda" if torch.cuda.is_available() else "cpu"
+    gs.init(backend=gs.gpu if backend_str == "cuda" else gs.cpu)
+
     # Create a minimal environment config using the Go2 asset
     scene_cfg = SceneCfg(
         num_envs=4,
         dt=0.002,
         substeps=1,
-        backend="cuda" if torch.cuda.is_available() else "cpu",
+        backend=backend_str,
         robots={
             "go2": RobotCfg(
                 morph_type="MJCF",
-                morph_path="assetslib/unitree/unitree_go2/mjcf/go2.xml",
+                morph_path="./data/assets/assetslib/unitree/unitree_go2/mjcf/go2.xml",
                 initial_pose={"pos": [0.0, 0.0, 0.5], "quat": [0.0, 0.0, 0.0, 1.0]},
                 fixed_base=False,
                 control_dofs=None,  # Control all DOFs
@@ -96,7 +101,7 @@ def test_random_rollout():
         terrain={"type": "plane"},
     )
 
-    env_cfg = ManagerBasedRlEnv(
+    env_cfg = ManagerBasedRlEnvCfg(
         decimation=10,
         scene=scene_cfg,
         observations={
@@ -106,7 +111,7 @@ def test_random_rollout():
                         func=lambda env: env._binding.get_joint_state("go2")[0],
                     ),
                 },
-                concatenate=True,
+                concatenate_terms=True,
             )
         },
         actions={
@@ -122,7 +127,7 @@ def test_random_rollout():
         },
         terminations={
             "fall": TerminationTermCfg(
-                func=lambda env: env._binding.get_root_state("robot")[0][:, 2] < 0.1,
+                func=lambda env: env._binding.get_root_state("go2")[0][:, 2] < 0.1,
                 time_out=False,
             )
         },
@@ -132,7 +137,7 @@ def test_random_rollout():
 
     # Create environment
     print("Creating environment...")
-    env = ManagerBasedGenesisEnv(cfg=env_cfg, device="cuda")
+    env = ManagerBasedGenesisEnv(cfg=env_cfg, device=backend_str)
     print(f"✓ Environment created with {env.num_envs} environments")
 
     # Reset

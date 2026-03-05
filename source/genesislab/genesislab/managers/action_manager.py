@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import abc
-from dataclasses import MISSING
-from typing import TYPE_CHECKING, Sequence
+from dataclasses import MISSING, field
+from typing import TYPE_CHECKING, Optional, Sequence
 
 import torch
 from prettytable import PrettyTable
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 @configclass
-class ActionTermCfg(abc.ABC):
+class ActionTermCfg:
   """Configuration for an action term.
 
   Action terms process raw actions from the policy and apply them to entities
@@ -28,14 +28,16 @@ class ActionTermCfg(abc.ABC):
   entity_name: str = MISSING
   """Name of the entity in the scene that this action term controls."""
 
-  clip: dict[str, tuple] = None
+  clip: Optional[dict[str, tuple]] = field(default_factory=lambda: None)
   """Optional clipping bounds per transmission type. Maps transmission name
   (e.g., 'position', 'velocity') to (min, max) tuple."""
 
-  @abc.abstractmethod
   def build(self, env: "ManagerBasedRlEnv") -> ActionTerm:
-    """Build the action term from this config."""
-    raise NotImplementedError
+    """Build the action term from this config.
+    
+    This method must be implemented by subclasses.
+    """
+    raise NotImplementedError("Subclasses must implement build()")
 
 
 class ActionTerm(ManagerTermBase):

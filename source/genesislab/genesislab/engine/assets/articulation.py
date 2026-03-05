@@ -89,16 +89,23 @@ class GenesisArticulation(GenesisAssetBase):
 
         morph_type = self.cfg.morph_type.upper()
         morph_kwargs = dict(self.cfg.morph_options)
-        morph_kwargs.setdefault("fixed", self.cfg.fixed_base)
-
+        
         pos = self.cfg.initial_pose.get("pos", [0.0, 0.0, 0.0])
         quat = self.cfg.initial_pose.get("quat", [0.0, 0.0, 0.0, 1.0])
 
         if morph_type == "URDF":
+            # URDF supports the 'fixed' parameter
+            morph_kwargs.setdefault("fixed", self.cfg.fixed_base)
             morph = gs.morphs.URDF(file=self.cfg.morph_path, pos=pos, quat=quat, **morph_kwargs)
         elif morph_type == "MJCF":
+            # MJCF does not support the 'fixed' parameter, so we don't pass it
+            if "fixed" in morph_kwargs:
+                morph_kwargs.pop("fixed")
             morph = gs.morphs.MJCF(file=self.cfg.morph_path, pos=pos, quat=quat, **morph_kwargs)
         elif morph_type == "USD":
+            # USD may or may not support 'fixed', so we conditionally add it
+            if self.cfg.fixed_base:
+                morph_kwargs.setdefault("fixed", self.cfg.fixed_base)
             morph = gs.morphs.USD(file=self.cfg.morph_path, pos=pos, quat=quat, **morph_kwargs)
         else:
             raise ValueError(f"Unsupported morph type for GenesisArticulation: {morph_type}")

@@ -58,11 +58,14 @@ class SceneCfg:
     """Sensor configurations keyed by sensor name."""
 
     def to_genesis_options(self) -> dict[str, Any]:
-        """Convert this config to keyword arguments for ``gs.options.SimOptions``."""
+        """Convert this config to keyword arguments for ``gs.options.SimOptions``.
+        
+        Note: The `backend` field is not included here because it is set during
+        `gs.init()`, not in `SimOptions`.
+        """
         return {
             "dt": self.dt,
             "substeps": self.substeps,
-            "backend": self.backend,
             "requires_grad": self.requires_grad,
             "gravity": self.gravity,
         }

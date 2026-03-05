@@ -332,13 +332,15 @@ class ManagerBasedGenesisEnv:
 
 @configclass
 class ManagerBasedGenesisEnvCfg:
-    """Configuration for a manager-based Genesis RL environment.
-
-    This config captures the high-level environment settings:
-
+    """Configuration for a manager-based Genesis environment.
+    
+    This base config is agnostic to any particular MDP or RL algorithm. It captures
+    the high-level environment settings:
+    
     - Scene configuration (robots, terrain, sensors, simulation dt, etc.).
     - Manager configurations (observation, action, reward, termination, commands).
-    - Episode timing and reward scaling options.
+    - Generic episode timing and reward scaling options that higher-level RL
+      wrappers may interpret according to their own semantics.
     """
 
     # Base environment configuration

@@ -14,11 +14,13 @@ class for manager-based workflows.
 from __future__ import annotations
 
 import importlib
-from dataclasses import dataclass
 from typing import Any
 
-from genesislab.envs.manager_based_genesis_env import ManagerBasedGenesisEnv, ManagerBasedGenesisEnvCfg
+import torch
+
 from genesislab.envs.common import VecEnvObs, VecEnvStepReturn
+from genesislab.envs.manager_based_genesis_env import ManagerBasedGenesisEnv, ManagerBasedGenesisEnvCfg
+from genesislab.managers import CurriculumManager, NullCurriculumManager
 from genesislab.utils.configclass import configclass
 
 
@@ -71,26 +73,143 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
                 cfg = cfg_cls
 
         super().__init__(cfg=cfg, device=device)
+
+        # ------------------------------------------------------------------
+        # Curriculum manager (optional) – only used for RL-style tasks.
+        # Pattern aligned with mjlab / IsaacLab:
+        #   - If curriculum config is empty → NullCurriculumManager
+        #   - Otherwise → real CurriculumManager
+        # ------------------------------------------------------------------
+        curriculum_cfg = getattr(self.cfg, "curriculum", None)
+        has_curriculum = False
+        if isinstance(curriculum_cfg, dict):
+            has_curriculum = len(curriculum_cfg) > 0
+        elif curriculum_cfg is not None:
+            # For configclass-style curriculum configs, treat any non-None
+            # instance as "enabled" and let CurriculumManager skip None/MISSING
+            # terms internally.
+            has_curriculum = True
+
+        if has_curriculum:
+            self.curriculum_manager = CurriculumManager(cfg=curriculum_cfg, env=self)
+        else:
+            self.curriculum_manager = NullCurriculumManager()
+
+        print("[ManagerBasedRlEnv] Curriculum manager:", self.curriculum_manager)
+
         # Set a default render fps in metadata for viewers/wrappers.
         self.metadata["render_fps"] = 1.0 / self.step_dt
 
-    # The ``reset`` and ``step`` methods are inherited directly from
-    # :class:`ManagerBasedGenesisEnv` and already use VecEnvObs / VecEnvStepReturn.
+    # ----------------------------------------------------------------------
+    # Core API overrides to integrate curriculum updates.
+    # ----------------------------------------------------------------------
+
+    def reset(
+        self,
+        seed: int | None = None,
+        env_ids: torch.Tensor | list[int] | tuple[int, ...] | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> tuple[VecEnvObs, dict[str, Any]]:
+        """Reset the environment with curriculum support.
+
+        This mirrors :meth:`ManagerBasedGenesisEnv.reset` but additionally:
+
+        1. Updates curriculum state before resets via :meth:`curriculum_manager.compute`.
+        2. Logs curriculum quantities via :meth:`curriculum_manager.reset`.
+        """
+        del options  # Currently unused, kept for Gymnasium compatibility.
+
+        # Re-seed if provided
+        if seed is not None:
+            self.seed(seed)
+
+        # Determine which environments to reset
+        if env_ids is None:
+            env_ids = torch.arange(self.num_envs, device=self.device)
+        elif isinstance(env_ids, (list, tuple)):
+            env_ids = torch.tensor(env_ids, dtype=torch.long, device=self.device)
+
+        # Update curriculum state before resetting environments.
+        self.curriculum_manager.compute(env_ids=env_ids)
+
+        # Reset engine binding
+        self._binding.reset(env_ids=env_ids)
+
+        # Reset episode counters
+        self.episode_length_buf[env_ids] = 0
+
+        # Reset managers and collect extras
+        manager_extras: dict[str, Any] = {}
+        manager_extras.update(self.action_manager.reset(env_ids=env_ids))
+        manager_extras.update(self.observation_manager.reset(env_ids=env_ids))
+        manager_extras.update(self.reward_manager.reset(env_ids=env_ids))
+        manager_extras.update(self.termination_manager.reset(env_ids=env_ids))
+        manager_extras.update(self.command_manager.reset(env_ids=env_ids))
+        manager_extras.update(self.curriculum_manager.reset(env_ids=env_ids))
+
+        # Compute initial observations
+        obs_buf = self.observation_manager.compute(update_history=True)
+
+        info = {"extras": manager_extras}
+        return obs_buf, info
+
+    def _reset_idx(self, env_ids: torch.Tensor) -> None:
+        """Reset specific environments with curriculum support.
+
+        This extends :meth:`ManagerBasedGenesisEnv._reset_idx` by:
+
+        1. Updating curriculum state for the environments being reset.
+        2. Logging curriculum quantities via :meth:`curriculum_manager.reset`.
+        """
+        # Update curriculum state before resetting environments.
+        self.curriculum_manager.compute(env_ids=env_ids)
+
+        # Reset engine binding
+        self._binding.reset(env_ids=env_ids)
+
+        # Reset episode counters
+        self.episode_length_buf[env_ids] = 0
+
+        # Reset managers
+        self.action_manager.reset(env_ids=env_ids)
+        self.observation_manager.reset(env_ids=env_ids)
+        self.reward_manager.reset(env_ids=env_ids)
+        self.termination_manager.reset(env_ids=env_ids)
+        self.command_manager.reset(env_ids=env_ids)
+        self.curriculum_manager.reset(env_ids=env_ids)
 
 @configclass
 class ManagerBasedRlEnvCfg(ManagerBasedGenesisEnvCfg):
     """Configuration for a manager-based RL environment on Genesis.
 
-    This class directly reuses :class:`ManagerBasedGenesisEnvCfg` but clarifies
-    RL-specific semantics such as ``episode_length_s`` and ``is_finite_horizon``.
-
-    Key fields inherited from :class:`ManagerBasedGenesisEnvCfg`:
-
-    - ``scene``: :class:`genesislab.components.entities.scene_cfg.SceneCfg` describing the
-      Genesis scene (robots, terrain, sensors, simulation options).
-    - ``decimation``: number of physics steps per environment step.
-    - ``rewards`` / ``terminations`` / ``commands`` / ``observations`` /
-      ``actions``: manager configurations.
-    - ``episode_length_s``: episode duration in seconds (optional).
-    - ``is_finite_horizon``: whether timeouts are treated as true terminals.
+    This class extends :class:`ManagerBasedGenesisEnvCfg` with RL-centric
+    documentation and semantics similar to IsaacLab's ``ManagerBasedRLEnvCfg``.
+    
+    Key fields (overriding the generic base documentation):
+    
+    - ``episode_length_s``: duration of an episode in seconds. Together with
+      ``decimation`` and ``scene.dt`` this defines the maximum number of env
+      steps per episode.
+    - ``is_finite_horizon``: whether the learning problem is treated as finite
+      or infinite horizon. The base env uses this flag to distinguish between
+      terminated vs. time-out steps; RL libraries may interpret truncated
+      signals differently based on this.
+    - ``rewards``: configuration object or mapping for :class:`RewardManager`.
+    - ``terminations``: configuration object or mapping for
+      :class:`TerminationManager`.
+    - ``curriculum``: optional configuration for :class:`CurriculumManager`.
+      If ``None``, curriculum is disabled and a :class:`NullCurriculumManager`
+      is used.
+    - ``commands``: optional configuration for :class:`CommandManager`. If
+      ``None``, a :class:`NullCommandManager` is used.
     """
+
+    # Re-declare RL-related fields with RL-focused docstrings while keeping
+    # defaults aligned with the base config.
+    episode_length_s: float | None = None
+    is_finite_horizon: bool = False
+
+    rewards: object = {}
+    terminations: object = {}
+    curriculum: object | None = None
+    commands: object | None = None

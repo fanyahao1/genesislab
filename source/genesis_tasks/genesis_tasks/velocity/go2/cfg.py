@@ -2,7 +2,7 @@
 
 from dataclasses import field
 
-from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
+from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnvCfg
 from genesislab.components.entities.robot_cfg import RobotCfg
 from genesislab.components.entities.scene_cfg import SceneCfg
 from genesislab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
@@ -14,7 +14,7 @@ from genesis_tasks.velocity.go2.mdp.commands import VelocityCommandCfg
 
 
 @configclass
-class Go2VelocityEnvCfg(ManagerBasedRlEnv):
+class Go2VelocityEnvCfg(ManagerBasedRlEnvCfg):
     """Minimal configuration for Go2 velocity tracking task.
 
     This config implements a simple velocity tracking task where the Go2 robot
@@ -30,7 +30,7 @@ class Go2VelocityEnvCfg(ManagerBasedRlEnv):
         robots={
             "go2": RobotCfg(
                 morph_type="MJCF",
-                morph_path="assetslib/unitree/unitree_go2/mjcf/go2.xml",
+                morph_path="./data/assets/assetslib/unitree/unitree_go2/mjcf/go2.xml",
                 initial_pose={"pos": [0.0, 0.0, 0.5], "quat": [0.0, 0.0, 0.0, 1.0]},
                 fixed_base=False,
                 control_dofs=None,  # Control all actuated joints
@@ -66,7 +66,7 @@ class Go2VelocityEnvCfg(ManagerBasedRlEnv):
                         func="genesis_tasks.velocity.go2.mdp.observations.command",
                     ),
                 },
-                concatenate=True,
+                concatenate_terms=True,
             )
         }
     )

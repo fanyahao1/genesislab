@@ -10,6 +10,7 @@ Usage:
 import sys
 from pathlib import Path
 
+import genesis as gs
 import torch
 
 from genesis_tasks.velocity.go2.env import Go2VelocityEnv
@@ -22,10 +23,15 @@ def test_vectorized():
     print("GenesisLab Vectorization Test")
     print("=" * 60)
 
+    # Initialize Genesis
+    backend_str = "cuda" if torch.cuda.is_available() else "cpu"
+    backend = gs.gpu if backend_str == "cuda" else gs.cpu
+    gs.init(backend=backend)
+
     # Create config with multiple environments
     cfg = Go2VelocityEnvCfg()
     cfg.scene.num_envs = 64  # Use 64 environments
-    cfg.scene.backend = "cuda" if torch.cuda.is_available() else "cpu"
+    cfg.scene.backend = backend_str
 
     print(f"\nCreating environment with {cfg.scene.num_envs} env(s)...")
     try:

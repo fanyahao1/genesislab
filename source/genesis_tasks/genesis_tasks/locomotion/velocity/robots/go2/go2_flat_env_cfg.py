@@ -118,7 +118,7 @@ class CommandsCfg:
         ),
     )
 
-
+@configclass
 class Go2FlatVelocityEnvCfg(VelocityEnvCfg):
     """Configuration for Go2 velocity tracking task on flat terrain.
 
@@ -156,6 +156,8 @@ class Go2FlatVelocityEnvCfg(VelocityEnvCfg):
         # task-specific parameters (like asset_cfg, command ranges, etc.) are used.
         if not isinstance(self.observations, ObservationsCfg):
             self.observations = ObservationsCfg()
+        if not isinstance(self.actions, ActionsCfg):
+            self.actions = ActionsCfg()
         if not isinstance(self.rewards, RewardsCfg):
             self.rewards = RewardsCfg()
         if not isinstance(self.terminations, TerminationsCfg):

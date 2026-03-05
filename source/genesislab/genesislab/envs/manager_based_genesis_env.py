@@ -113,7 +113,7 @@ class ManagerBasedGenesisEnv:
             self.command_manager = CommandManager(cfg=self.cfg.commands, env=self)
         else:
             self.command_manager = NullCommandManager()
-        
+
         # Action manager
         self.action_manager = ActionManager(cfg=self.cfg.actions, env=self)
 
@@ -129,6 +129,13 @@ class ManagerBasedGenesisEnv:
 
         # Termination manager
         self.termination_manager = TerminationManager(cfg=self.cfg.terminations, env=self)
+
+        # Report initialized managers (IsaacLab-style summary).
+        print("[ManagerBasedGenesisEnv] Command manager: %s", self.command_manager)
+        print("[ManagerBasedGenesisEnv] Action manager: %s", self.action_manager)
+        print("[ManagerBasedGenesisEnv] Observation manager: %s", self.observation_manager)
+        print("[ManagerBasedGenesisEnv] Reward manager: %s", self.reward_manager)
+        print("[ManagerBasedGenesisEnv] Termination manager: %s", self.termination_manager)
 
     def _configure_spaces(self) -> None:
         """Configure Gym-style observation and action spaces."""

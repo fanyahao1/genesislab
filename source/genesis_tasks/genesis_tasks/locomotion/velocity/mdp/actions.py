@@ -37,7 +37,17 @@ class JointPositionActionCfg(ActionTermCfg):
     """Whether to use default joint positions as offset. Defaults to True."""
 
     def build(self, env: "ManagerBasedGenesisEnv") -> "JointPositionAction":
-        """Build the joint position action term from this config."""
+        """Build the joint position action term from this config.
+
+        Note:
+            The base :class:`ActionTerm` expects the ``entity_name`` field to be
+            populated in :class:`ActionTermCfg`. For locomotion tasks we use the
+            more semantically clear ``asset_name`` field instead. To keep
+            compatibility with the base manager code, we mirror ``asset_name``
+            into ``entity_name`` here before constructing the term.
+        """
+        # Ensure the base config field used by :class:`ActionTerm` is set.
+        self.entity_name = self.asset_name
         return JointPositionAction(cfg=self, env=env)
 
 

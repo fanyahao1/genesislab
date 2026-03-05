@@ -102,27 +102,8 @@ class GenesisBinding:
         # building the scene, if requested via the scene config.
         video_path = getattr(self.cfg, "record_video_path", None)
         if video_path is not None:
-            # Simple chase camera looking at the origin / robot area.
-            camera = self._scene.add_camera(
-                res=(1280, 720),
-                pos=(3.5, 0.0, 2.5),
-                lookat=(0.0, 0.0, 0.5),
-                fov=40,
-                GUI=False,
-            )
-            self._scene.start_recording(
-                data_func=lambda: camera.render(
-                    rgb=True,
-                    depth=False,
-                    segmentation=False,
-                    normal=False,
-                )[0],
-                rec_options=gs.recorders.VideoFile(
-                    filename=str(video_path),
-                    codec="libx264",
-                    codec_options={"preset": "veryfast", "tune": "zerolatency"},
-                ),
-            )
+            from genesislab.engine.visualize import attach_video_recorder
+            attach_video_recorder(self._scene, str(video_path))
 
         # Build the scene
         self._scene.build(
@@ -175,12 +156,10 @@ class GenesisBinding:
         else:
             terrain_type = getattr(terrain_cfg, "type", "plane")
         if terrain_type == "plane":
-            # Create a simple plane
-            plane = gs.morphs.Box(
-                size=[100.0, 100.0, 0.1],
-                pos=[0.0, 0.0, -0.05],
-                fixed=True,
-            )
+            # Use Genesis' built-in infinite plane primitive so that the ground
+            # is visually more obvious in renderings (with proper shading and
+            # reflections) while still acting as a flat contact surface.
+            plane = gs.morphs.Plane()
             self._scene.add_entity(plane, name="terrain")
         else:
             # Handle other terrain types (e.g., heightfield, mesh)

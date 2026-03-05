@@ -24,7 +24,7 @@ clone_repo() {
             echo "   - Using ref: $repo_ref"
             git clone --branch "$repo_ref" --depth 1 "$repo_url" "$target_dir"
         else
-            git clone "$repo_url" "$target_dir"
+        git clone "$repo_url" "$target_dir"
         fi
     else
         echo "✔ Repository already exists at $target_dir, skipping clone."

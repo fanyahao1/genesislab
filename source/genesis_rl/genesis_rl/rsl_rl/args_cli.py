@@ -110,6 +110,14 @@ def add_play_args(parser: argparse.ArgumentParser) -> None:
         help="Maximum number of environment steps per episode (defaults to env horizon).",
     )
 
+    # Viewer options (mainly used for interactive play / debugging).
+    parser.add_argument(
+        "--window",
+        action="store_true",
+        default=False,
+        help="Enable Genesis viewer window during play.",
+    )
+
 
 def add_eval_args(parser: argparse.ArgumentParser) -> None:
     """Add arguments for quantitative evaluation scripts.

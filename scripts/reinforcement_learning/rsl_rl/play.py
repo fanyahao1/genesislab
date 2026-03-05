@@ -8,6 +8,7 @@ RL play utilities.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -19,10 +20,12 @@ from rsl_rl.runners import OnPolicyRunner
 import gymnasium as gym
 
 from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv, ManagerBasedRlEnvCfg
+from genesislab.engine.visualize import stop_video_recorder
 from genesis_rl.rsl_rl import GenesisRslRlVecEnv
 from genesis_rl.rsl_rl.gym_utils import resolve_env_cfg_entry_point
 from genesis_rl.rsl_rl.args_cli import add_play_args
 
+from genesis_tasks.locomotion.velocity.robots.go2 import Go2FlatVelocityEnvCfg
 
 def _load_env_cfg(entry_point: str) -> ManagerBasedRlEnvCfg:
     module_name, class_name = entry_point.split(":")
@@ -36,6 +39,9 @@ def _apply_cli_overrides(cfg: ManagerBasedRlEnvCfg, args: argparse.Namespace) ->
         cfg.seed = args.seed
     if args.num_envs is not None and hasattr(cfg, "scene") and hasattr(cfg.scene, "num_envs"):
         setattr(cfg.scene, "num_envs", args.num_envs)
+    # Viewer flag: allow forcing the Genesis window on for interactive play.
+    if getattr(args, "window", False) and hasattr(cfg, "scene") and hasattr(cfg.scene, "viewer"):
+        setattr(cfg.scene, "viewer", True)
 
 
 def _load_train_cfg(path: str) -> dict[str, Any]:
@@ -46,11 +52,33 @@ def _load_train_cfg(path: str) -> dict[str, Any]:
 def parse_args():
     parser = argparse.ArgumentParser(description="Play a trained GenesisLab task with RSL-RL.")
     add_play_args(parser)
+    parser.add_argument(
+        "--video",
+        action="store_true",
+        default=False,
+        help="If set, record a video of the rollout to LOG_DIR/videos/play.mp4.",
+    )
+    parser.add_argument(
+        "--video-fps",
+        type=int,
+        default=50,
+        help="FPS for the recorded video.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+
+    # Prepare log directory early so we can derive video paths from it.
+    log_dir = os.path.abspath(args.log_dir)
+    os.makedirs(log_dir, exist_ok=True)
+
+    video_path: Path | None = None
+    if args.video:
+        video_dir = Path(log_dir) / "videos"
+        video_dir.mkdir(parents=True, exist_ok=True)
+        video_path = video_dir / "play.mp4"
 
     # ------------------------------------------------------------------ #
     # Environment construction
@@ -59,12 +87,16 @@ def main() -> None:
         env_cfg_entry_point = resolve_env_cfg_entry_point(args.env_id)
         env_cfg = _load_env_cfg(env_cfg_entry_point)
         _apply_cli_overrides(env_cfg, args)
+        if video_path is not None and hasattr(env_cfg, "scene"):
+            setattr(env_cfg.scene, "record_video_path", str(video_path))
         env = ManagerBasedRlEnv(cfg=env_cfg, device=args.device)
     else:
         if not args.env_cfg_entry:
             raise ValueError("Either '--env-id' or '--env-cfg-entry' must be provided.")
         env_cfg = _load_env_cfg(args.env_cfg_entry)
         _apply_cli_overrides(env_cfg, args)
+        if video_path is not None and hasattr(env_cfg, "scene"):
+            setattr(env_cfg.scene, "record_video_path", str(video_path))
         env = ManagerBasedRlEnv(cfg=env_cfg, device=args.device)
 
     vec_env = GenesisRslRlVecEnv(env)
@@ -77,9 +109,6 @@ def main() -> None:
     # For play we don't use num_learning_iterations, but the runner expects it
     # to be present for logging. If missing, set a dummy value.
     train_cfg.setdefault("num_learning_iterations", 1)
-
-    log_dir = os.path.abspath(args.log_dir)
-    os.makedirs(log_dir, exist_ok=True)
 
     runner = OnPolicyRunner(vec_env, train_cfg=train_cfg, log_dir=log_dir, device=args.device)
     print(f"[GenesisLab][rsl_rl] Loading checkpoint from: {args.checkpoint}")
@@ -103,30 +132,38 @@ def main() -> None:
         f"with horizon {horizon} steps (num_envs={num_envs})."
     )
 
-    for ep in range(args.num_episodes):
-        # Reset underlying Genesis env and sync observations.
-        env.reset(seed=args.seed)
-        obs = vec_env.get_observations()
+    import tqdm
 
-        episode_reward = torch.zeros(num_envs, device=args.device)
+    try:
+        for ep in range(args.num_episodes):
+            # Reset underlying Genesis env and sync observations.
+            env.reset(seed=args.seed)
+            obs = vec_env.get_observations()
 
-        for step in range(horizon):
-            with torch.no_grad():
-                actions = runner.alg.act(obs)
-            obs, rewards, dones, extras = vec_env.step(actions.to(vec_env.device))
+            episode_reward = torch.zeros(num_envs, device=args.device)
+            pbar = tqdm.tqdm(range(horizon))
 
-            episode_reward += rewards.to(args.device)
+            for step in pbar:
+                with torch.no_grad():
+                    actions = runner.alg.act(obs)
+                obs, rewards, dones, extras = vec_env.step(actions.to(vec_env.device))
 
-            if dones.any():
-                break
+                episode_reward += rewards.to(args.device)
 
-        mean_reward = episode_reward.mean().item()
-        print(f"[GenesisLab][rsl_rl][Play] Episode {ep + 1}/{args.num_episodes} - mean reward: {mean_reward:.3f}")
+                if dones.any():
+                    break
+
+            mean_reward = episode_reward.mean().item()
+            print(f"[GenesisLab][rsl_rl][Play] Episode {ep + 1}/{args.num_episodes} - mean reward: {mean_reward:.3f}")
+    finally:
+        # Ensure any active recording is stopped cleanly.
+        if args.video and hasattr(env, "_binding"):
+            stop_video_recorder(env._binding.scene)
 
 
 if __name__ == "__main__":
     # Initialize Genesis engine before creating any environments.
-    gs.init()
+    gs.init(logging_level="WARNING")
 
     if torch.cuda.is_available():
         torch.backends.cuda.matmul.allow_tf32 = True

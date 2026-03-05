@@ -8,6 +8,7 @@ GenesisLab's manager-based RL environments.
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from typing import Any
 
 import torch
@@ -108,10 +109,48 @@ def main() -> None:
     if args.num_iters is not None:
         train_cfg["max_iterations"] = args.num_iters
 
-    # Prepare log directory
-    log_dir = os.path.abspath(args.log_dir)
-    os.makedirs(log_dir, exist_ok=True)
+    # ------------------------------------------------------------------ #
+    # Logging directory (aligned with IsaacLab-style structure)
+    # ------------------------------------------------------------------ #
+    # Base root for all RSL-RL runs (default: "runs/rsl_rl")
+    base_root = os.path.abspath(args.log_dir)
 
+    # Experiment name: prefer config-provided, otherwise derive from env-id.
+    experiment_name = train_cfg.get("experiment_name")
+    if not experiment_name:
+        experiment_name = args.env_id or "default_experiment"
+
+    log_root_path = os.path.join(base_root, str(experiment_name))
+    print(f"[GenesisLab][rsl_rl] Logging experiment in directory: {log_root_path}")
+
+    # Per-run directory: {timestamp}_{optional_run_name}
+    run_name = train_cfg.get("run_name")
+    log_dir = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    print(f"[GenesisLab][rsl_rl] Exact run name requested from config: {log_dir}")
+    if run_name:
+        log_dir += f"_{run_name}"
+    log_dir = os.path.join(log_root_path, log_dir)
+
+    # Propagate log_dir into env config if it exposes such a field.
+    if hasattr(env_cfg, "log_dir"):
+        setattr(env_cfg, "log_dir", log_dir)
+
+    os.makedirs(log_dir, exist_ok=True)
+    params_dir = os.path.join(log_dir, "params")
+    os.makedirs(params_dir, exist_ok=True)
+
+    env_cfg_dict = env_cfg.to_dict() if hasattr(env_cfg, "to_dict") else None  # type: ignore[assignment]
+
+    if env_cfg_dict is not None:
+        with open(os.path.join(params_dir, "env.yaml"), "w", encoding="utf-8") as f:
+            yaml.safe_dump(env_cfg_dict, f, sort_keys=False)
+    # Training / agent config.
+    with open(os.path.join(params_dir, "train.yaml"), "w", encoding="utf-8") as f:
+        yaml.safe_dump(train_cfg, f, sort_keys=False)
+
+    # ------------------------------------------------------------------ #
+    # Runner construction and main training loop
+    # ------------------------------------------------------------------ #
     runner = OnPolicyRunner(vec_env, train_cfg=train_cfg, log_dir=log_dir, device=args.device)
 
     max_iterations = int(train_cfg.get("max_iterations"))

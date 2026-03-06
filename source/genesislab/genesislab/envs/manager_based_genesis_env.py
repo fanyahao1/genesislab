@@ -284,6 +284,9 @@ class ManagerBasedGenesisEnv:
             # Step physics
             self._binding.step()
 
+            # Update sensors (if any) at physics rate.
+            self._update_sensors()
+
         # Update episode counters
         self.episode_length_buf += 1
         self.common_step_counter += 1
@@ -328,6 +331,16 @@ class ManagerBasedGenesisEnv:
         info.update(manager_extras)
 
         return obs_buf, reward_buf, reset_terminated, reset_time_outs, info
+
+    def _update_sensors(self) -> None:
+        """Update any scene-attached sensors after a physics step."""
+        scene = self._binding.scene
+        if not hasattr(scene, "sensors"):
+            return
+        sensors = getattr(scene, "sensors", {})
+        for sensor in sensors.values():
+            if hasattr(sensor, "update"):
+                sensor.update(dt=self.physics_dt)
 
     def _reset_idx(self, env_ids: torch.Tensor) -> None:
         """Reset specific environments.

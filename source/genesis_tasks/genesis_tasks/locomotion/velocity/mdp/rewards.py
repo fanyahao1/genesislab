@@ -182,13 +182,28 @@ def undesired_contacts(env: "ManagerBasedRlEnv", threshold: float, sensor_cfg: S
     Returns:
         Tensor of shape (num_envs,) containing the penalty.
     """
-    # TODO: Implement when contact sensor is available
-    # For now, return zeros as placeholder
-    # contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
-    # net_contact_forces = contact_sensor.data.net_forces_w_history
-    # is_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold
-    # return torch.sum(is_contact, dim=1)
-    return torch.zeros(env.num_envs, device=env.device)
+    # Look up the contact sensor from the scene.
+    if not hasattr(env.scene, "sensors"):
+        return torch.zeros(env.num_envs, device=env.device)
+    if isinstance(sensor_cfg, str):
+        sensor_name = sensor_cfg
+    else:
+        sensor_name = getattr(sensor_cfg, "entity_name", None) or getattr(sensor_cfg, "name", None) or "contact_forces"
+    if sensor_name not in env.scene.sensors:
+        return torch.zeros(env.num_envs, device=env.device)
+
+    contact_sensor = env.scene.sensors[sensor_name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history  # (H, N, C, 3)
+
+    # Compute max force magnitude over history and channels.
+    # Shape: (H, N, C, 3) -> (H, N, C) -> (N, C)
+    force_mag = torch.norm(net_contact_forces, dim=-1)
+    max_force, _ = torch.max(force_mag, dim=0)
+
+    # Any contact above threshold counts as an undesired contact.
+    is_contact = max_force > threshold  # (N, C)
+    # Penalty is the number of undesired contacts per environment.
+    return torch.sum(is_contact.to(torch.float32), dim=1)
 
 
 """
@@ -268,12 +283,32 @@ def feet_air_time(
     Returns:
         Tensor of shape (num_envs,) containing the reward.
     """
-    # TODO: Implement when contact sensor is available
-    # For now, return zeros as placeholder
-    # contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
-    # first_contact = contact_sensor.compute_first_contact(env.step_dt)[:, sensor_cfg.body_ids]
-    # last_air_time = contact_sensor.data.last_air_time[:, sensor_cfg.body_ids]
-    # reward = torch.sum((last_air_time - threshold) * first_contact, dim=1)
-    # reward *= torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1) > 0.1
-    # return reward
-    return torch.zeros(env.num_envs, device=env.device)
+    # Require a contact sensor to be present.
+    if not hasattr(env.scene, "sensors"):
+        return torch.zeros(env.num_envs, device=env.device)
+    if isinstance(sensor_cfg, str):
+        sensor_name = sensor_cfg
+    else:
+        sensor_name = getattr(sensor_cfg, "entity_name", None) or getattr(sensor_cfg, "name", None) or "contact_forces"
+    if sensor_name not in env.scene.sensors:
+        return torch.zeros(env.num_envs, device=env.device)
+
+    contact_sensor = env.scene.sensors[sensor_name]
+
+    # First-contact indicator and last air-time buffers.
+    # Shapes: (N, C)
+    first_contact = contact_sensor.compute_first_contact(env.step_dt)
+    last_air_time = contact_sensor.data.last_air_time
+
+    # Reward long air-times that just ended in first contact.
+    # (N, C) -> (N,)
+    air_time_excess = (last_air_time - threshold).clamp_min(0.0)
+    reward_per_link = air_time_excess * first_contact.to(air_time_excess.dtype)
+    reward = torch.sum(reward_per_link, dim=1)
+
+    # Only reward stepping behaviour when commanded velocity is non-trivial.
+    cmd = env.command_manager.get_command(command_name)
+    moving_mask = torch.norm(cmd[:, :2], dim=1) > 0.1
+    reward = reward * moving_mask.to(reward.dtype)
+
+    return reward

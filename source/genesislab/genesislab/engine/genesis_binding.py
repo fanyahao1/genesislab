@@ -426,16 +426,34 @@ class GenesisBinding:
         # keep track of the wrapper if they need richer behaviour.
         self._entities[entity_name] = entity
 
-    def _add_sensor(self, sensor_name: str, sensor_cfg: dict[str, Any]) -> None:
+    def _add_sensor(self, sensor_name: str, sensor_cfg: Any) -> None:
         """Add a sensor to the scene.
+
+        Currently, only simple Python-side sensors (like contact sensors) are
+        supported. These do not create any engine primitives but expose data
+        buffers that MDP terms can read.
 
         Args:
             sensor_name: Name to assign to the sensor.
-            sensor_cfg: Sensor configuration.
+            sensor_cfg: Sensor configuration (configclass or dict).
         """
-        # Sensor creation logic would go here
-        # This is a placeholder for future sensor support
-        pass
+        from genesislab.components.sensors import ContactSensor, ContactSensorCfg
+
+        # Lazily attach a sensors dict to the Scene so that MDP code can access
+        # ``env.scene.sensors[name]`` similar to IsaacLab.
+        if not hasattr(self._scene, "sensors"):
+            self._scene.sensors = {}
+
+        cfg_obj: Any = sensor_cfg
+        # Support both configclass instances and plain dict configs.
+        if isinstance(sensor_cfg, dict):
+            cfg_obj = ContactSensorCfg(**sensor_cfg)
+
+        if isinstance(cfg_obj, ContactSensorCfg):
+            if cfg_obj.name is None:
+                cfg_obj.name = sensor_name
+            sensor = ContactSensor(cfg=cfg_obj, num_envs=self._num_envs, device=self.device)
+            self._scene.sensors[sensor_name] = sensor
 
     def _resolve_dof_indices(self) -> None:
         """Resolve DOF indices for controlled joints in each robot."""

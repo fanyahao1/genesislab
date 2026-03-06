@@ -93,6 +93,27 @@ class RewardsCfg:
     dof_acc_l2: RewardTermCfg = RewardTermCfg(func=mdp.joint_acc_l2, weight=-2.5e-7)
     action_rate_l2: RewardTermCfg = RewardTermCfg(func=mdp.action_rate_l2, weight=-0.01)
 
+    # Contact / gait-related terms (kept for IsaacLab compatibility; currently no contact sensors).
+    # NOTE: Our SceneEntityCfg is Genesis-specific and currently only carries `entity_name`.
+    # We therefore keep contact/body selection logic inside the reward functions themselves.
+    feet_air_time: RewardTermCfg | None = RewardTermCfg(
+        func=mdp.feet_air_time,
+        weight=0.125,
+        params={
+            "sensor_cfg": "contact_forces",
+            "command_name": "base_velocity",
+            "threshold": 0.5,
+        },
+    )
+    undesired_contacts: RewardTermCfg | None = RewardTermCfg(
+        func=mdp.undesired_contacts,
+        weight=-1.0,
+        params={
+            "sensor_cfg": "contact_forces",
+            "threshold": 1.0,
+        },
+    )
+
     # Optional penalties
     flat_orientation_l2: RewardTermCfg = RewardTermCfg(func=mdp.flat_orientation_l2, weight=0.0)
     dof_pos_limits: RewardTermCfg = RewardTermCfg(func=mdp.joint_pos_limits, weight=0.0)
@@ -107,6 +128,14 @@ class TerminationsCfg:
         func=mdp.base_height,
         time_out=False,
         params={"threshold": 0.15, "asset_cfg": SceneEntityCfg("robot")},
+    )
+
+    # IsaacLab-style contact-based termination (currently a no-op without contact sensors,
+    # but kept for configuration compatibility).
+    base_contact: TerminationTermCfg | None = TerminationTermCfg(
+        func=mdp.illegal_contact,
+        time_out=False,
+        params={"sensor_cfg": "contact_forces", "threshold": 1.0},
     )
 
 

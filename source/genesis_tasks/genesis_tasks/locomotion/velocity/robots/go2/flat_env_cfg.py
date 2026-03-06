@@ -1,6 +1,7 @@
 """Configuration for Go2 velocity tracking task on flat terrain."""
 
 from genesislab.components.entities.scene_cfg import SceneCfg, TerrainCfg
+from genesislab.managers import SceneEntityCfg
 from genesislab.utils.configclass import configclass
 
 from .rough_env_cfg import UnitreeGo2RoughEnvCfg
@@ -14,9 +15,13 @@ class UnitreeGo2FlatEnvCfg(UnitreeGo2RoughEnvCfg):
         # Post init of parent
         super().__post_init__()
 
-        # Override rewards
+        # Override rewards (follow IsaacLab's Go2 flat config where possible).
         self.rewards.flat_orientation_l2.weight = -2.5
-        if hasattr(self.rewards, "feet_air_time"):
+        if hasattr(self.rewards, "feet_air_time") and self.rewards.feet_air_time is not None:
+            # Keep the same contact configuration as rough env, but increase weight.
+            self.rewards.feet_air_time.params["sensor_cfg"] = "contact_forces"
+            self.rewards.feet_air_time.params["command_name"] = "base_velocity"
+            self.rewards.feet_air_time.params["threshold"] = 0.5
             self.rewards.feet_air_time.weight = 0.25
 
         # Change terrain to flat

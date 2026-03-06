@@ -44,14 +44,31 @@ class UnitreeGo2RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # Actions: Reduce action scale
         self.actions.joint_pos.scale = 0.25
 
-        # Rewards
+        # Rewards: align with IsaacLab's Unitree Go2 rough config where applicable.
         self.rewards.dof_torques_l2.weight = -0.0002
         self.rewards.track_lin_vel_xy_exp.weight = 1.5
         self.rewards.track_ang_vel_z_exp.weight = 0.75
         self.rewards.dof_acc_l2.weight = -2.5e-7
 
-        # Terminations
+        # Feet air-time and undesired contacts
+        # Note: contact-based rewards are currently implemented as no-ops until contact
+        # sensors are available, but we still mirror IsaacLab's configuration.
+        if hasattr(self.rewards, "feet_air_time") and self.rewards.feet_air_time is not None:
+            # Use the shared contact-forces sensor; body selection is handled inside the reward.
+            self.rewards.feet_air_time.params["sensor_cfg"] = "contact_forces"
+            self.rewards.feet_air_time.params["command_name"] = "base_velocity"
+            self.rewards.feet_air_time.params["threshold"] = 0.5
+            self.rewards.feet_air_time.weight = 0.01
+
+        if hasattr(self.rewards, "undesired_contacts"):
+            # Disable undesired_contacts for Go2 rough task (IsaacLab sets this to None).
+            self.rewards.undesired_contacts = None
+
+        # Terminations: keep base-height termination, but also configure contact-based
+        # termination in line with IsaacLab naming (currently a no-op without contacts).
         self.terminations.base_height.params["asset_cfg"] = SceneEntityCfg("robot")
+        if hasattr(self.terminations, "base_contact") and self.terminations.base_contact is not None:
+            self.terminations.base_contact.params["sensor_cfg"] = "contact_forces"
 
 
 @configclass

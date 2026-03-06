@@ -65,13 +65,26 @@ def illegal_contact(env: "ManagerBasedRlEnv", threshold: float, sensor_cfg: Scen
     Returns:
         Boolean tensor of shape (num_envs,) indicating terminated environments.
     """
-    # TODO: Implement when contact sensor is available
-    # For now, return all False as placeholder
-    # contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
-    # net_contact_forces = contact_sensor.data.net_forces_w_history
-    # is_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold
-    # return torch.any(is_contact, dim=1)
-    return torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+    if not hasattr(env.scene, "sensors"):
+        return torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+    if isinstance(sensor_cfg, str):
+        sensor_name = sensor_cfg
+    else:
+        sensor_name = getattr(sensor_cfg, "entity_name", None) or getattr(sensor_cfg, "name", None) or "contact_forces"
+    if sensor_name not in env.scene.sensors:
+        return torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+
+    contact_sensor = env.scene.sensors[sensor_name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history  # (H, N, C, 3)
+
+    # Compute max force magnitude over history and channels.
+    force_mag = torch.norm(net_contact_forces, dim=-1)  # (H, N, C)
+    max_force, _ = torch.max(force_mag, dim=0)  # (N, C)
+
+    # Terminate if any channel exceeds the threshold.
+    is_contact = max_force > threshold  # (N, C)
+    terminated = torch.any(is_contact, dim=1)  # (N,)
+    return terminated
 
 
 def terrain_out_of_bounds(

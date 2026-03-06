@@ -129,31 +129,17 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
         elif isinstance(env_ids, (list, tuple)):
             env_ids = torch.tensor(env_ids, dtype=torch.long, device=self.device)
 
-        # Update curriculum state before resetting environments.
-        self.curriculum_manager.compute(env_ids=env_ids)
-
-        # Reset engine binding
-        self._binding.reset(env_ids=env_ids)
-
-        # Reset episode counters
-        self.episode_length_buf[env_ids] = 0
-
-        # Reset managers and collect extras
-        manager_extras: dict[str, Any] = {}
-        manager_extras.update(self.action_manager.reset(env_ids=env_ids))
-        manager_extras.update(self.observation_manager.reset(env_ids=env_ids))
-        manager_extras.update(self.reward_manager.reset(env_ids=env_ids))
-        manager_extras.update(self.termination_manager.reset(env_ids=env_ids))
-        manager_extras.update(self.command_manager.reset(env_ids=env_ids))
-        manager_extras.update(self.curriculum_manager.reset(env_ids=env_ids))
+        # Delegate to the RL-specific indexed reset, which also handles curriculum.
+        manager_extras = self._reset_idx(env_ids)
 
         # Compute initial observations
         obs_buf = self.observation_manager.compute(update_history=True)
 
-        info = {"extras": manager_extras}
+        # Expose manager extras at top level (Episode_Reward, Metrics, Curriculum, ...).
+        info = dict(manager_extras)
         return obs_buf, info
 
-    def _reset_idx(self, env_ids: torch.Tensor) -> None:
+    def _reset_idx(self, env_ids: torch.Tensor) -> dict[str, Any]:
         """Reset specific environments with curriculum support.
 
         This extends :meth:`ManagerBasedGenesisEnv._reset_idx` by:
@@ -170,13 +156,16 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
         # Reset episode counters
         self.episode_length_buf[env_ids] = 0
 
-        # Reset managers
-        self.action_manager.reset(env_ids=env_ids)
-        self.observation_manager.reset(env_ids=env_ids)
-        self.reward_manager.reset(env_ids=env_ids)
-        self.termination_manager.reset(env_ids=env_ids)
-        self.command_manager.reset(env_ids=env_ids)
-        self.curriculum_manager.reset(env_ids=env_ids)
+        # Reset managers and collect extras.
+        manager_extras: dict[str, Any] = {}
+        manager_extras.update(self.action_manager.reset(env_ids=env_ids))
+        manager_extras.update(self.observation_manager.reset(env_ids=env_ids))
+        manager_extras.update(self.reward_manager.reset(env_ids=env_ids))
+        manager_extras.update(self.termination_manager.reset(env_ids=env_ids))
+        manager_extras.update(self.command_manager.reset(env_ids=env_ids))
+        manager_extras.update(self.curriculum_manager.reset(env_ids=env_ids))
+
+        return manager_extras
 
 @configclass
 class ManagerBasedRlEnvCfg(ManagerBasedGenesisEnvCfg):

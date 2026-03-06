@@ -236,7 +236,7 @@ class ManagerBasedGenesisEnv:
         # Reset episode counters
         self.episode_length_buf[env_ids] = 0
 
-        # Reset managers
+        # Reset managers and collect extras
         manager_extras = {}
         manager_extras.update(self.action_manager.reset(env_ids=env_ids))
         manager_extras.update(self.observation_manager.reset(env_ids=env_ids))
@@ -247,9 +247,8 @@ class ManagerBasedGenesisEnv:
         # Compute initial observations
         obs_buf = self.observation_manager.compute(update_history=True)
 
-        # Build info dict
-        info = {"extras": manager_extras}
-
+        # For alignment with IsaacLab/mjlab, expose manager extras at top level.
+        info = dict(manager_extras)
         return obs_buf, info
 
     def step(self, action: torch.Tensor) -> VecEnvStepReturn:
@@ -291,10 +290,13 @@ class ManagerBasedGenesisEnv:
         # Compute rewards
         reward_buf = self.reward_manager.compute(dt=self.step_dt)
 
-        # Reset terminated/timed-out environments
+        # Reset terminated/timed-out environments and collect any episode metrics.
         reset_env_ids = reset_buf.nonzero(as_tuple=False).squeeze(-1)
+        manager_extras = {}
         if len(reset_env_ids) > 0:
-            self._reset_idx(reset_env_ids)
+            maybe_extras = self._reset_idx(reset_env_ids)
+            if isinstance(maybe_extras, dict):
+                manager_extras.update(maybe_extras)
 
         # Update commands
         self.command_manager.compute(dt=self.step_dt)
@@ -302,11 +304,12 @@ class ManagerBasedGenesisEnv:
         # Compute observations
         obs_buf = self.observation_manager.compute(update_history=True)
 
-        # Build info dict
-        info = {
+        # Build info dict, including any episode-level metrics produced at reset.
+        info: dict[str, Any] = {
             "time_outs": reset_time_outs,
             "terminated": reset_terminated,
         }
+        info.update(manager_extras)
 
         return obs_buf, reward_buf, reset_terminated, reset_time_outs, info
 
@@ -322,12 +325,15 @@ class ManagerBasedGenesisEnv:
         # Reset episode counters
         self.episode_length_buf[env_ids] = 0
 
-        # Reset managers
-        self.action_manager.reset(env_ids=env_ids)
-        self.observation_manager.reset(env_ids=env_ids)
-        self.reward_manager.reset(env_ids=env_ids)
-        self.termination_manager.reset(env_ids=env_ids)
-        self.command_manager.reset(env_ids=env_ids)
+        # Reset managers and collect extras (episode-level summaries, metrics, etc.).
+        manager_extras: dict[str, Any] = {}
+        manager_extras.update(self.action_manager.reset(env_ids=env_ids))
+        manager_extras.update(self.observation_manager.reset(env_ids=env_ids))
+        manager_extras.update(self.reward_manager.reset(env_ids=env_ids))
+        manager_extras.update(self.termination_manager.reset(env_ids=env_ids))
+        manager_extras.update(self.command_manager.reset(env_ids=env_ids))
+
+        return manager_extras
 
 
 @configclass

@@ -327,8 +327,8 @@ class ManagerBasedGenesisEnv:
         info: dict[str, Any] = {
             "time_outs": reset_time_outs,
             "terminated": reset_terminated,
+            "infos": manager_extras
         }
-        info.update(manager_extras)
 
         return obs_buf, reward_buf, reset_terminated, reset_time_outs, info
 

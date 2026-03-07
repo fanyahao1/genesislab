@@ -99,6 +99,12 @@ class RecorderTermCfg:
 class ActionTermCfg:
 	"""Configuration for an action term."""
 
+	class_type: type[ActionTerm] = MISSING
+	"""The associated action term class.
+	
+	The class should inherit from :class:`genesislab.managers.action_manager.ActionTerm`.
+	"""
+
 	# GenesisLab uses entity_name instead of asset_name
 	entity_name: str = MISSING
 	"""The name of the scene entity.
@@ -111,13 +117,6 @@ class ActionTermCfg:
 
 	debug_vis: bool = False
 	"""Whether to visualize debug information. Defaults to False."""
-
-	def build(self, env: Any) -> ActionTerm:
-		"""Build the action term from this config.
-		
-		This method must be implemented by subclasses.
-		"""
-		raise NotImplementedError("Subclasses must implement build()")
 
 
 ##

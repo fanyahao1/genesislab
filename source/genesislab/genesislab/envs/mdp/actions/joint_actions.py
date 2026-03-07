@@ -35,7 +35,8 @@ class JointPositionAction(ActionTerm):
         super().__init__(cfg, env)
 
         # Resolve entity.
-        self._entity_name = cfg.asset_name
+        # Use entity_name if set, otherwise fall back to asset_name for backward compatibility
+        self._entity_name = getattr(cfg, "entity_name", None) or cfg.asset_name
         entity = env.entities[self._entity_name]
 
         # Check if actuators are configured for this entity.

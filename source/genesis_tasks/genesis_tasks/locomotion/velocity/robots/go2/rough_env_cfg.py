@@ -36,9 +36,9 @@ class UnitreeGo2RoughEnvCfg(BaseVelocityEnvCfg):
         self.actions.joint_pos.use_default_offset = True
 
         # Rewards: align with IsaacLab's Unitree Go2 rough config where applicable.
-        self.rewards.dof_torques_l2.weight = -0.0002
-        self.rewards.track_lin_vel_xy_exp.weight = 1.5
-        self.rewards.track_ang_vel_z_exp.weight = 0.75
+        self.rewards.dof_torques_l2.weight = -0.0000
+        self.rewards.track_lin_vel_xy_exp.weight = 10
+        self.rewards.track_ang_vel_z_exp.weight = 5
         self.rewards.dof_acc_l2.weight = -2.5e-7
 
         # Feet air-time and undesired contacts

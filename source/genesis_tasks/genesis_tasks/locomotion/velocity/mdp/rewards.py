@@ -189,34 +189,16 @@ def undesired_contacts(env: "ManagerBasedRlEnv", threshold: float, sensor_cfg: S
     Returns:
         Tensor of shape (num_envs,) containing the penalty.
     """
-    # Look up the contact sensor from the scene.
-    if not hasattr(env.scene, "sensors"):
-        raise AttributeError(
-            "Scene does not have 'sensors' attribute. "
-            "Contact sensor must be configured in the scene."
-        )
-    
-    
-    sensor_name = sensor_cfg.entity_name
-    if sensor_name not in env.scene.sensors:
-        raise KeyError(
-            f"Contact sensor '{sensor_name}' not found in scene.sensors. "
-            f"Available sensors: {list(env.scene.sensors.keys())}"
-        )
-
-    contact_sensor = env.scene.sensors[sensor_name]
+    contact_sensor = env.scene.sensors[sensor_cfg.entity_name]
     net_contact_forces = contact_sensor.data.net_forces_w_history  # (H, N, C, 3)
 
     # Filter by body_ids if specified
-    body_ids = getattr(sensor_cfg, "body_ids", slice(None))
-    if body_ids != slice(None):
-        # Index the channel dimension (third dimension)
-        net_contact_forces = net_contact_forces[:, :, body_ids, :]  # (H, N, len(body_ids), 3)
+    if sensor_cfg.body_ids is not None:
+        net_contact_forces = net_contact_forces[:, :, sensor_cfg.body_ids, :]  # (H, N, len(body_ids), 3)
 
     # Compute max force magnitude over history and channels.
-    # Shape: (H, N, C, 3) -> (H, N, C) -> (N, C) or (H, N, len(body_ids), 3) -> (H, N, len(body_ids)) -> (N, len(body_ids))
-    force_mag = torch.norm(net_contact_forces, dim=-1)
-    max_force, _ = torch.max(force_mag, dim=0)
+    force_mag = torch.norm(net_contact_forces, dim=-1)  # (H, N, C) or (H, N, len(body_ids))
+    max_force, _ = torch.max(force_mag, dim=0)  # (N, C) or (N, len(body_ids))
 
     # Any contact above threshold counts as an undesired contact.
     is_contact = max_force > threshold  # (N, C) or (N, len(body_ids))
@@ -353,30 +335,17 @@ def feet_air_time(
     Returns:
         Tensor of shape (num_envs,) containing the reward.
     """
-    # Require a contact sensor to be present.
-    if not hasattr(env.scene, "sensors"):
-        raise AttributeError(
-            "Scene does not have 'sensors' attribute. "
-            "Contact sensor must be configured in the scene."
-        )
-    
-    if isinstance(sensor_cfg, str):
-        sensor_name = sensor_cfg
-    else:
-        sensor_name = getattr(sensor_cfg, "entity_name", None) or getattr(sensor_cfg, "name", None) or "contact_forces"
-    
-    if sensor_name not in env.scene.sensors:
-        raise KeyError(
-            f"Contact sensor '{sensor_name}' not found in scene.sensors. "
-            f"Available sensors: {list(env.scene.sensors.keys())}"
-        )
-
-    contact_sensor = env.scene.sensors[sensor_name]
+    contact_sensor = env.scene.sensors[sensor_cfg.entity_name]
 
     # First-contact indicator and last air-time buffers.
     # Shapes: (N, C)
     first_contact = contact_sensor.compute_first_contact(env.step_dt)
     last_air_time = contact_sensor.data.last_air_time
+
+    # Filter by body_ids if specified (e.g., only check feet links)
+    if sensor_cfg.body_ids is not None:
+        first_contact = first_contact[:, sensor_cfg.body_ids]  # (N, len(body_ids))
+        last_air_time = last_air_time[:, sensor_cfg.body_ids]  # (N, len(body_ids))
 
     # Reward long air-times that just ended in first contact.
     # (N, C) -> (N,)

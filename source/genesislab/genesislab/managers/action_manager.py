@@ -215,6 +215,13 @@ class ActionManager(ManagerBase):
 					f"Configuration for the term '{term_name}' is not of type 'ActionTermCfg'."
 					f" Received: '{type(term_cfg)}'."
 				)
-			term = term_cfg.build(self._env)
+			# Create the action term using class_type
+			term = term_cfg.class_type(term_cfg, self._env)
+			# Sanity check if term is valid type
+			if not isinstance(term, ActionTerm):
+				raise TypeError(
+					f"Returned object for the term '{term_name}' is not of type 'ActionTerm'."
+					f" Received: '{type(term)}'."
+				)
 			self._term_names.append(term_name)
 			self._terms[term_name] = term

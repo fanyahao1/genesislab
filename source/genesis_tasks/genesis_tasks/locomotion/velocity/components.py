@@ -32,7 +32,7 @@ class VelocitySceneCfg(SceneCfg):
     num_envs    : int = 4096
     env_spacing : tuple = (2.5, 2.5)
     dt          : float = 0.005
-    substeps    : int = 1
+    substeps    : int = 2
     backend     : str = "cuda"
     viewer      : bool = False
 
@@ -115,18 +115,18 @@ class RewardsCfg:
     # Task rewards
     track_lin_vel_xy_exp: RewardTermCfg = RewardTermCfg(
         func=mdp.track_lin_vel_xy_exp,
-        weight=1.0,
+        weight=5.0,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
     )
     track_ang_vel_z_exp: RewardTermCfg = RewardTermCfg(
         func=mdp.track_ang_vel_z_exp,
-        weight=0.5,
+        weight=2.5,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
     )
 
     # Penalties
-    lin_vel_z_l2: RewardTermCfg = RewardTermCfg(func=mdp.lin_vel_z_l2, weight=-2.0)
-    ang_vel_xy_l2: RewardTermCfg = RewardTermCfg(func=mdp.ang_vel_xy_l2, weight=-0.05)
+    lin_vel_z_l2: RewardTermCfg = RewardTermCfg(func=mdp.lin_vel_z_l2, weight=-0.0)
+    ang_vel_xy_l2: RewardTermCfg = RewardTermCfg(func=mdp.ang_vel_xy_l2, weight=-0.00)
     dof_torques_l2: RewardTermCfg = RewardTermCfg(func=mdp.joint_torques_l2, weight=-1.0e-5)
     dof_acc_l2: RewardTermCfg = RewardTermCfg(func=mdp.joint_acc_l2, weight=-2.5e-7)
     action_rate_l2: RewardTermCfg = RewardTermCfg(func=mdp.action_rate_l2, weight=-0.01)
@@ -134,24 +134,24 @@ class RewardsCfg:
     # Contact / gait-related terms (kept for IsaacLab compatibility; currently no contact sensors).
     # NOTE: Our SceneEntityCfg is Genesis-specific and currently only carries `entity_name`.
     # We therefore keep contact/body selection logic inside the reward functions themselves.
-    feet_air_time: RewardTermCfg = RewardTermCfg(
-        func=mdp.feet_air_time,
-        weight=0.125,
-        params={
-            "sensor_cfg": "contact_forces",
-            "command_name": "base_velocity",
-            "threshold": 0.5,
-        },
-    )
+    # feet_air_time: RewardTermCfg = RewardTermCfg(
+    #     func=mdp.feet_air_time,
+    #     weight=0.125,
+    #     params={
+    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_calf"),
+    #         "command_name": "base_velocity",
+    #         "threshold": 0.5,
+    #     },
+    # )
     undesired_contacts: RewardTermCfg = RewardTermCfg(
         func=mdp.undesired_contacts,
         weight=-0.0,
         params={
-            "sensor_cfg": "contact_forces",
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names="base"),
             "threshold": 1.0,
         },
     )
-    alive: RewardTermCfg = RewardTermCfg(func=mdp.alive, weight=100.0)
+    alive: RewardTermCfg = RewardTermCfg(func=mdp.alive, weight=0.1)
     # Optional penalties
     flat_orientation_l2: RewardTermCfg = RewardTermCfg(func=mdp.flat_orientation_l2, weight=0.0)
     dof_pos_limits: RewardTermCfg = RewardTermCfg(func=mdp.joint_pos_limits, weight=0.0)

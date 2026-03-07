@@ -262,6 +262,58 @@ def track_ang_vel_z_exp(
 
 
 """
+Base height rewards.
+"""
+
+
+def base_height_target(
+    env: "ManagerBasedRlEnv",
+    target_height: float,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Reward maintaining base height at target using L2 squared kernel.
+
+    Args:
+        env: The environment instance.
+        target_height: Target base height in meters.
+        asset_cfg: Configuration for the asset entity. Defaults to "robot".
+
+    Returns:
+        Tensor of shape (num_envs,) containing the reward (negative penalty).
+    """
+    entity = env.entities[asset_cfg.entity_name]
+    base_pos = entity.data.root_pos_w
+    
+    # Compute height error
+    height_error = base_pos[:, 2] - target_height
+    return -torch.square(height_error)
+
+
+"""
+Joint rewards.
+"""
+
+
+def dof_similar_to_default(env: "ManagerBasedRlEnv", asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Reward keeping joint positions similar to default positions using L2 squared kernel.
+
+    Args:
+        env: The environment instance.
+        asset_cfg: Configuration for the asset entity. Defaults to "robot".
+
+    Returns:
+        Tensor of shape (num_envs,) containing the reward (negative penalty).
+    """
+    entity = env.entities[asset_cfg.entity_name]
+    joint_pos = entity.data.joint_pos
+    default_joint_pos = entity.data.default_joint_pos
+    
+    # Compute difference from default
+    joint_diff = joint_pos - default_joint_pos
+    return -torch.sum(torch.square(joint_diff), dim=1)
+
+
+"""
 Task-specific rewards (from velocity task).
 """
 

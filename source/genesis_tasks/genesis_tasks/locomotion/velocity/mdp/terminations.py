@@ -83,6 +83,43 @@ def illegal_contact(env: "ManagerBasedRlEnv", threshold: float, sensor_cfg: Scen
     return terminated
 
 
+def bad_orientation(
+    env: "ManagerBasedRlEnv",
+    limit_angle: float,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Terminate when base orientation exceeds limit angle.
+
+    This checks if the robot's pitch or roll angles exceed the limit.
+
+    Args:
+        env: The environment instance.
+        limit_angle: Maximum allowed pitch/roll angle in degrees.
+        asset_cfg: Configuration for the asset entity. Defaults to "robot".
+
+    Returns:
+        Boolean tensor of shape (num_envs,) indicating terminated environments.
+    """
+    entity = env.entities[asset_cfg.entity_name]
+    projected_gravity = entity.data.projected_gravity_b
+    
+    # Compute pitch and roll from projected gravity
+    # projected_gravity is the gravity vector in body frame
+    # For a flat orientation, projected_gravity should be [0, 0, -1]
+    # Pitch and roll can be computed from the xy components
+    pitch_roll_mag = torch.norm(projected_gravity[:, :2], dim=1)
+    
+    # Convert to angle (in radians, then to degrees)
+    # For small angles: angle ≈ sin(angle) ≈ |projected_gravity_xy|
+    # For larger angles, we use atan2
+    angle_rad = torch.atan2(pitch_roll_mag, torch.abs(projected_gravity[:, 2]))
+    angle_deg = torch.rad2deg(angle_rad)
+    
+    # Terminate if angle exceeds limit
+    terminated = angle_deg > limit_angle
+    return terminated
+
+
 def terrain_out_of_bounds(
     env: "ManagerBasedRlEnv", asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"), distance_buffer: float = 3.0
 ) -> torch.Tensor:

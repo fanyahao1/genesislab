@@ -1,0 +1,259 @@
+"""Simple Go2 locomotion task configuration.
+
+This configuration aligns with Genesis Forge's simple Go2 example, adapted to
+GenesisLab's manager-based framework.
+"""
+
+import math
+from dataclasses import MISSING
+
+from genesislab.components.entities.scene_cfg import SceneCfg, TerrainCfg
+from genesislab.components.sensors import ContactSensorCfg
+from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnvCfg
+from genesislab.managers import SceneEntityCfg
+from genesislab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
+from genesislab.managers.action_manager import ActionTermCfg
+from genesislab.managers.reward_manager import RewardTermCfg
+from genesislab.managers.termination_manager import TerminationTermCfg
+from genesislab.utils.configclass import configclass
+
+from genesis_assets.robots import UNITREE_GO2_CFG
+import genesis_tasks.locomotion.velocity.mdp as mdp
+
+
+@configclass
+class SimpleSceneCfg(SceneCfg):
+    """Scene configuration for simple Go2 task."""
+
+    num_envs: int = 4096
+    env_spacing: tuple = (2.5, 2.5)
+    dt: float = 0.02  # 50 Hz control frequency (same as Genesis Forge)
+    substeps: int = 2
+    backend: str = "cuda"
+    viewer: bool = False
+
+    terrain: TerrainCfg = TerrainCfg(type="plane")
+    """Simple plane terrain."""
+
+    robots: dict = {"robot": None}
+    """Robot configuration (set in __post_init__)."""
+
+    sensors: dict = {
+        "contact_forces": ContactSensorCfg(
+            entity_name="robot",
+            history_length=3,
+            track_air_time=True,
+        )
+    }
+
+
+@configclass
+class SimpleCommandsCfg:
+    """Command specifications for the simple task.
+
+    Note: Genesis Forge's simple example uses a fixed target velocity.
+    We use a simple uniform command generator with a fixed range.
+    """
+
+    base_velocity: mdp.UniformVelocityCommandCfg = mdp.UniformVelocityCommandCfg(
+        asset_name="robot",
+        resampling_time_range=(10.0, 10.0),
+        rel_standing_envs=0.0,
+        rel_heading_envs=1.0,
+        heading_command=True,
+        heading_control_stiffness=1.0,
+        init_velocity_prob=0.0,
+        ranges=mdp.UniformVelocityCommandCfg.Ranges(
+            lin_vel_x=(0.5, 0.5),  # Fixed X velocity: 0.5 m/s (aligned with Genesis Forge)
+            lin_vel_y=(0.0, 0.0),
+            ang_vel_z=(-0.5, 0.5),
+            heading=(-math.pi, math.pi),
+        ),
+    )
+    """Base velocity command configuration."""
+
+
+@configclass
+class SimpleActionsCfg:
+    """Action specifications for the simple task."""
+
+    joint_pos: mdp.JointPositionActionCfg = mdp.JointPositionActionCfg(
+        asset_name="robot",
+        joint_names=[".*"],
+        scale=0.25,  # Same as Genesis Forge
+        use_default_offset=True,  # Same as Genesis Forge
+    )
+    """Joint position action configuration."""
+
+
+@configclass
+class SimpleObservationsCfg:
+    """Observation specifications for the simple task.
+
+    Aligned with Genesis Forge's simple example observations.
+    """
+
+    @configclass
+    class PolicyCfg(ObservationGroupCfg):
+        """Observations for policy group."""
+
+        # Observation terms (aligned with Genesis Forge)
+        base_ang_vel: ObservationTermCfg = ObservationTermCfg(
+            func=mdp.base_ang_vel,
+            scale=0.25,  # Same scale as Genesis Forge
+        )
+        base_lin_vel: ObservationTermCfg = ObservationTermCfg(
+            func=mdp.base_lin_vel,
+            scale=2.0,  # Same scale as Genesis Forge
+        )
+        projected_gravity: ObservationTermCfg = ObservationTermCfg(
+            func=mdp.projected_gravity
+        )
+        joint_pos: ObservationTermCfg = ObservationTermCfg(
+            func=mdp.joint_pos_rel
+        )
+        joint_vel: ObservationTermCfg = ObservationTermCfg(
+            func=mdp.joint_vel_rel,
+            scale=0.05,  # Same scale as Genesis Forge
+        )
+        actions: ObservationTermCfg = ObservationTermCfg(func=mdp.last_action)
+
+        def __post_init__(self):
+            self.enable_corruption = False  # No corruption for simple task
+            self.concatenate_terms = True
+
+    # Observation groups
+    policy: PolicyCfg = PolicyCfg()
+
+
+@configclass
+class SimpleRewardsCfg:
+    """Reward terms for the simple task.
+
+    Aligned with Genesis Forge's simple example rewards.
+    """
+
+    # Task rewards
+    base_height_target: RewardTermCfg = RewardTermCfg(
+        func=mdp.base_height_target,
+        weight=-50.0,  # Same as Genesis Forge
+        params={"target_height": 0.3, "asset_cfg": SceneEntityCfg("robot")},
+    )
+    track_lin_vel_xy_exp: RewardTermCfg = RewardTermCfg(
+        func=mdp.track_lin_vel_xy_exp,
+        weight=1.0,  # Same as Genesis Forge
+        params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
+    )
+    track_ang_vel_z_exp: RewardTermCfg = RewardTermCfg(
+        func=mdp.track_ang_vel_z_exp,
+        weight=0.2,  # Same as Genesis Forge
+        params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
+    )
+
+    # Penalties
+    lin_vel_z_l2: RewardTermCfg = RewardTermCfg(
+        func=mdp.lin_vel_z_l2, weight=-1.0  # Same as Genesis Forge
+    )
+    action_rate_l2: RewardTermCfg = RewardTermCfg(
+        func=mdp.action_rate_l2, weight=-0.005  # Same as Genesis Forge
+    )
+    dof_similar_to_default: RewardTermCfg = RewardTermCfg(
+        func=mdp.dof_similar_to_default,
+        weight=-0.1,  # Same as Genesis Forge
+    )
+
+
+@configclass
+class SimpleTerminationsCfg:
+    """Termination terms for the simple task.
+
+    Aligned with Genesis Forge's simple example terminations.
+    """
+
+    time_out: TerminationTermCfg = TerminationTermCfg(
+        func=mdp.time_out, time_out=True
+    )
+    bad_orientation: TerminationTermCfg = TerminationTermCfg(
+        func=mdp.bad_orientation,
+        time_out=False,
+        params={"limit_angle": 10.0, "asset_cfg": SceneEntityCfg("robot")},
+    )
+
+
+@configclass
+class SimpleGo2EnvCfg(ManagerBasedRlEnvCfg):
+    """Configuration for simple Go2 locomotion task.
+
+    This configuration aligns with Genesis Forge's simple Go2 example,
+    adapted to GenesisLab's manager-based framework.
+    """
+
+    # Scene settings
+    scene: SimpleSceneCfg = SimpleSceneCfg()
+    """Scene configuration including robots, terrain, and sensors."""
+
+    # Basic settings
+    observations: SimpleObservationsCfg = SimpleObservationsCfg()
+    """Observation specifications."""
+
+    actions: SimpleActionsCfg = SimpleActionsCfg()
+    """Action specifications."""
+
+    commands: SimpleCommandsCfg = SimpleCommandsCfg()
+    """Command specifications."""
+
+    # MDP settings
+    rewards: SimpleRewardsCfg = SimpleRewardsCfg()
+    """Reward terms."""
+
+    terminations: SimpleTerminationsCfg = SimpleTerminationsCfg()
+    """Termination terms."""
+
+    # Environment settings
+    decimation: int = 1
+    """Number of physics steps per environment step."""
+
+    episode_length_s: float = 20.0
+    """Maximum episode length in seconds (same as Genesis Forge)."""
+
+    is_finite_horizon: bool = True
+    """Whether episodes have a finite horizon."""
+
+    def __post_init__(self):
+        """Post initialization."""
+        super().__post_init__()
+
+        # Set robot configuration
+        self.scene.robots["robot"] = UNITREE_GO2_CFG
+
+        # Initialize sensors dict if not present
+        if not hasattr(self.scene, "sensors"):
+            self.scene.sensors = {}
+
+        # Add contact sensor for feet air-time and undesired contacts
+        self.scene.sensors["contact_forces"] = ContactSensorCfg(
+            entity_name="robot",
+            history_length=3,
+            track_air_time=True,
+        )
+
+
+@configclass
+class SimpleGo2EnvCfg_PLAY(SimpleGo2EnvCfg):
+    """Configuration for simple Go2 locomotion task (play mode).
+
+    This configuration is optimized for visualization and evaluation,
+    with fewer environments and disabled randomization.
+    """
+
+    def __post_init__(self):
+        """Post initialization."""
+        super().__post_init__()
+
+        # Make a smaller scene for play
+        self.scene.num_envs = 50
+        self.scene.env_spacing = (2.5, 2.5)
+        self.scene.viewer = True  # Enable viewer for play mode
+
+        # Disable randomization for play
+        self.observations.policy.enable_corruption = False

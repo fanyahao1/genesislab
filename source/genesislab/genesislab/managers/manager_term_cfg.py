@@ -106,7 +106,7 @@ class ActionTermCfg:
 	This is the name defined in the scene configuration file.
 	"""
 
-	clip: dict[str, tuple] | None = None
+	clip: dict[str, tuple] = None
 	"""Clip range for the action (dict of regex expressions). Defaults to None."""
 
 	debug_vis: bool = False
@@ -152,7 +152,7 @@ class CommandTermCfg:
 class CurriculumTermCfg(ManagerTermBaseCfg):
 	"""Configuration for a curriculum term."""
 
-	func: Callable[..., float | dict[str, float] | None] = MISSING
+	func: Callable[..., float | dict[str, float]] = MISSING
 	"""The name of the function to be called.
 
 	This function should take the environment object, environment indices
@@ -179,14 +179,14 @@ class ObservationTermCfg(ManagerTermBaseCfg):
 	shape (num_envs, obs_term_dim).
 	"""
 
-	noise: NoiseCfg | NoiseModelCfg | None = None
+	noise: NoiseCfg | NoiseModelCfg = None
 	"""The noise to add to the observation. Defaults to None, in which case no noise is added."""
 
-	clip: tuple[float, float] | None = None
+	clip: tuple[float, float] = None
 	"""The clipping range for the observation after adding noise. Defaults to None,
 	in which case no clipping is applied."""
 
-	scale: tuple[float, ...] | float | None = None
+	scale: tuple[float, ...] | float = None
 	"""The scale to apply to the observation after clipping. Defaults to None,
 	in which case no scaling is applied (same as setting scale to :obj:`1`).
 
@@ -257,7 +257,7 @@ class ObservationGroupCfg:
 	Otherwise, no corruption is applied.
 	"""
 
-	history_length: int | None = None
+	history_length: int = None
 	"""Number of past observation to store in the observation buffers for all observation terms in group.
 
 	This parameter will override :attr:`ObservationTermCfg.history_length` if set. Defaults to None.
@@ -305,7 +305,7 @@ class EventTermCfg(ManagerTermBaseCfg):
 		manager Hence, its name is reserved and cannot be used for other modes.
 	"""
 
-	interval_range_s: tuple[float, float] | None = None
+	interval_range_s: tuple[float, float] = None
 	"""The range of time in seconds at which the term is applied. Defaults to None.
 
 	Based on this, the interval is sampled uniformly between the specified

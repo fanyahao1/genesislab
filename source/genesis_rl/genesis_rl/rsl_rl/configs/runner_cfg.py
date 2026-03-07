@@ -33,7 +33,7 @@ class RslRlOnPolicyRunnerCfg:
     obs_groups: dict[str, list[str]] = MISSING
 
     # Action clipping (optional)
-    clip_actions: float | None = None
+    clip_actions: float = None
 
     # Logging / saving
     save_interval: int = MISSING

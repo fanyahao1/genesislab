@@ -25,9 +25,9 @@ class VelocityStage(TypedDict):
     """Velocity stage configuration for curriculum."""
 
     step: int
-    lin_vel_x: tuple[float, float] | None
-    lin_vel_y: tuple[float, float] | None
-    ang_vel_z: tuple[float, float] | None
+    lin_vel_x: tuple[float, float]
+    lin_vel_y: tuple[float, float]
+    ang_vel_z: tuple[float, float]
 
 
 def terrain_levels_vel(

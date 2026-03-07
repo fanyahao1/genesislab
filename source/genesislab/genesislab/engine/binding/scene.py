@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from genesislab.components.entities.scene_cfg import SceneCfg
 
 from genesislab.engine.assets.articulation import GenesisArticulation, GenesisArticulationCfg
-
+from genesislab.engine.entity import Entity
 
 class SceneBuilder:
     """Helper class for building Genesis scenes and adding entities."""
@@ -101,26 +101,19 @@ class SceneBuilder:
             # Handle other terrain types (e.g., heightfield, mesh)
             raise NotImplementedError(f"Terrain type '{terrain_type}' not yet implemented")
 
-    def add_robot(self, scene: gs.Scene, entity_name: str, robot_cfg: Any) -> Any:
+    def add_robot(self, scene: gs.Scene, entity_name: str, robot_cfg: GenesisArticulationCfg) -> Entity:
         """Add a robot entity to the scene using the Genesis-native asset layer.
 
         Args:
             scene: The Genesis Scene instance.
             entity_name: Name to assign to the entity.
-            robot_cfg: Robot configuration.
+            robot_cfg: Robot configuration (must be a GenesisArticulationCfg or subclass).
 
         Returns:
             The created entity object.
         """
-        asset_cfg = GenesisArticulationCfg(
-            name=entity_name,
-            morph_type=robot_cfg.morph_type,
-            morph_path=robot_cfg.morph_path,
-            initial_pose=robot_cfg.initial_pose,
-            fixed_base=robot_cfg.fixed_base,
-            control_dofs=robot_cfg.control_dofs,
-            morph_options=robot_cfg.morph_options,
-        )
+        # Create a copy of the config with the entity name set
+        asset_cfg = robot_cfg.replace(name=entity_name)
         asset = GenesisArticulation(asset_cfg, device=self._binding.device)
         entity = asset.build_into_scene(scene)
 
@@ -138,6 +131,7 @@ class SceneBuilder:
             sensor_name: Name to assign to the sensor.
             sensor_cfg: Sensor configuration (configclass or dict).
         """
+        # TODO this is wrong
         from genesislab.components.sensors import ContactSensor, ContactSensorCfg
 
         # Lazily attach a sensors dict to the Scene so that MDP code can access

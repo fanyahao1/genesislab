@@ -8,12 +8,11 @@ IsaacLab's contact sensors for MDP terms.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 import torch
 
 from genesislab.utils.configclass import configclass
-
+from genesislab.engine.entity import Entity
 
 @configclass
 class ContactSensorCfg:
@@ -29,7 +28,7 @@ class ContactSensorCfg:
             Currently this is a no-op placeholder kept for API compatibility.
     """
 
-    name: str | None = None
+    name: str = None
     entity_name: str = "robot"
     history_length: int = 3
     track_air_time: bool = True
@@ -64,7 +63,7 @@ class ContactSensor:
         cfg: ContactSensorCfg,
         num_envs: int,
         device: str = "cuda",
-        entity: Any = None,
+        entity: "Entity" = None,
     ):
         """Initialize the contact sensor.
 
@@ -111,7 +110,7 @@ class ContactSensor:
         # Store previous contact state for first-contact detection
         self._prev_air_time = last_air_time.clone()
 
-    def set_entity(self, entity: Any) -> None:
+    def set_entity(self, entity: "Entity") -> None:
         """Set the Genesis entity to read contact forces from.
 
         Args:

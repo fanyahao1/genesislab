@@ -188,7 +188,7 @@ class _IsaacLabStyleDelayBuffer:
             per_env_phase=False,  # No phase offset needed
         )
 
-    def set_time_lag(self, time_lag: int | torch.Tensor, batch_ids: Sequence[int] | None = None):
+    def set_time_lag(self, time_lag: int | torch.Tensor, batch_ids: Sequence[int] = None):
         """Set the time lag for the delay buffer.
 
         Args:
@@ -211,7 +211,7 @@ class _IsaacLabStyleDelayBuffer:
         lags = lags.clamp(0, self._history_length)
         self._buffer.set_lags(lags, batch_ids)
 
-    def reset(self, batch_ids: Sequence[int] | None = None):
+    def reset(self, batch_ids: Sequence[int] = None):
         """Reset the delay buffer.
 
         Args:

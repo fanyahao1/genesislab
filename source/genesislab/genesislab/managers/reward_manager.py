@@ -96,7 +96,7 @@ class RewardManager(ManagerBase):
 	Operations.
 	"""
 
-	def reset(self, env_ids: Sequence[int] | None = None) -> dict[str, torch.Tensor]:
+	def reset(self, env_ids: Sequence[int] = None) -> dict[str, torch.Tensor]:
 		"""Returns the episodic sum of individual reward terms.
 
 		Args:

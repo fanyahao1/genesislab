@@ -8,17 +8,28 @@ dependency on Omniverse or Isaac Sim.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import MISSING
 from typing import Any, Literal, Sequence
 
 import torch
 
 import genesis as gs
 
+from genesislab.utils.configclass import configclass
+
 from genesislab.engine.assets.base import GenesisAssetBase
 
+@configclass
+class InitialPoseCfg:
+    """Initial pose configuration for a robot."""
 
-@dataclass
+    pos: list[float] = [0.0, 0.0, 0.0]
+    """Initial position (x, y, z)."""
+
+    quat: list[float] = [0.0, 0.0, 0.0, 1.0]
+    """Initial orientation quaternion (x, y, z, w)."""
+
+@configclass
 class GenesisArticulationCfg:
     """Configuration for a Genesis articulation asset.
 
@@ -27,18 +38,16 @@ class GenesisArticulationCfg:
     explicit asset wrappers.
     """
 
-    name: str
+    name: str = MISSING
     """Logical name of the articulation asset."""
 
-    morph_type: Literal["URDF", "MJCF", "USD"] = "URDF"
+    morph_type: Literal["URDF", "MJCF", "USD"] = MISSING
     """Type of Genesis morph to construct."""
 
     morph_path: str = ""
     """File path to the robot description (URDF/MJCF/USD)."""
 
-    initial_pose: dict[str, Any] = field(
-        default_factory=lambda: {"pos": [0.0, 0.0, 0.0], "quat": [0.0, 0.0, 0.0, 1.0]}
-    )
+    initial_pose: InitialPoseCfg = InitialPoseCfg()
     """Initial pose of the articulation root."""
 
     fixed_base: bool = False
@@ -47,7 +56,7 @@ class GenesisArticulationCfg:
     control_dofs: list[str] = None
     """List of joint names to control. If None, all actuated joints are controlled."""
 
-    morph_options: dict[str, Any] = field(default_factory=dict)
+    morph_options: dict = {}
     """Additional keyword arguments forwarded to the Genesis morph constructor."""
 
 
@@ -90,12 +99,12 @@ class GenesisArticulation(GenesisAssetBase):
         morph_type = self.cfg.morph_type.upper()
         morph_kwargs = dict(self.cfg.morph_options)
         
-        # Handle both dict and PoseCfg object
+        # Handle both dict and InitialPoseCfg object
         if isinstance(self.cfg.initial_pose, dict):
             pos = self.cfg.initial_pose.get("pos", [0.0, 0.0, 0.0])
             quat = self.cfg.initial_pose.get("quat", [0.0, 0.0, 0.0, 1.0])
         else:
-            # PoseCfg object
+            # InitialPoseCfg object
             pos = getattr(self.cfg.initial_pose, "pos", [0.0, 0.0, 0.0])
             quat = getattr(self.cfg.initial_pose, "quat", [0.0, 0.0, 0.0, 1.0])
 

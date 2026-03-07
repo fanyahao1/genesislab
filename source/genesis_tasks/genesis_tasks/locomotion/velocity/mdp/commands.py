@@ -60,7 +60,7 @@ class UniformVelocityCommandCfg(CommandTermCfg):
         ang_vel_z: tuple[float, float] = MISSING
         """Range for the angular-z velocity command (in rad/s)."""
 
-        heading: tuple[float, float] | None = None
+        heading: tuple[float, float] = None
         """Range for the heading command (in rad). Defaults to None.
         Only used if heading_command is True.
         """

@@ -134,7 +134,7 @@ class RewardsCfg:
     # Contact / gait-related terms (kept for IsaacLab compatibility; currently no contact sensors).
     # NOTE: Our SceneEntityCfg is Genesis-specific and currently only carries `entity_name`.
     # We therefore keep contact/body selection logic inside the reward functions themselves.
-    feet_air_time: RewardTermCfg | None = RewardTermCfg(
+    feet_air_time: RewardTermCfg = RewardTermCfg(
         func=mdp.feet_air_time,
         weight=0.125,
         params={
@@ -143,7 +143,7 @@ class RewardsCfg:
             "threshold": 0.5,
         },
     )
-    undesired_contacts: RewardTermCfg | None = RewardTermCfg(
+    undesired_contacts: RewardTermCfg = RewardTermCfg(
         func=mdp.undesired_contacts,
         weight=-1.0,
         params={
@@ -170,7 +170,7 @@ class TerminationsCfg:
 
     # IsaacLab-style contact-based termination (currently a no-op without contact sensors,
     # but kept for configuration compatibility).
-    base_contact: TerminationTermCfg | None = TerminationTermCfg(
+    base_contact: TerminationTermCfg= TerminationTermCfg(
         func=mdp.illegal_contact,
         time_out=False,
         params={"sensor_cfg": "contact_forces", "threshold": 1.0},
@@ -181,5 +181,5 @@ class TerminationsCfg:
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
-    terrain_levels: CurriculumTermCfg | None = None
+    terrain_levels: CurriculumTermCfg = None
     """Terrain levels curriculum (optional)."""

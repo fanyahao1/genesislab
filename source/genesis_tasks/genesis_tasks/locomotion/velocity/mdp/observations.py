@@ -164,7 +164,7 @@ Action observations.
 """
 
 
-def last_action(env: "ManagerBasedRlEnv", action_name: str | None = None) -> torch.Tensor:
+def last_action(env: "ManagerBasedRlEnv", action_name: str = None) -> torch.Tensor:
     """The last input action to the environment.
 
     Args:
@@ -185,7 +185,7 @@ Command observations.
 """
 
 
-def generated_commands(env: "ManagerBasedRlEnv", command_name: str | None = None) -> torch.Tensor:
+def generated_commands(env: "ManagerBasedRlEnv", command_name: str = None) -> torch.Tensor:
     """The generated command from command term in the command manager.
 
     Args:

@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import torch
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .binding import GenesisBinding
 
 class DOFResolver:
     """Helper class for resolving DOF indices."""
 
-    def __init__(self, binding: Any):
+    def __init__(self, binding: "GenesisBinding"):
         """Initialize the DOF resolver.
 
         Args:

@@ -46,7 +46,7 @@ class GenesisRslRlVecEnv(VecEnv):
         self.cfg = env.cfg
 
         # Cache for latest observations (Genesis-style dict)
-        self._last_obs: VecEnvObs | None = None
+        self._last_obs: VecEnvObs = None
 
         # Run an initial reset so that buffers are populated.
         self.reset()
@@ -100,9 +100,9 @@ class GenesisRslRlVecEnv(VecEnv):
 
     def reset(
         self,
-        seed: int | None = None,
-        env_ids: torch.Tensor | None = None,
-        options: Dict[str, Any] | None = None,
+        seed: int = None,
+        env_ids: torch.Tensor = None,
+        options: Dict[str, Any] = None,
     ):
         """Reset the underlying Genesis environment and return initial observations.
 

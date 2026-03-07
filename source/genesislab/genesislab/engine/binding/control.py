@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import torch
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .binding import GenesisBinding
 
 class Controller:
     """Helper class for controlling entities."""
 
-    def __init__(self, binding: Any):
+    def __init__(self, binding: "GenesisBinding"):
         """Initialize the controller.
 
         Args:
@@ -49,20 +50,3 @@ class Controller:
         else:
             raise ValueError(f"Unknown control type: {control_type}")
 
-    def set_pd_gains(self, entity_name: str, kp: torch.Tensor, kd: torch.Tensor) -> None:
-        """Set PD gains for an entity's joints.
-
-        Args:
-            entity_name: Name of the entity.
-            kp: Position gains of shape (num_dofs,) or (num_envs, num_dofs).
-            kd: Velocity gains of shape (num_dofs,) or (num_envs, num_dofs).
-        """
-        entity = self._binding._entities[entity_name]
-        dof_indices = self._binding._dof_indices.get(entity_name)
-
-        if dof_indices is not None:
-            entity.set_dofs_kp(kp, dof_indices)
-            entity.set_dofs_kv(kd, dof_indices)
-        else:
-            entity.set_dofs_kp(kp)
-            entity.set_dofs_kv(kd)

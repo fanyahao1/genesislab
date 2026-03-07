@@ -7,13 +7,15 @@ details and provides batched state access and control methods.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import genesis as gs
 import torch
 
 if TYPE_CHECKING:
     from genesislab.components.entities.scene_cfg import SceneCfg
+    from genesislab.engine.entity import Entity
+    from genesislab.components.actuators import ActuatorBase
 
 from genesislab.engine.binding.actuators import ActuatorManager
 from genesislab.engine.binding.control import Controller
@@ -37,7 +39,7 @@ class GenesisBinding:
     All operations are batched over num_envs environments.
     """
 
-    def __init__(self, cfg: SceneCfg, device: str = "cuda"):
+    def __init__(self, cfg: "SceneCfg", device: str = "cuda"):
         """Initialize the Genesis binding.
 
         Args:
@@ -47,9 +49,9 @@ class GenesisBinding:
         self.cfg = cfg
         self.device = device
         self._scene: gs.Scene = None
-        self._entities: dict[str, Any] = {}
+        self._entities: dict[str, "Entity"] = {}
         self._dof_indices: dict[str, torch.Tensor] = {}
-        self._actuators: dict[str, dict[str, Any]] = {}  # entity_name -> {actuator_name -> actuator_instance}
+        self._actuators: dict[str, dict[str, "ActuatorBase"]] = {}  # entity_name -> {actuator_name -> actuator_instance}
         self._num_envs = cfg.num_envs
 
         # Initialize helper components
@@ -60,7 +62,7 @@ class GenesisBinding:
         self._controller            = Controller(self)
 
     @property
-    def scene(self) -> gs.Scene:
+    def scene(self) -> "gs.Scene":
         """The Genesis Scene instance."""
         if self._scene is None:
             raise RuntimeError("Scene not built. Call build() first.")
@@ -72,7 +74,7 @@ class GenesisBinding:
         return self._num_envs
 
     @property
-    def entities(self) -> dict[str, Any]:
+    def entities(self) -> dict[str, "Entity"]:
         """Dictionary of entity objects keyed by name."""
         return self._entities
 
@@ -119,12 +121,8 @@ class GenesisBinding:
         self._dof_resolver.resolve_dof_indices()
 
         # Process actuator configurations (IsaacLab-style)
-        # This takes precedence over legacy PD gains
+        # All actuators compute torques explicitly and apply them via control_dofs_force()
         self._actuator_manager.process_actuators_cfg()
-
-        # Apply default PD gains from robot configs, if specified
-        # (only if actuators are not configured)
-        self._actuator_manager.apply_robot_pd_gains()
 
     def reset(self, env_ids: torch.Tensor = None) -> None:
         """Reset specified environments to initial state.
@@ -194,12 +192,3 @@ class GenesisBinding:
         """
         self._controller.set_joint_targets(entity_name, targets, control_type)
 
-    def set_pd_gains(self, entity_name: str, kp: torch.Tensor, kd: torch.Tensor) -> None:
-        """Set PD gains for an entity's joints.
-
-        Args:
-            entity_name: Name of the entity.
-            kp: Position gains of shape (num_dofs,) or (num_envs, num_dofs).
-            kd: Velocity gains of shape (num_dofs,) or (num_envs, num_dofs).
-        """
-        self._controller.set_pd_gains(entity_name, kp, kd)

@@ -96,7 +96,7 @@ class SceneCfg:
         rendered_envs_idx: list[int] = None
         """List of environment indices to render. If None, all environments are rendered."""
 
-        def to_genesis_options(self) -> dict[str, Any] | None:
+        def to_genesis_options(self) -> dict[str, Any]:
             """Convert this config to keyword arguments for ``gs.options.VisOptions``.
             
             Returns None if rendered_envs_idx is None (no vis options needed).

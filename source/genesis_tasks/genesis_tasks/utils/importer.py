@@ -12,7 +12,7 @@ import pkgutil
 import sys
 
 
-def import_packages(package_name: str, blacklist_pkgs: list[str] | None = None):
+def import_packages(package_name: str, blacklist_pkgs: list[str] = None):
     """Import all sub-packages in a package recursively.
 
     It is easier to use this function to import all sub-packages in a package recursively
@@ -47,10 +47,10 @@ Internal helpers.
 
 
 def _walk_packages(
-    path: str | None = None,
+    path: str = None,
     prefix: str = "",
-    onerror: callable | None = None,
-    blacklist_pkgs: list[str] | None = None,
+    onerror: callable = None,
+    blacklist_pkgs: list[str] = None,
 ):
     """Yields ModuleInfo for all modules recursively on path, or, if path is None, all accessible modules.
 

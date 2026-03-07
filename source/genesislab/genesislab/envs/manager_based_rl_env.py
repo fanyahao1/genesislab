@@ -106,9 +106,9 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
 
     def reset(
         self,
-        seed: int | None = None,
-        env_ids: torch.Tensor | list[int] | tuple[int, ...] | None = None,
-        options: dict[str, Any] | None = None,
+        seed: int = None,
+        env_ids: torch.Tensor | list[int] | tuple[int, ...] = None,
+        options: dict[str, Any] = None,
     ) -> tuple[VecEnvObs, dict[str, Any]]:
         """Reset the environment with curriculum support.
 
@@ -195,10 +195,10 @@ class ManagerBasedRlEnvCfg(ManagerBasedGenesisEnvCfg):
 
     # Re-declare RL-related fields with RL-focused docstrings while keeping
     # defaults aligned with the base config.
-    episode_length_s: float | None = None
+    episode_length_s: float = None
     is_finite_horizon: bool = False
 
     rewards: object = {}
     terminations: object = {}
-    curriculum: object | None = None
-    commands: object | None = None
+    curriculum: object = None
+    commands: object = None

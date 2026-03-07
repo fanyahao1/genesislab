@@ -24,7 +24,7 @@ class ManagerTermBase:
 	inherit from this base class and implement the required methods.
 	"""
 
-	def __init__(self, cfg: ManagerTermBaseCfg | None = None, env: "ManagerBasedRlEnv" = None):
+	def __init__(self, cfg: ManagerTermBaseCfg = None, env: "ManagerBasedRlEnv" = None):
 		"""Initialize the manager term.
 
 		Args:
@@ -59,7 +59,7 @@ class ManagerTermBase:
 
 	# Methods.
 
-	def reset(self, env_ids: torch.Tensor | slice | Sequence[int] | None = None) -> None:
+	def reset(self, env_ids: torch.Tensor | slice | Sequence[int] = None) -> None:
 		"""Resets the manager term.
 
 		Args:
@@ -95,7 +95,7 @@ class ManagerTermBase:
 class ManagerBase(abc.ABC):
 	"""Base class for all managers."""
 
-	def __init__(self, cfg: object | None = None, env: "ManagerBasedRlEnv" = None):
+	def __init__(self, cfg: object = None, env: "ManagerBasedRlEnv" = None):
 		"""Initialize the manager.
 
 		This function is responsible for parsing the configuration object and creating the terms.
@@ -132,7 +132,7 @@ class ManagerBase(abc.ABC):
 
 	# Methods.
 
-	def reset(self, env_ids: torch.Tensor | Sequence[int] | None = None) -> dict[str, float]:
+	def reset(self, env_ids: torch.Tensor | Sequence[int] = None) -> dict[str, float]:
 		"""Resets the manager and returns logging information for the current time-step.
 
 		Args:

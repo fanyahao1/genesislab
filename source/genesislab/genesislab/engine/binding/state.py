@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .binding import GenesisBinding
 
 import torch
 
@@ -10,7 +12,7 @@ import torch
 class StateQuerier:
     """Helper class for querying entity state."""
 
-    def __init__(self, binding: Any):
+    def __init__(self, binding: "GenesisBinding"):
         """Initialize the state querier.
 
         Args:

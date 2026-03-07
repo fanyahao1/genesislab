@@ -57,7 +57,7 @@ class ArrowMarkers:
         self,
         translations: np.ndarray,
         directions: np.ndarray,
-        mask: np.ndarray | None = None,
+        mask: np.ndarray = None,
     ) -> None:
         """Draw arrows for a batch of positions and directions.
 

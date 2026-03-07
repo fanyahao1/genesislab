@@ -17,16 +17,6 @@ if TYPE_CHECKING:
 
 
 def time_out(env: "ManagerBasedRlEnv") -> torch.Tensor:
-    """Timeout termination condition.
-
-    Terminate the episode when the episode length exceeds the maximum episode length.
-
-    Args:
-        env: The environment instance.
-
-    Returns:
-        Boolean tensor of shape (num_envs,) indicating timed-out environments.
-    """
     if env.max_episode_length is None:
         return torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
     return env.episode_length_buf >= env.max_episode_length
@@ -49,8 +39,6 @@ def base_height(
     """
     entity = env.entities[asset_cfg.entity_name]
     base_pos = entity.data.root_pos_w
-    
-    # Check if base is too low (fallen)
     fallen = base_pos[:, 2] < threshold
     return fallen
 
@@ -61,37 +49,38 @@ def illegal_contact(env: "ManagerBasedRlEnv", threshold: float, sensor_cfg: Scen
     Args:
         env: The environment instance.
         threshold: Force threshold for contact detection.
-        sensor_cfg: Configuration for the contact sensor.
+        sensor_cfg: Configuration for the contact sensor. Should have body_ids
+            or body_names set to filter which bodies to check.
 
     Returns:
         Boolean tensor of shape (num_envs,) indicating terminated environments.
     """
-    if not hasattr(env.scene, "sensors"):
-        raise AttributeError(
-            "Scene does not have 'sensors' attribute. "
-            "Contact sensor must be configured in the scene."
-        )
-    
-    if isinstance(sensor_cfg, str):
-        sensor_name = sensor_cfg
-    else:
-        sensor_name = getattr(sensor_cfg, "entity_name", None) or getattr(sensor_cfg, "name", None) or "contact_forces"
-    
+    # Get sensor name (support both entity_name and name for compatibility)
+    sensor_name = getattr(sensor_cfg, "name", None) or getattr(sensor_cfg, "entity_name", None)
+    if sensor_name is None:
+        sensor_name = "contact_forces"
+
     if sensor_name not in env.scene.sensors:
         raise KeyError(
             f"Contact sensor '{sensor_name}' not found in scene.sensors. "
             f"Available sensors: {list(env.scene.sensors.keys())}"
         )
-    
+
     contact_sensor = env.scene.sensors[sensor_name]
     net_contact_forces = contact_sensor.data.net_forces_w_history  # (H, N, C, 3)
 
+    # Filter by body_ids if specified
+    body_ids = getattr(sensor_cfg, "body_ids", slice(None))
+    if body_ids != slice(None):
+        # Index the channel dimension (third dimension)
+        net_contact_forces = net_contact_forces[:, :, body_ids, :]  # (H, N, len(body_ids), 3)
+
     # Compute max force magnitude over history and channels.
-    force_mag = torch.norm(net_contact_forces, dim=-1)  # (H, N, C)
-    max_force, _ = torch.max(force_mag, dim=0)  # (N, C)
+    force_mag = torch.norm(net_contact_forces, dim=-1)  # (H, N, C) or (H, N, len(body_ids))
+    max_force, _ = torch.max(force_mag, dim=0)  # (N, C) or (N, len(body_ids))
 
     # Terminate if any channel exceeds the threshold.
-    is_contact = max_force > threshold  # (N, C)
+    is_contact = max_force > threshold  # (N, C) or (N, len(body_ids))
     terminated = torch.any(is_contact, dim=1)  # (N,)
     return terminated
 

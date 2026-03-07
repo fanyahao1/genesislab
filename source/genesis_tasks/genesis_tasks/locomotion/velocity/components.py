@@ -170,10 +170,10 @@ class TerminationsCfg:
 
     # IsaacLab-style contact-based termination (currently a no-op without contact sensors,
     # but kept for configuration compatibility).
-    base_contact: TerminationTermCfg= TerminationTermCfg(
+    base_contact: TerminationTermCfg = TerminationTermCfg(
         func=mdp.illegal_contact,
         time_out=False,
-        params={"sensor_cfg": "contact_forces", "threshold": 1.0},
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="base"), "threshold": 1.0},
     )
 
 

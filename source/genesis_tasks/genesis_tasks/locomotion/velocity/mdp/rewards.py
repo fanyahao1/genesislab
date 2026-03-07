@@ -183,7 +183,8 @@ def undesired_contacts(env: "ManagerBasedRlEnv", threshold: float, sensor_cfg: S
     Args:
         env: The environment instance.
         threshold: Force threshold for contact detection.
-        sensor_cfg: Configuration for the contact sensor.
+        sensor_cfg: Configuration for the contact sensor. Should have body_ids
+            or body_names set to filter which bodies to check.
 
     Returns:
         Tensor of shape (num_envs,) containing the penalty.
@@ -195,11 +196,8 @@ def undesired_contacts(env: "ManagerBasedRlEnv", threshold: float, sensor_cfg: S
             "Contact sensor must be configured in the scene."
         )
     
-    if isinstance(sensor_cfg, str):
-        sensor_name = sensor_cfg
-    else:
-        sensor_name = getattr(sensor_cfg, "entity_name", None) or getattr(sensor_cfg, "name", None) or "contact_forces"
     
+    sensor_name = sensor_cfg.entity_name
     if sensor_name not in env.scene.sensors:
         raise KeyError(
             f"Contact sensor '{sensor_name}' not found in scene.sensors. "
@@ -209,13 +207,19 @@ def undesired_contacts(env: "ManagerBasedRlEnv", threshold: float, sensor_cfg: S
     contact_sensor = env.scene.sensors[sensor_name]
     net_contact_forces = contact_sensor.data.net_forces_w_history  # (H, N, C, 3)
 
+    # Filter by body_ids if specified
+    body_ids = getattr(sensor_cfg, "body_ids", slice(None))
+    if body_ids != slice(None):
+        # Index the channel dimension (third dimension)
+        net_contact_forces = net_contact_forces[:, :, body_ids, :]  # (H, N, len(body_ids), 3)
+
     # Compute max force magnitude over history and channels.
-    # Shape: (H, N, C, 3) -> (H, N, C) -> (N, C)
+    # Shape: (H, N, C, 3) -> (H, N, C) -> (N, C) or (H, N, len(body_ids), 3) -> (H, N, len(body_ids)) -> (N, len(body_ids))
     force_mag = torch.norm(net_contact_forces, dim=-1)
     max_force, _ = torch.max(force_mag, dim=0)
 
     # Any contact above threshold counts as an undesired contact.
-    is_contact = max_force > threshold  # (N, C)
+    is_contact = max_force > threshold  # (N, C) or (N, len(body_ids))
     # Penalty is the number of undesired contacts per environment.
     return torch.sum(is_contact.to(torch.float32), dim=1)
 

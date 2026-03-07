@@ -11,10 +11,14 @@ time so that term functions can access the resolved handle efficiently.
 from __future__ import annotations
 
 from dataclasses import MISSING
-from typing import Any
+from typing import Any, List
 
 from genesislab.utils.configclass import configclass
 from genesislab.utils.configclass.string import resolve_matching_names
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from genesislab.engine.gstype import KinematicEntity
 
 @configclass
 class SceneEntityCfg:
@@ -41,7 +45,7 @@ class SceneEntityCfg:
     to the term function as a list of body indices under :attr:`body_ids`.
     """
 
-    body_ids: list[int] | slice = slice(None)
+    body_ids = None
     """The indices of the bodies from the entity required by the term. Defaults to slice(None), which means
     all the bodies in the entity.
 
@@ -56,7 +60,7 @@ class SceneEntityCfg:
     to the term function as a list of joint indices under :attr:`joint_ids`.
     """
 
-    joint_ids: list[int] | slice = slice(None)
+    joint_ids = None
     """The indices of the joints from the entity required by the term. Defaults to slice(None), which means
     all the joints in the entity (if present).
 
@@ -189,37 +193,20 @@ class SceneEntityCfg:
                     "entity not found. For sensors, ensure the environment is provided to resolve()."
                 )
 
-    def _resolve_body_names(self, entity: Any) -> None:
+    def _resolve_body_names(self, entity: "KinematicEntity") -> None:
         """Convert body names to body indices based on regex matching.
 
         Args:
             entity: The Genesis entity object with link/body information.
         """
-        if not hasattr(entity, "n_links") or not hasattr(entity, "get_link"):
-            raise AttributeError(
-                f"Entity '{self.name}' does not have 'n_links' and 'get_link' methods. "
-                "Cannot resolve body names."
-            )
-
+        entity._links
         # Get all link names
         num_links = int(entity.n_links)
-        link_names = []
-        for i in range(num_links):
-            link = entity.get_link(i)
-            # Try to get link name - different Genesis entities may expose this differently
-            if hasattr(link, "name"):
-                link_names.append(link.name)
-            elif hasattr(link, "get_name"):
-                link_names.append(link.get_name())
-            else:
-                # Fallback: use index as name
-                link_names.append(f"link_{i}")
+        link_names: List[str] = [link._name for link in entity._links]
 
         # Resolve matching names
-        if isinstance(self.body_names, str):
-            body_names_list = [self.body_names]
-        else:
-            body_names_list = self.body_names
+        if isinstance(self.body_names, str): body_names_list = [self.body_names]
+        else: body_names_list = self.body_names
 
         try:
             body_indices, matched_names = resolve_matching_names(

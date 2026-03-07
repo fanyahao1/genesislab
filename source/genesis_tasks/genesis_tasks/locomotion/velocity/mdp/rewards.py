@@ -390,3 +390,29 @@ def feet_air_time(
     reward = reward * moving_mask.to(reward.dtype)
 
     return reward
+
+
+"""
+Survival rewards.
+"""
+
+
+def alive(env: "ManagerBasedRlEnv", asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Reward for staying alive (not terminated).
+    
+    This is a simple survival reward that gives a constant positive reward
+    for each environment that is still active (not terminated).
+    
+    Args:
+        env: The environment instance.
+        asset_cfg: Configuration for the asset entity. Defaults to "robot".
+            This parameter is kept for API consistency but not used.
+    
+    Returns:
+        Tensor of shape (num_envs,) containing the reward (1.0 for alive, 0.0 for terminated).
+    """
+    # Return a constant reward of 1.0 for all environments
+    # The termination manager will handle setting rewards to 0 for terminated envs
+    num_envs = env.num_envs
+    device = env.device
+    return torch.ones(num_envs, device=device, dtype=torch.float32)

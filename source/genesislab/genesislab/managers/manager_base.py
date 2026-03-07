@@ -109,8 +109,7 @@ class ManagerBase(abc.ABC):
 		self._env = env
 
 		# Parse config to create terms information
-		if self.cfg:
-			self._prepare_terms()
+		if self.cfg: self._prepare_terms()
 
 	# Properties.
 

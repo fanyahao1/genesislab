@@ -145,13 +145,13 @@ class RewardsCfg:
     )
     undesired_contacts: RewardTermCfg = RewardTermCfg(
         func=mdp.undesired_contacts,
-        weight=-1.0,
+        weight=-0.0,
         params={
             "sensor_cfg": "contact_forces",
             "threshold": 1.0,
         },
     )
-
+    alive: RewardTermCfg = RewardTermCfg(func=mdp.alive, weight=100.0)
     # Optional penalties
     flat_orientation_l2: RewardTermCfg = RewardTermCfg(func=mdp.flat_orientation_l2, weight=0.0)
     dof_pos_limits: RewardTermCfg = RewardTermCfg(func=mdp.joint_pos_limits, weight=0.0)

@@ -13,25 +13,8 @@ import torch
 
 from genesislab.utils.configclass import configclass
 from genesislab.engine.entity import Entity
-
-@configclass
-class ContactSensorCfg:
-    """Configuration for a contact sensor.
-
-    Attributes:
-        name: Logical name of the sensor. If None, the key in SceneCfg.sensors
-            is used.
-        entity_name: Name of the articulated entity to which this sensor is
-            conceptually attached (typically ``"robot"``).
-        history_length: Number of past steps of contact forces to keep.
-        track_air_time: Whether to track a simple notion of link "air time".
-            Currently this is a no-op placeholder kept for API compatibility.
-    """
-
-    name: str = None
-    entity_name: str = "robot"
-    history_length: int = 3
-    track_air_time: bool = True
+from .sensor_base import SensorBase
+from .sensor_base_cfg import SensorBaseCfg
 
 
 @dataclass
@@ -50,7 +33,7 @@ class _ContactSensorData:
     last_air_time: torch.Tensor
 
 
-class ContactSensor:
+class ContactSensor(SensorBase):
     """Contact sensor for GenesisLab that reads real contact forces from Genesis engine.
 
     The sensor reads contact forces from the Genesis entity using
@@ -60,7 +43,7 @@ class ContactSensor:
 
     def __init__(
         self,
-        cfg: ContactSensorCfg,
+        cfg: "ContactSensorCfg",
         num_envs: int,
         device: str = "cuda",
         entity: "Entity" = None,
@@ -74,11 +57,9 @@ class ContactSensor:
             entity: Genesis entity object to read contact forces from. If None,
                 will be set later via `set_entity()`.
         """
-        self.cfg = cfg
-        self.num_envs = int(num_envs)
-        self.device = device
+        # Store entity reference before calling super().__init__()
         self._entity = entity
-
+        
         # Get number of links/channels from entity if available
         # Otherwise, we'll infer it on first update
         if entity is not None and hasattr(entity, "n_links"):
@@ -88,27 +69,43 @@ class ContactSensor:
             num_channels = 1
 
         history_len = max(int(cfg.history_length), 1)
-
-        net_forces = torch.zeros(
+        
+        # Create buffers BEFORE calling super().__init__() because
+        # super().__init__() will call _initialize_impl() which needs these buffers
+        self._net_forces_buffer = torch.zeros(
             history_len,
-            self.num_envs,
+            num_envs,
             num_channels,
             3,
             device=device,
             dtype=torch.float32,
         )
-        last_air_time = torch.zeros(
-            self.num_envs,
+        self._last_air_time_buffer = torch.zeros(
+            num_envs,
             num_channels,
             device=device,
             dtype=torch.float32,
         )
-        self.data = _ContactSensorData(
-            net_forces_w_history=net_forces,
-            last_air_time=last_air_time,
+        self._prev_air_time = self._last_air_time_buffer.clone()
+        
+        # Initialize base class (this will call _initialize_impl())
+        super().__init__(cfg=cfg, num_envs=num_envs, device=device)
+
+    def _initialize_impl(self) -> None:
+        """Initialize the sensor data buffers."""
+        super()._initialize_impl()
+        # Create data object
+        self._data = _ContactSensorData(
+            net_forces_w_history=self._net_forces_buffer,
+            last_air_time=self._last_air_time_buffer,
         )
-        # Store previous contact state for first-contact detection
-        self._prev_air_time = last_air_time.clone()
+
+    @property
+    def data(self) -> _ContactSensorData:
+        """Data from the sensor."""
+        # Update sensors if needed
+        self._update_outdated_buffers()
+        return self._data
 
     def set_entity(self, entity: "Entity") -> None:
         """Set the Genesis entity to read contact forces from.
@@ -120,10 +117,10 @@ class ContactSensor:
         # Resize buffers if entity has different number of links
         if entity is not None and hasattr(entity, "n_links"):
             num_channels = entity.n_links
-            if num_channels != self.data.net_forces_w_history.shape[2]:
+            if num_channels != self._data.net_forces_w_history.shape[2]:
                 # Resize buffers to match number of links
-                history_len = self.data.net_forces_w_history.shape[0]
-                self.data.net_forces_w_history = torch.zeros(
+                history_len = self._data.net_forces_w_history.shape[0]
+                self._data.net_forces_w_history = torch.zeros(
                     history_len,
                     self.num_envs,
                     num_channels,
@@ -131,24 +128,20 @@ class ContactSensor:
                     device=self.device,
                     dtype=torch.float32,
                 )
-                self.data.last_air_time = torch.zeros(
+                self._data.last_air_time = torch.zeros(
                     self.num_envs,
                     num_channels,
                     device=self.device,
                     dtype=torch.float32,
                 )
                 # Initialize previous air time
-                self._prev_air_time = self.data.last_air_time.clone()
+                self._prev_air_time = self._data.last_air_time.clone()
 
-    def update(self, dt: float) -> None:
-        """Update the sensor data for a simulation step.
-
-        Args:
-            dt: Physics time-step in seconds.
-        """
+    def _update_buffers_impl(self, env_ids) -> None:
+        """Update sensor buffers for the specified environment ids."""
         # Roll history along the time dimension
-        self.data.net_forces_w_history = torch.roll(
-            self.data.net_forces_w_history, shifts=-1, dims=0
+        self._data.net_forces_w_history = torch.roll(
+            self._data.net_forces_w_history, shifts=-1, dims=0
         )
 
         # Get real contact forces from Genesis entity
@@ -180,13 +173,13 @@ class ContactSensor:
         # Reshape to match expected format: (num_envs, num_links, 3) -> (num_envs, num_channels, 3)
         # If num_channels doesn't match, resize buffers
         num_links = contact_forces.shape[1]
-        if num_links != self.data.net_forces_w_history.shape[2]:
+        if num_links != self._data.net_forces_w_history.shape[2]:
             # Resize buffers
-            history_len = self.data.net_forces_w_history.shape[0]
-            old_forces = self.data.net_forces_w_history.clone()
-            old_air_time = self.data.last_air_time.clone()
+            history_len = self._data.net_forces_w_history.shape[0]
+            old_forces = self._data.net_forces_w_history.clone()
+            old_air_time = self._data.last_air_time.clone()
             
-            self.data.net_forces_w_history = torch.zeros(
+            self._data.net_forces_w_history = torch.zeros(
                 history_len,
                 self.num_envs,
                 num_links,
@@ -194,7 +187,7 @@ class ContactSensor:
                 device=self.device,
                 dtype=torch.float32,
             )
-            self.data.last_air_time = torch.zeros(
+            self._data.last_air_time = torch.zeros(
                 self.num_envs,
                 num_links,
                 device=self.device,
@@ -203,11 +196,11 @@ class ContactSensor:
             
             # Copy old data if possible
             if old_forces.shape[2] <= num_links:
-                self.data.net_forces_w_history[:, :, :old_forces.shape[2], :] = old_forces
-                self.data.last_air_time[:, :old_air_time.shape[1]] = old_air_time
+                self._data.net_forces_w_history[:, :, :old_forces.shape[2], :] = old_forces
+                self._data.last_air_time[:, :old_air_time.shape[1]] = old_air_time
         
         # Store latest contact forces in history (last time step)
-        self.data.net_forces_w_history[-1, ...] = contact_forces
+        self._data.net_forces_w_history[-1, ...] = contact_forces
         
         # Update air time: reset to 0 if contact force magnitude > threshold, otherwise accumulate
         force_mag = torch.norm(contact_forces, dim=-1)  # (num_envs, num_links)
@@ -215,13 +208,16 @@ class ContactSensor:
         is_contact = force_mag > contact_threshold
         
         # Save previous air time for first-contact detection
-        self._prev_air_time = self.data.last_air_time.clone()
+        self._prev_air_time = self._data.last_air_time.clone()
+        
+        # Get dt from cfg or use a default
+        dt = self.cfg.update_period if self.cfg.update_period > 0 else 0.005
         
         # Reset air time for links in contact, accumulate for others
-        self.data.last_air_time = torch.where(
+        self._data.last_air_time = torch.where(
             is_contact,
-            torch.zeros_like(self.data.last_air_time),
-            self.data.last_air_time + dt,
+            torch.zeros_like(self._data.last_air_time),
+            self._data.last_air_time + dt,
         )
 
     # IsaacLab-style helper used in feet_air_time.
@@ -240,10 +236,30 @@ class ContactSensor:
         """
         # Check if previous air_time was > threshold (was in air) and current air_time is 0 (now in contact)
         was_in_air = self._prev_air_time > step_dt
-        is_now_in_contact = self.data.last_air_time < step_dt  # Air time reset to near-zero means contact
+        is_now_in_contact = self._data.last_air_time < step_dt  # Air time reset to near-zero means contact
         
         # First contact: was in air AND now in contact
         first_contact = was_in_air & is_now_in_contact
         
         return first_contact
 
+
+@configclass
+class ContactSensorCfg(SensorBaseCfg):
+    """Configuration for a contact sensor.
+
+    Attributes:
+        name: Logical name of the sensor. If None, the key in SceneCfg.sensors
+            is used.
+        entity_name: Name of the articulated entity to which this sensor is
+            conceptually attached (typically ``"robot"``).
+        history_length: Number of past steps of contact forces to keep.
+        track_air_time: Whether to track a simple notion of link "air time".
+            Currently this is a no-op placeholder kept for API compatibility.
+    """
+
+    class_type: type = ContactSensor  # Will be set after ContactSensor is defined
+    name: str = None
+    entity_name: str = "robot"
+    history_length: int = 3
+    track_air_time: bool = True

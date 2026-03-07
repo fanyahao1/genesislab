@@ -9,6 +9,8 @@ import genesis as gs
 if TYPE_CHECKING:
     from genesislab.engine.binding import GenesisBinding
     from genesislab.components.entities.scene_cfg import SceneCfg
+    from genesislab.components.sensors import SensorBaseCfg
+
 
 from genesislab.engine.assets.articulation import GenesisArticulation, GenesisArticulationCfg
 from genesislab.engine.entity import Entity
@@ -119,50 +121,59 @@ class SceneBuilder:
 
         return entity
 
-    def add_sensor(self, scene: gs.Scene, sensor_name: str, sensor_cfg: Any) -> None:
+    def add_sensor(self, scene: gs.Scene, sensor_name: str, sensor_cfg: "SensorBaseCfg") -> None:
         """Add a sensor to the scene.
 
-        Currently, only simple Python-side sensors (like contact sensors) are
-        supported. These do not create any engine primitives but expose data
-        buffers that MDP terms can read.
+        Sensors are created using their configuration's class_type. The sensor
+        configuration must inherit from SensorBaseCfg and specify a class_type
+        that inherits from SensorBase.
 
         Args:
             scene: The Genesis Scene instance.
             sensor_name: Name to assign to the sensor.
-            sensor_cfg: Sensor configuration (configclass or dict).
+            sensor_cfg: Sensor configuration (configclass or dict). Must have
+                a class_type attribute pointing to the sensor class.
         """
-        # TODO this is wrong
-        from genesislab.components.sensors import ContactSensor, ContactSensorCfg
 
         # Lazily attach a sensors dict to the Scene so that MDP code can access
         # ``env.scene.sensors[name]`` similar to IsaacLab.
         if not hasattr(scene, "sensors"):
             scene.sensors = {}
 
-        cfg_obj: Any = sensor_cfg
-        # Support both configclass instances and plain dict configs.
-        if isinstance(sensor_cfg, dict):
-            cfg_obj = ContactSensorCfg(**sensor_cfg)
 
-        if isinstance(cfg_obj, ContactSensorCfg):
-            if cfg_obj.name is None:
-                cfg_obj.name = sensor_name
-            # Get entity reference for contact sensor - required
-            if not hasattr(cfg_obj, "entity_name") or not cfg_obj.entity_name:
-                raise ValueError(
-                    f"ContactSensorCfg must have 'entity_name' specified. "
-                    f"Got: {getattr(cfg_obj, 'entity_name', None)}"
-                )
-            
-            if cfg_obj.entity_name not in self._binding._entities:
+        # Set name if not set
+        if sensor_cfg.name is None:
+            sensor_cfg.name = sensor_name
+
+        # Check that class_type is specified
+        if sensor_cfg.class_type is None:
+            raise ValueError(
+                f"Sensor configuration '{type(sensor_cfg).__name__}' must have 'class_type' specified. "
+                f"This should be set automatically when the sensor class is defined."
+            )
+
+        # Create sensor instance using the class_type
+        # The sensor class should accept (cfg, num_envs, device, ...) as arguments
+        sensor_class = sensor_cfg.class_type
+        
+        # Get additional arguments that the sensor might need
+        # For contact sensors, we need to provide the entity
+        sensor_kwargs = {}
+        if hasattr(sensor_cfg, "entity_name") and sensor_cfg.entity_name:
+            if sensor_cfg.entity_name not in self._binding._entities:
                 raise KeyError(
-                    f"Entity '{cfg_obj.entity_name}' not found in binding.entities. "
-                    f"Contact sensor requires the entity to exist. "
+                    f"Entity '{sensor_cfg.entity_name}' not found in binding.entities. "
+                    f"Sensor '{sensor_name}' requires the entity to exist. "
                     f"Available entities: {list(self._binding._entities.keys())}"
                 )
-            
-            entity = self._binding._entities[cfg_obj.entity_name]
-            sensor = ContactSensor(
-                cfg=cfg_obj, num_envs=self._binding._num_envs, device=self._binding.device, entity=entity
-            )
-            scene.sensors[sensor_name] = sensor
+            sensor_kwargs["entity"] = self._binding._entities[sensor_cfg.entity_name]
+
+        # Create the sensor instance
+        sensor = sensor_class(
+            cfg=sensor_cfg,
+            num_envs=self._binding._num_envs,
+            device=self._binding.device,
+            **sensor_kwargs
+        )
+        
+        scene.sensors[sensor_name] = sensor

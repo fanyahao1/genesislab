@@ -55,9 +55,6 @@ class UnitreeGo2RoughEnvCfg(BaseVelocityEnvCfg):
             # Disable undesired_contacts for Go2 rough task (IsaacLab sets this to None).
             self.rewards.undesired_contacts = None
 
-        if hasattr(self.terminations, "base_contact") and self.terminations.base_contact is not None:
-            self.terminations.base_contact.params["sensor_cfg"] = "contact_forces"
-
 
 @configclass
 class UnitreeGo2RoughEnvCfg_PLAY(UnitreeGo2RoughEnvCfg):

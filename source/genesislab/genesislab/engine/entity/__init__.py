@@ -1,2 +1,2 @@
-from .entity_data import EntityData
-from .entity import LabEntity
+from .lab_entity_data import LabEntityData
+from .lab_entity import LabEntity

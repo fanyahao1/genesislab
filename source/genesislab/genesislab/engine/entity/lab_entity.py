@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from genesislab.envs.manager_based_genesis_env import ManagerBasedGenesisEnv
     from genesislab.engine.gstype import KinematicEntity
-    from genesislab.engine.assets.robot import GenesisArticulationRobot
+    from genesislab.engine.assets.robot import ArticulationRobot
 
-from .entity_data import EntityData
+from .lab_entity_data import LabEntityData
 
 class LabEntity:
     """Wrapper for a Genesis entity with data view access.
@@ -25,10 +25,10 @@ class LabEntity:
     """
 
     _raw_entity: "KinematicEntity"
-    _robot_asset: "GenesisArticulationRobot"
+    _robot_asset: "ArticulationRobot"
     _data: "EntityData" = None
 
-    def __init__(self, env: "ManagerBasedGenesisEnv", entity_name: str, raw_entity: "KinematicEntity", robot_asset: "GenesisArticulationRobot" = None):
+    def __init__(self, env: "ManagerBasedGenesisEnv", entity_name: str, raw_entity: "KinematicEntity", robot_asset: "ArticulationRobot" = None):
         """Initialize the entity wrapper.
 
         Args:
@@ -60,7 +60,7 @@ class LabEntity:
         return self._raw_entity
 
     @property
-    def robot_asset(self) -> GenesisArticulationRobot:
+    def robot_asset(self) -> ArticulationRobot:
         """Access to the Robot asset wrapper (for name resolution, if available)."""
         return self._robot_asset
 

@@ -11,8 +11,8 @@ if TYPE_CHECKING:
     from genesislab.components.entities.scene_cfg import SceneCfg
     from genesislab.components.sensors import SensorBaseCfg
 
-from genesislab.engine.assets.articulation import GenesisArticulationCfg
-from genesislab.engine.assets.robot import GenesisArticulationRobot
+from genesislab.engine.assets.articulation import ArticulationCfg
+from genesislab.engine.assets.robot import ArticulationRobot
 from genesislab.engine.entity import LabEntity
 
 
@@ -104,7 +104,7 @@ class SceneBuilder:
             # Handle other terrain types (e.g., heightfield, mesh)
             raise NotImplementedError(f"Terrain type '{terrain_type}' not yet implemented")
 
-    def add_robot(self, scene: gs.Scene, entity_name: str, robot_cfg: GenesisArticulationCfg, env: Any = None) -> LabEntity:
+    def add_robot(self, scene: gs.Scene, entity_name: str, robot_cfg: ArticulationCfg, env: Any = None) -> LabEntity:
         """Add a robot entity to the scene using the Genesis-native asset layer.
 
         Args:
@@ -119,7 +119,7 @@ class SceneBuilder:
         # Create a copy of the config with the entity name set
         asset_cfg = robot_cfg.replace(name=entity_name)
         # Use Robot class which provides name resolution support
-        asset = GenesisArticulationRobot(asset_cfg, device=self._scene.device)
+        asset = ArticulationRobot(asset_cfg, device=self._scene.device)
         raw_entity = asset.build_into_scene(scene)
         
         # Construct and return LabEntity directly

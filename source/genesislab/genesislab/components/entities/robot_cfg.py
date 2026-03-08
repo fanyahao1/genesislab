@@ -7,10 +7,10 @@ from dataclasses import MISSING
 from genesislab.utils.configclass import configclass
 from genesislab.components.actuators import ActuatorBaseCfg
 
-from genesislab.engine.assets.articulation import GenesisArticulationCfg, InitialPoseCfg
+from genesislab.engine.assets.articulation import ArticulationCfg, InitialPoseCfg
 
 @configclass
-class RobotCfg(GenesisArticulationCfg):
+class RobotCfg(ArticulationCfg):
     """Configuration for a robot entity to be added to a Genesis scene.
 
     This config is focused on rigid-body robots loaded from URDF/MJCF/USD.

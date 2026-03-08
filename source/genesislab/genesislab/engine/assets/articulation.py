@@ -17,7 +17,7 @@ import genesis as gs
 
 from genesislab.utils.configclass import configclass
 
-from genesislab.engine.assets.base import GenesisAssetBase
+from genesislab.engine.assets.lab_asset_base import LabAssetBase
 
 @configclass
 class InitialPoseCfg:
@@ -30,7 +30,7 @@ class InitialPoseCfg:
     """Initial orientation quaternion (x, y, z, w)."""
 
 @configclass
-class GenesisArticulationCfg:
+class ArticulationCfg:
     """Configuration for a Genesis articulation asset.
 
     This is intentionally lightweight and aligned with :class:`RobotCfg` so
@@ -60,7 +60,7 @@ class GenesisArticulationCfg:
     """Additional keyword arguments forwarded to the Genesis morph constructor."""
 
 
-class GenesisArticulation(GenesisAssetBase):
+class Articulation(LabAssetBase):
     """Genesis-native articulation asset.
 
     This class wraps a single Genesis articulation entity and provides
@@ -74,7 +74,7 @@ class GenesisArticulation(GenesisAssetBase):
     # at import time. To keep this class usable with the current `genesis`
     # distribution, we provide a safe default ("cuda:0" if available, else "cpu")
     # and still allow callers to pass an explicit device.
-    def __init__(self, cfg: GenesisArticulationCfg, device: str | torch.device = None):
+    def __init__(self, cfg: ArticulationCfg, device: str | torch.device = None):
         super().__init__(name=cfg.name)
         self.cfg = cfg
         if device is None:

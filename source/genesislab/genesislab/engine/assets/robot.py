@@ -13,13 +13,13 @@ import torch
 
 import genesis as gs
 
-from genesislab.engine.assets.articulation import GenesisArticulation, GenesisArticulationCfg
+from genesislab.engine.assets.articulation import Articulation, ArticulationCfg
 from genesislab.engine.assets.utils.name_normalizer import NameNormalizer
 
 if TYPE_CHECKING:
     from genesislab.engine.gstype import KinematicEntity
 
-class GenesisArticulationRobot(GenesisArticulation):
+class ArticulationRobot(Articulation):
     """Robot asset wrapper with unified name resolution.
     
     This class extends GenesisArticulation to provide:
@@ -28,7 +28,7 @@ class GenesisArticulationRobot(GenesisArticulation):
     - Convenient accessors for joints and bodies by name
     """
 
-    def __init__(self, cfg: GenesisArticulationCfg, device: str | torch.device = None):
+    def __init__(self, cfg: ArticulationCfg, device: str | torch.device = None):
         """Initialize the robot asset.
         
         Args:

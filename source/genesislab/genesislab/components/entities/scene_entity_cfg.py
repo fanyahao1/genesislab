@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import MISSING
 from typing import List, TYPE_CHECKING
 
-from genesislab.engine.entity.entity import LabEntity
+from genesislab.engine.entity import LabEntity
 from genesislab.utils.configclass import configclass
 from genesislab.utils.configclass.string import resolve_matching_names
 

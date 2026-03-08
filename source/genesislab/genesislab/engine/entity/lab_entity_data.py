@@ -5,7 +5,7 @@ if TYPE_CHECKING:
     from genesislab.envs.manager_based_genesis_env import ManagerBasedGenesisEnv
 
 
-class EntityData:
+class LabEntityData:
     """Data container for an entity in the simulation.
 
     This class provides lazy-loaded access to entity state data, similar to

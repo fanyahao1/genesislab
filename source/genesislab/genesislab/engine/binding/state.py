@@ -29,7 +29,8 @@ class StateQuerier:
         Returns:
             Tuple of (positions, velocities) tensors of shape (num_envs, num_dofs).
         """
-        entity = self._binding._entities[entity_name]
+        lab_entity = self._binding._entities[entity_name]
+        entity = lab_entity.raw_entity
         dof_indices = self._binding._dof_indices.get(entity_name)
 
         # Get joint positions
@@ -59,7 +60,8 @@ class StateQuerier:
             Positions and velocities have shape (num_envs, 3).
             Quaternions have shape (num_envs, 4).
         """
-        entity = self._binding._entities[entity_name]
+        lab_entity = self._binding._entities[entity_name]
+        entity = lab_entity.raw_entity
 
         # Get root pose
         position = entity.get_pos()
@@ -88,7 +90,8 @@ class StateQuerier:
             Tensor of shape ``(num_envs, num_links, 3)`` containing the world-frame
             positions of all links/bodies.
         """
-        entity = self._binding._entities[entity_name]
+        lab_entity = self._binding._entities[entity_name]
+        entity = lab_entity.raw_entity
 
         # Fast path: Genesis >= 0.3.x exposes a batched API.
         if hasattr(entity, "get_links_pos"):

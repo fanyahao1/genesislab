@@ -54,29 +54,23 @@ class EntityData:
             
             robot_cfg = self._env._binding.cfg.robots.get(self._entity_name)
             if robot_cfg is not None and hasattr(robot_cfg, "default_joint_pos") and robot_cfg.default_joint_pos is not None:
-                # Get joint names from entity
-                entity = self._env._binding.entities[self._entity_name]
-                joint_names = []
-                joint_name_to_dof_indices = {}
-                
-                for joint in entity.joints:
-                    # Only process joints that have DOFs
-                    if hasattr(joint, "dof_start") and joint.dof_start is not None:
-                        joint_name = joint.name
-                        joint_names.append(joint_name)
-                        dof_start = joint.dof_start
-                        dof_count = getattr(joint, "dof_count", 1)
-                        joint_name_to_dof_indices[joint_name] = list(range(dof_start, dof_start + dof_count))
-                
-                if joint_names:
-                    from genesislab.utils.configclass.string import resolve_matching_names_values
-                    indices_list, _, values_list = resolve_matching_names_values(
-                        robot_cfg.default_joint_pos, joint_names
+                # Get Robot asset from Entity (required)
+                entity = self._env.entities[self._entity_name]
+                robot_asset = entity.robot_asset
+                if robot_asset is None:
+                    raise RuntimeError(
+                        f"Robot asset for entity '{self._entity_name}' is None. "
+                        f"This indicates that the robot was not properly initialized with GenesisArticulationRobot."
                     )
-                    # Set default joint positions for matched joints
-                    for idx, value in zip(indices_list, values_list):
-                        joint_name = joint_names[idx]
-                        dof_indices = joint_name_to_dof_indices[joint_name]
+                
+                # Use Robot's name resolution to resolve joint values and DOF indices
+                joint_values = robot_asset.resolve_joint_values(robot_cfg.default_joint_pos)
+                joint_dof_indices = robot_asset.get_all_joint_dof_indices()
+                
+                # Set default joint positions for matched joints
+                for raw_joint_name, value in joint_values.items():
+                    if raw_joint_name in joint_dof_indices:
+                        dof_indices = joint_dof_indices[raw_joint_name]
                         # Set value for all DOFs of this joint
                         for dof_idx in dof_indices:
                             if dof_idx < num_dofs:
@@ -102,29 +96,23 @@ class EntityData:
             
             robot_cfg = self._env._binding.cfg.robots.get(self._entity_name)
             if robot_cfg is not None and hasattr(robot_cfg, "default_joint_vel") and robot_cfg.default_joint_vel is not None:
-                # Get joint names from entity
-                entity = self._env._binding.entities[self._entity_name]
-                joint_names = []
-                joint_name_to_dof_indices = {}
-                
-                for joint in entity.joints:
-                    # Only process joints that have DOFs
-                    if hasattr(joint, "dof_start") and joint.dof_start is not None:
-                        joint_name = joint.name
-                        joint_names.append(joint_name)
-                        dof_start = joint.dof_start
-                        dof_count = getattr(joint, "dof_count", 1)
-                        joint_name_to_dof_indices[joint_name] = list(range(dof_start, dof_start + dof_count))
-                
-                if joint_names:
-                    from genesislab.utils.configclass.string import resolve_matching_names_values
-                    indices_list, _, values_list = resolve_matching_names_values(
-                        robot_cfg.default_joint_vel, joint_names
+                # Get Robot asset from Entity (required)
+                entity = self._env.entities[self._entity_name]
+                robot_asset = entity.robot_asset
+                if robot_asset is None:
+                    raise RuntimeError(
+                        f"Robot asset for entity '{self._entity_name}' is None. "
+                        f"This indicates that the robot was not properly initialized with GenesisArticulationRobot."
                     )
-                    # Set default joint velocities for matched joints
-                    for idx, value in zip(indices_list, values_list):
-                        joint_name = joint_names[idx]
-                        dof_indices = joint_name_to_dof_indices[joint_name]
+                
+                # Use Robot's name resolution to resolve joint values and DOF indices
+                joint_values = robot_asset.resolve_joint_values(robot_cfg.default_joint_vel)
+                joint_dof_indices = robot_asset.get_all_joint_dof_indices()
+                
+                # Set default joint velocities for matched joints
+                for raw_joint_name, value in joint_values.items():
+                    if raw_joint_name in joint_dof_indices:
+                        dof_indices = joint_dof_indices[raw_joint_name]
                         # Set value for all DOFs of this joint
                         for dof_idx in dof_indices:
                             if dof_idx < num_dofs:

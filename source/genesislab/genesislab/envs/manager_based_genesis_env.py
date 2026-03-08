@@ -12,7 +12,7 @@ from genesislab.components.entities.scene_cfg import SceneCfg
 from genesislab.utils.configclass import configclass
 
 from genesislab.engine.binding import GenesisBinding
-from genesislab.engine.entity import Entity
+from genesislab.engine.entity import LabEntity
 from genesislab.envs.common import VecEnvObs, VecEnvStepReturn
 from genesislab.managers.action_manager import ActionManager
 from genesislab.managers.command_manager import CommandManager, NullCommandManager
@@ -64,7 +64,7 @@ class ManagerBasedGenesisEnv:
 
         # Build engine binding
         self._binding = GenesisBinding(cfg.scene, device=device)
-        self._binding.build()
+        self._binding.build(env=self)
 
         # Compute step timing
         self.physics_dt: float = cfg.scene.sim_options.dt
@@ -182,7 +182,7 @@ class ManagerBasedGenesisEnv:
         return self._binding.scene
 
     @property
-    def entities(self) -> dict[str, Entity]:
+    def entities(self) -> dict[str, LabEntity]:
         """Dictionary of entity wrappers keyed by name.
 
         Each entity provides a `data` property for accessing state:
@@ -190,12 +190,9 @@ class ManagerBasedGenesisEnv:
         - `env.entities["go2"].data.root_pos_w` - root position in world frame
         - etc.
         """
-        # Lazy initialization: create Entity wrappers on first access
-        if not hasattr(self, "_entity_wrappers"):
-            self._entity_wrappers: dict[str, Entity] = {}
-            for entity_name, raw_entity in self._binding.entities.items():
-                self._entity_wrappers[entity_name] = Entity(self, entity_name, raw_entity)
-        return self._entity_wrappers
+        # Entities are already constructed as LabEntity in binding.build()
+        # Just return them directly
+        return self._binding.entities
 
     def reset(
         self,

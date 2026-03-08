@@ -27,7 +27,8 @@ class Controller:
             targets: Target values of shape (num_envs, num_dofs).
             control_type: Type of control ('position', 'velocity', or 'torque').
         """
-        entity = self._binding._entities[entity_name]
+        lab_entity = self._binding._entities[entity_name]
+        entity = lab_entity.raw_entity
         dof_indices = self._binding._dof_indices.get(entity_name)
 
         if control_type == "position":

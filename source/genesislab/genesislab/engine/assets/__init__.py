@@ -17,10 +17,12 @@ simple terrain or rigid objects can be added incrementally as needed.
 
 from .base import GenesisAssetBase
 from .articulation import GenesisArticulation, GenesisArticulationCfg
+from .robot import GenesisArticulationRobot
 
 __all__ = [
     "GenesisAssetBase",
     "GenesisArticulation",
     "GenesisArticulationCfg",
+    "GenesisArticulationRobot",
 ]
 

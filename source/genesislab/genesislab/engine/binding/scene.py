@@ -12,8 +12,9 @@ if TYPE_CHECKING:
     from genesislab.components.sensors import SensorBaseCfg
 
 
-from genesislab.engine.assets.articulation import GenesisArticulation, GenesisArticulationCfg
-from genesislab.engine.entity import Entity
+from genesislab.engine.assets.articulation import GenesisArticulationCfg
+from genesislab.engine.assets.robot import GenesisArticulationRobot
+from genesislab.engine.entity import LabEntity
 
 class SceneBuilder:
     """Helper class for building Genesis scenes and adding entities."""
@@ -103,23 +104,27 @@ class SceneBuilder:
             # Handle other terrain types (e.g., heightfield, mesh)
             raise NotImplementedError(f"Terrain type '{terrain_type}' not yet implemented")
 
-    def add_robot(self, scene: gs.Scene, entity_name: str, robot_cfg: GenesisArticulationCfg) -> Entity:
+    def add_robot(self, scene: gs.Scene, entity_name: str, robot_cfg: GenesisArticulationCfg, env: Any = None) -> LabEntity:
         """Add a robot entity to the scene using the Genesis-native asset layer.
 
         Args:
             scene: The Genesis Scene instance.
             entity_name: Name to assign to the entity.
             robot_cfg: Robot configuration (must be a GenesisArticulationCfg or subclass).
+            env: Optional environment instance (ManagerBasedGenesisEnv). Required for full LabEntity functionality.
 
         Returns:
-            The created entity object.
+            LabEntity wrapper containing the raw entity and robot asset.
         """
         # Create a copy of the config with the entity name set
         asset_cfg = robot_cfg.replace(name=entity_name)
-        asset = GenesisArticulation(asset_cfg, device=self._binding.device)
-        entity = asset.build_into_scene(scene)
-
-        return entity
+        # Use Robot class which provides name resolution support
+        asset = GenesisArticulationRobot(asset_cfg, device=self._binding.device)
+        raw_entity = asset.build_into_scene(scene)
+        
+        # Construct and return LabEntity directly
+        lab_entity = LabEntity(env, entity_name, raw_entity, robot_asset=asset)
+        return lab_entity
 
     def add_sensor(self, scene: gs.Scene, sensor_name: str, sensor_cfg: "SensorBaseCfg") -> None:
         """Add a sensor to the scene.
@@ -166,7 +171,8 @@ class SceneBuilder:
                     f"Sensor '{sensor_name}' requires the entity to exist. "
                     f"Available entities: {list(self._binding._entities.keys())}"
                 )
-            sensor_kwargs["entity"] = self._binding._entities[sensor_cfg.entity_name]
+            lab_entity = self._binding._entities[sensor_cfg.entity_name]
+            sensor_kwargs["entity"] = lab_entity.raw_entity
 
         # Create the sensor instance
         sensor = sensor_class(

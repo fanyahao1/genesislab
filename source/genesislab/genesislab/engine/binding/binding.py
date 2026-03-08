@@ -7,16 +7,17 @@ details and provides batched state access and control methods.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import genesis as gs
 import torch
 
 if TYPE_CHECKING:
     from genesislab.components.entities.scene_cfg import SceneCfg
-    from genesislab.engine.entity import Entity
     from genesislab.components.actuators import ActuatorBase
+    from genesislab.engine.assets.articulation import GenesisArticulation
 
+from genesislab.engine.entity import LabEntity
 from genesislab.engine.binding.actuators import ActuatorManager
 from genesislab.engine.binding.control import Controller
 from genesislab.engine.binding.dof_resolver import DOFResolver
@@ -49,7 +50,7 @@ class GenesisBinding:
         self.cfg = cfg
         self.device = device
         self._scene: gs.Scene = None
-        self._entities: dict[str, "Entity"] = {}
+        self._entities: dict[str, "LabEntity"] = {}
         self._dof_indices: dict[str, torch.Tensor] = {}
         self._actuators: dict[str, dict[str, "ActuatorBase"]] = {}  # entity_name -> {actuator_name -> actuator_instance}
         self._num_envs = cfg.num_envs
@@ -74,11 +75,11 @@ class GenesisBinding:
         return self._num_envs
 
     @property
-    def entities(self) -> dict[str, "Entity"]:
+    def entities(self) -> dict[str, "LabEntity"]:
         """Dictionary of entity objects keyed by name."""
         return self._entities
 
-    def build(self) -> None:
+    def build(self, env: Any = None) -> None:
         """Build the Genesis scene and entities.
 
         This method:
@@ -86,6 +87,10 @@ class GenesisBinding:
         2. Adds robots and terrain according to cfg
         3. Builds the scene with num_envs
         4. Resolves DOF indices for controlled joints
+        5. Constructs LabEntity objects for each robot
+
+        Args:
+            env: Optional environment instance (ManagerBasedGenesisEnv). Required for constructing LabEntity.
         """
         # Create scene
         self._scene = self._scene_builder.create_scene()
@@ -98,10 +103,9 @@ class GenesisBinding:
         if self.cfg.terrain is not None:
             self._scene_builder.add_terrain(self._scene)
 
-        # Add robots
         for entity_name, robot_cfg in self.cfg.robots.items():
-            entity = self._scene_builder.add_robot(self._scene, entity_name, robot_cfg)
-            self._entities[entity_name] = entity
+            lab_entity = self._scene_builder.add_robot(self._scene, entity_name, robot_cfg, env=env)
+            self._entities[entity_name] = lab_entity
 
         # Add sensors if specified
         for sensor_name, sensor_cfg in self.cfg.sensors.items():

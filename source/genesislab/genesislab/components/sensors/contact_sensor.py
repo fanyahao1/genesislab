@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import torch
 
 from genesislab.utils.configclass import configclass
-from genesislab.engine.entity import Entity
+from genesislab.engine.entity import LabEntity
 from .sensor_base import SensorBase
 from .sensor_base_cfg import SensorBaseCfg
 
@@ -46,7 +46,7 @@ class ContactSensor(SensorBase):
         cfg: "ContactSensorCfg",
         num_envs: int,
         device: str = "cuda",
-        entity: "Entity" = None,
+        entity: "LabEntity" = None,
     ):
         """Initialize the contact sensor.
 
@@ -107,7 +107,7 @@ class ContactSensor(SensorBase):
         self._update_outdated_buffers()
         return self._data
 
-    def set_entity(self, entity: "Entity") -> None:
+    def set_entity(self, entity: "LabEntity") -> None:
         """Set the Genesis entity to read contact forces from.
 
         Args:

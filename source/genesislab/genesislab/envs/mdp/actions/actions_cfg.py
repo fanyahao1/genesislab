@@ -16,8 +16,10 @@ from genesislab.utils.configclass import configclass
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
-    from .joint_actions import JointPositionAction
-    from .genesis_original_action import GenesisOriginalAction
+
+
+from .joint_actions import JointPositionAction
+from .genesis_original_action import GenesisOriginalAction
 
 @configclass
 class JointActionCfg(ActionTermCfg):

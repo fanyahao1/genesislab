@@ -55,25 +55,17 @@ class SceneController:
         """
         lab_entity = self._scene.entities[entity_name]
         entity = lab_entity.raw_entity
-        dof_indices = self._scene._dof_indices.get(entity_name)
+        dof_indices = lab_entity.dof_indices
         
         if control_type == "position":
-            if dof_indices is not None:
-                entity.control_dofs_position(targets, dof_indices)
-            else:
-                entity.control_dofs_position(targets)
+            entity.control_dofs_position(targets, dof_indices)
         elif control_type == "velocity":
-            if dof_indices is not None:
-                entity.control_dofs_velocity(targets, dof_indices)
-            else:
-                entity.control_dofs_velocity(targets)
+            entity.control_dofs_velocity(targets, dof_indices)
         elif control_type == "torque":
             # Torque control: apply forces directly
             # Genesis uses control_dofs_force() for torque/force control
-            if dof_indices is not None:
-                entity.control_dofs_force(targets, dof_indices)
-            else:
-                entity.control_dofs_force(targets)
+            entity.control_dofs_force(targets, dof_indices)
+
         else:
             raise ValueError(f"Unknown control type: {control_type}")
     
@@ -87,23 +79,9 @@ class SceneController:
         """
         lab_entity = self._scene.entities[entity_name]
         entity = lab_entity.raw_entity
-        dof_indices = self._scene._dof_indices.get(entity_name)
-        
-        if env_ids is not None:
-            if isinstance(env_ids, torch.Tensor):
-                env_ids = env_ids.cpu().tolist()
-            # Set positions for specific environments
-            if dof_indices is not None:
-                entity.set_dofs_position(positions, dof_indices, envs_idx=env_ids)
-            else:
-                entity.set_dofs_position(positions, envs_idx=env_ids)
-        else:
-            # Set positions for all environments
-            if dof_indices is not None:
-                entity.set_dofs_position(positions, dof_indices)
-            else:
-                entity.set_dofs_position(positions)
-    
+        dof_indices = lab_entity.dof_indices
+        entity.set_dofs_position(positions, dof_indices, envs_idx=env_ids)
+
     def set_joint_velocities(self, entity_name: str, velocities: torch.Tensor, env_ids: torch.Tensor = None) -> None:
         """Set joint velocities for an entity (for reset/initialization).
         
@@ -114,22 +92,8 @@ class SceneController:
         """
         lab_entity = self._scene.entities[entity_name]
         entity = lab_entity.raw_entity
-        dof_indices = self._scene._dof_indices.get(entity_name)
-        
-        if env_ids is not None:
-            if isinstance(env_ids, torch.Tensor):
-                env_ids = env_ids.cpu().tolist()
-            # Set velocities for specific environments
-            if dof_indices is not None:
-                entity.set_dofs_velocity(velocities, dof_indices, envs_idx=env_ids)
-            else:
-                entity.set_dofs_velocity(velocities, envs_idx=env_ids)
-        else:
-            # Set velocities for all environments
-            if dof_indices is not None:
-                entity.set_dofs_velocity(velocities, dof_indices)
-            else:
-                entity.set_dofs_velocity(velocities)
+        dof_indices = lab_entity.dof_indices
+        entity.set_dofs_velocity(velocities, dof_indices, envs_idx=env_ids)
     
     def set_root_state(
         self,
@@ -152,35 +116,11 @@ class SceneController:
         """
         lab_entity = self._scene.entities[entity_name]
         entity = lab_entity.raw_entity
-        
-        if env_ids is not None:
-            if isinstance(env_ids, torch.Tensor):
-                env_ids = env_ids.cpu().tolist()
-        
         # Set position
-        if position is not None:
-            if env_ids is not None:
-                entity.set_pos(position, envs_idx=env_ids)
-            else:
-                entity.set_pos(position)
-        
+        if position is not None: entity.set_pos(position, envs_idx=env_ids)
         # Set quaternion
-        if quaternion is not None:
-            if env_ids is not None:
-                entity.set_quat(quaternion, envs_idx=env_ids)
-            else:
-                entity.set_quat(quaternion)
-        
+        if quaternion is not None: entity.set_quat(quaternion, envs_idx=env_ids)
         # Set linear velocity
-        if linear_velocity is not None:
-            if env_ids is not None:
-                entity.set_vel(linear_velocity, envs_idx=env_ids)
-            else:
-                entity.set_vel(linear_velocity)
-        
+        if linear_velocity is not None: entity.set_vel(linear_velocity, envs_idx=env_ids)
         # Set angular velocity
-        if angular_velocity is not None:
-            if env_ids is not None:
-                entity.set_ang(angular_velocity, envs_idx=env_ids)
-            else:
-                entity.set_ang(angular_velocity)
+        if angular_velocity is not None: entity.set_ang(angular_velocity, envs_idx=env_ids)

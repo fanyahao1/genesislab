@@ -29,7 +29,6 @@ class LabScene:
     - Genesis Scene instance
     - Framework-managed entities and sensors
     - Scene construction and building
-    - DOF indexing and actuator management
     - Coordination of query and control components
     """
     
@@ -45,7 +44,6 @@ class LabScene:
         self._gs_scene: gs.Scene = None
         self._entities: Dict[str, "LabEntity"] = {}
         self._sensors: Dict[str, "SensorBase"] = {}
-        self._dof_indices: Dict[str, torch.Tensor] = {}
         self._num_envs = cfg.num_envs
         
         # Initialize helper components
@@ -93,9 +91,8 @@ class LabScene:
         1. Creates a Genesis Scene with appropriate options
         2. Adds robots and terrain according to cfg
         3. Builds the scene with num_envs
-        4. Resolves DOF indices for controlled joints
-        5. Constructs LabEntity objects for each robot
-        6. Processes actuator configurations
+        4. Constructs LabEntity objects for each robot
+        5. Processes actuator configurations
         
         Args:
             env: Optional environment instance (ManagerBasedGenesisEnv). 
@@ -112,14 +109,6 @@ class LabScene:
         for entity_name, robot_cfg in self.cfg.robots.items():
             lab_entity = self._scene_builder.add_robot(self._gs_scene, entity_name, robot_cfg, env=env)
             self._entities[entity_name] = lab_entity
-            
-            # Get DOF indices from the robot asset (already resolved in build_into_scene)
-            robot_asset = lab_entity.robot_asset
-            if robot_asset is not None:
-                self._dof_indices[entity_name] = robot_asset.dof_indices
-            else:
-                # If no robot asset, store None
-                self._dof_indices[entity_name] = None
         
         # Add sensors if specified
         for sensor_name, sensor_cfg in self.cfg.sensors.items():

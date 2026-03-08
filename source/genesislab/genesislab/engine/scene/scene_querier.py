@@ -36,7 +36,7 @@ class SceneQuerier:
         """
         lab_entity = self._scene.entities[entity_name]
         entity = lab_entity.raw_entity
-        dof_indices = self._scene._dof_indices.get(entity_name)
+        dof_indices = lab_entity.dof_indices
         
         if dof_indices is not None:
             positions = entity.get_dofs_position(dof_indices)

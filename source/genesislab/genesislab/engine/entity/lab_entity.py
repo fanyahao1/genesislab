@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Dict
 
+import torch
+
 if TYPE_CHECKING:
     from genesislab.envs.manager_based_genesis_env import ManagerBasedGenesisEnv
     from genesislab.engine.gstype import KinematicEntity
@@ -95,3 +97,14 @@ class LabEntity:
     def actuators(self) -> Dict[str, "ActuatorBase"]:
         """Dictionary of actuators for this entity, keyed by actuator name."""
         return self._actuators
+    
+    @property
+    def dof_indices(self) -> torch.Tensor | None:
+        """DOF indices for controlled joints.
+        
+        Returns:
+            Tensor of DOF indices from the robot asset, or None if not available.
+        """
+        if self._robot_asset is not None:
+            return self._robot_asset.dof_indices
+        return None

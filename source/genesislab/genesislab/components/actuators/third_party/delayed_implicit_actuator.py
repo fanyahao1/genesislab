@@ -10,9 +10,9 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from genesislab.utils.configclass import configclass
-from genesislab.utils.types import ArticulationActions
 
 from ..actuator_pd import ImplicitActuator
+from ..articulation_actions import ArticulationActions
 from ..actuator_pd_cfg import ImplicitActuatorCfg
 from .delay_buffer_wrapper import IsaacLabStyleDelayBuffer
 

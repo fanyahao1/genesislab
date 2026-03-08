@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING
 import torch
 
 from genesislab.utils.configclass import configclass
-from genesislab.utils.types import ArticulationActions
 
 from ..actuator_pd import IdealPDActuator
+from ..articulation_actions import ArticulationActions
 from ..actuator_pd_cfg import IdealPDActuatorCfg
 
 if TYPE_CHECKING:

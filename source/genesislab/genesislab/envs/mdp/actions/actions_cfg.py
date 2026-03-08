@@ -39,6 +39,9 @@ class JointPositionActionCfg(JointActionCfg):
     class_type: type = JointPositionAction  # Will be set to JointPositionAction below
     """The action term class type. Set automatically."""
 
+    actuator_name: str = MISSING
+    """Name of the actuator to use for this action term."""
+
     use_default_offset: bool = True
 
 

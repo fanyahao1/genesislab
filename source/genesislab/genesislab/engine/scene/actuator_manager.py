@@ -141,10 +141,13 @@ class ActuatorManager:
 
                 # Store actuator instance in the entity
                 lab_entity._actuators[actuator_name] = actuator
+                
+                # Store DOF indices in actuator for later use by action terms
+                dof_indices_tensor = torch.tensor(matched_dof_indices, dtype=torch.long, device=self._scene.device)
+                actuator._dof_indices = dof_indices_tensor
 
                 # Set engine kp/kv to 0 for all actuators
                 # All actuators compute torques explicitly and apply them via control_dofs_force()
-                dof_indices_tensor = torch.tensor(matched_dof_indices, dtype=torch.long, device=self._scene.device)
                 zero_kp = torch.zeros(len(matched_dof_indices), device=self._scene.device)
                 zero_kd = torch.zeros(len(matched_dof_indices), device=self._scene.device)
                 entity.set_dofs_kp(zero_kp, dof_indices_tensor)
@@ -152,6 +155,7 @@ class ActuatorManager:
                 
                 logger.info(
                     f"Robot '{entity_name}': Actuator '{actuator_name}': "
-                    f"Set engine kp/kv to 0 for joints {matched_normalized_names}. "
-                    f"Actuator will compute torques explicitly."
+                    f"DOF indices {matched_dof_indices}, "
+                    f"Joints {matched_normalized_names}. "
+                    f"Set engine kp/kv to 0. Actuator will compute torques explicitly."
                 )

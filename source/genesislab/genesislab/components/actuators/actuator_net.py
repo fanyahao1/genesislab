@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from genesislab.utils.types import ArticulationActions
+from .articulation_actions import ArticulationActions
 
 read_file = None
 

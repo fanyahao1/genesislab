@@ -77,8 +77,8 @@ class GenesisOriginalAction(ActionTerm):
         entity_obj = env.scene.entities[self._entity_name]
 
         self._actuators: dict[str, ActuatorBase] = {}
-        if hasattr(env, "_binding") and hasattr(env._binding, "_actuators"):
-            entity_actuators = env._binding._actuators.get(self._entity_name, {})
+        if hasattr(env, "scene") and hasattr(env.scene, "_actuators"):
+            entity_actuators = env.scene._actuators.get(self._entity_name, {})
             if entity_actuators:
                 self._actuators = entity_actuators
                 self._action_dim = sum(actuator.num_joints for actuator in self._actuators.values())
@@ -129,7 +129,7 @@ class GenesisOriginalAction(ActionTerm):
 
     def _build_joint_mapping(self) -> None:
         """Build mapping from joint names to action indices and DOF indices."""
-        entity_obj = self._env._binding.entities[self._entity_name]
+        entity_obj = self._env.scene.entities[self._entity_name]
         
         if self._actuators:
             idx = 0

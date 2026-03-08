@@ -17,7 +17,7 @@ class SceneCfg:
 
     This describes the physical scene including robots, terrain, sensors and
     basic simulation options. It is intentionally minimal and focused on what
-    the binding layer and RL environments require.
+    the scene layer and RL environments require.
     """
 
     @configclass
@@ -181,7 +181,7 @@ class SceneCfg:
 
     # Optional path for recording a video from a default camera.
     record_video_path: str = None
-    """If set, GenesisBinding will attach a camera and start a VideoFile recorder."""
+    """If set, LabScene will attach a camera and start a VideoFile recorder."""
 
     # Entity configurations
     robots: dict[str, "RobotCfg"] = {}

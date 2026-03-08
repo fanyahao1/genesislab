@@ -30,7 +30,7 @@ class SceneEntityCfg:
     """
 
     entity_name: str = MISSING
-    """Logical name of the entity as used in the scene / binding.
+    """Logical name of the entity as used in the scene.
     
     This field is also accessible as ``name`` for compatibility with IsaacLab.
     """

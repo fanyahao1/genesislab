@@ -26,17 +26,17 @@ class ActionTerm(ManagerTermBase):
 	def __init__(self, cfg: ActionTermCfg, env: "ManagerBasedRlEnv"):
 		self.cfg = cfg
 		super().__init__(cfg=cfg, env=env)
-		# Get entity from binding - required
-		if not hasattr(self._env, "_binding"):
+		# Get entity from scene - required
+		if not hasattr(self._env, "scene"):
 			raise AttributeError(
-				"Environment does not have '_binding' attribute. "
-				"ActionManager requires GenesisBinding to access entities."
+				"Environment does not have 'scene' attribute. "
+				"ActionManager requires LabScene to access entities."
 			)
 		
-		if not hasattr(self._env._binding, "entities"):
+		if not hasattr(self._env.scene, "entities"):
 			raise AttributeError(
-				"Binding does not have 'entities' attribute. "
-				"Binding may not be properly initialized."
+				"Scene does not have 'entities' attribute. "
+				"Scene may not be properly initialized."
 			)
 		
 		if self.cfg.entity_name not in self._env.scene.entities:

@@ -150,8 +150,8 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
         # Update curriculum state before resetting environments.
         self.curriculum_manager.compute(env_ids=env_ids)
 
-        # Reset engine binding
-        self._binding.reset(env_ids=env_ids)
+        # Reset scene
+        self._scene.controller.reset(env_ids=env_ids)
 
         # Reset episode counters
         self.episode_length_buf[env_ids] = 0

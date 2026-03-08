@@ -10,7 +10,7 @@ class EntityData:
 
     This class provides lazy-loaded access to entity state data, similar to
     IsaacLab's ArticulationData. All data is fetched on-demand from the
-    underlying binding layer.
+    underlying scene layer.
 
     The data includes:
     - Joint state: positions and velocities
@@ -26,7 +26,7 @@ class EntityData:
             entity_name: Name of the entity.
         """
         self._env = env
-        self._binding = env._binding
+        self._scene = env.scene
         self._entity_name = entity_name
         # Track previous joint velocity for acceleration computation
         self._prev_joint_vel: torch.Tensor = None
@@ -46,13 +46,13 @@ class EntityData:
         if self._default_joint_pos is None:
             # Initialize default joint positions
             # Get current joint positions to infer shape
-            joint_pos, _ = self._binding.get_joint_state(self._entity_name)
+            joint_pos, _ = self._scene.querier.get_joint_state(self._entity_name)
             num_envs, num_dofs = joint_pos.shape
             
             # Initialize with zeros
             self._default_joint_pos = torch.zeros(num_envs, num_dofs, device=self._env.device)
             
-            robot_cfg = self._env._binding.cfg.robots.get(self._entity_name)
+            robot_cfg = self._env.scene.cfg.robots.get(self._entity_name)
             if robot_cfg is not None and hasattr(robot_cfg, "default_joint_pos") and robot_cfg.default_joint_pos is not None:
                 # Get Robot asset from Entity (required)
                 entity = self._env.entities[self._entity_name]
@@ -88,13 +88,13 @@ class EntityData:
         if self._default_joint_vel is None:
             # Initialize default joint velocities
             # Get current joint velocities to infer shape
-            _, joint_vel = self._binding.get_joint_state(self._entity_name)
+            _, joint_vel = self._scene.querier.get_joint_state(self._entity_name)
             num_envs, num_dofs = joint_vel.shape
             
             # Initialize with zeros (default velocity is zero)
             self._default_joint_vel = torch.zeros(num_envs, num_dofs, device=self._env.device)
             
-            robot_cfg = self._env._binding.cfg.robots.get(self._entity_name)
+            robot_cfg = self._env.scene.cfg.robots.get(self._entity_name)
             if robot_cfg is not None and hasattr(robot_cfg, "default_joint_vel") and robot_cfg.default_joint_vel is not None:
                 # Get Robot asset from Entity (required)
                 entity = self._env.entities[self._entity_name]
@@ -123,13 +123,13 @@ class EntityData:
     @property
     def joint_pos(self) -> torch.Tensor:
         """Joint positions. Shape: (num_envs, num_dofs)."""
-        pos, _ = self._binding.get_joint_state(self._entity_name)
+        pos, _ = self._scene.querier.get_joint_state(self._entity_name)
         return pos
 
     @property
     def joint_vel(self) -> torch.Tensor:
         """Joint velocities. Shape: (num_envs, num_dofs)."""
-        _, vel = self._binding.get_joint_state(self._entity_name)
+        _, vel = self._scene.querier.get_joint_state(self._entity_name)
         return vel
 
     @property
@@ -144,7 +144,7 @@ class EntityData:
         The previous velocity is updated once per environment step to ensure consistency.
         """
         # Get current joint velocity
-        _, vel_current = self._binding.get_joint_state(self._entity_name)
+        _, vel_current = self._scene.querier.get_joint_state(self._entity_name)
         num_envs, num_dofs = vel_current.shape
         
         # Get current step count to track when to update
@@ -183,13 +183,13 @@ class EntityData:
         If no actuators are configured, returns zeros.
         """
         # Get joint state to infer shape
-        joint_pos, _ = self._binding.get_joint_state(self._entity_name)
+        joint_pos, _ = self._scene.querier.get_joint_state(self._entity_name)
         num_envs, num_dofs = joint_pos.shape
         
         # Initialize with zeros
         applied_torques = torch.zeros(num_envs, num_dofs, device=self._env.device)
         
-        entity_actuators = self._env._binding._actuators.get(self._entity_name, {})
+        entity_actuators = self._env.scene._actuators.get(self._entity_name, {})
         if not entity_actuators: raise ValueError("The actuators not specified.")
         
         # Collect applied efforts from all actuators
@@ -239,7 +239,7 @@ class EntityData:
     @property
     def root_pos_w(self) -> torch.Tensor:
         """Root position in world frame. Shape: (num_envs, 3)."""
-        pos, _, _, _ = self._binding.get_root_state(self._entity_name)
+        pos, _, _, _ = self._scene.querier.get_root_state(self._entity_name)
         return pos
 
     @property
@@ -248,24 +248,24 @@ class EntityData:
         
         Returns the translation (position) of all links/bodies in the entity.
         """
-        return self._binding.get_body_positions(self._entity_name)
+        return self._scene.querier.get_body_positions(self._entity_name)
 
     @property
     def root_quat_w(self) -> torch.Tensor:
         """Root quaternion in world frame. Shape: (num_envs, 4)."""
-        _, quat, _, _ = self._binding.get_root_state(self._entity_name)
+        _, quat, _, _ = self._scene.querier.get_root_state(self._entity_name)
         return quat
 
     @property
     def root_lin_vel_w(self) -> torch.Tensor:
         """Root linear velocity in world frame. Shape: (num_envs, 3)."""
-        _, _, lin_vel, _ = self._binding.get_root_state(self._entity_name)
+        _, _, lin_vel, _ = self._scene.querier.get_root_state(self._entity_name)
         return lin_vel
 
     @property
     def root_ang_vel_w(self) -> torch.Tensor:
         """Root angular velocity in world frame. Shape: (num_envs, 3)."""
-        _, _, _, ang_vel = self._binding.get_root_state(self._entity_name)
+        _, _, _, ang_vel = self._scene.querier.get_root_state(self._entity_name)
         return ang_vel
 
     # For compatibility with IsaacLab-style observations that use body frame

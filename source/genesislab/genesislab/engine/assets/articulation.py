@@ -34,7 +34,7 @@ class GenesisArticulationCfg:
     """Configuration for a Genesis articulation asset.
 
     This is intentionally lightweight and aligned with :class:`RobotCfg` so
-    that environments can easily construct either binding-level robots or
+    that environments can easily construct either scene-level robots or
     explicit asset wrappers.
     """
 
@@ -89,6 +89,15 @@ class GenesisArticulation(GenesisAssetBase):
         # Runtime buffers (allocated lazily once entity is available)
         self._targets_pos: torch.Tensor = None
         self._targets_vel: torch.Tensor = None
+    
+    @property
+    def dof_indices(self) -> torch.Tensor | None:
+        """DOF indices for controlled joints.
+        
+        Returns:
+            Tensor of DOF indices, or None if control_dofs was not specified.
+        """
+        return self._dof_indices
 
     # ------------------------------------------------------------------ #
     # Scene construction

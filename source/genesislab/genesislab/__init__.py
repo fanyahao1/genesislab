@@ -2,7 +2,7 @@
 
 __version__ = "0.1.0"
 
-from genesislab.engine.binding import GenesisBinding
+from genesislab.engine.scene import LabScene
 from genesislab.envs import (
     ManagerBasedGenesisEnv,
     ManagerBasedRlEnv,
@@ -13,7 +13,7 @@ from genesislab.envs import (
 )
 
 __all__ = [
-    "GenesisBinding",
+    "LabScene",
     "ManagerBasedGenesisEnv",
     "ManagerBasedRlEnv",
     "ManagerBasedRlEnvCfg",

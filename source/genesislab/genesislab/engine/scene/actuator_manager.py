@@ -1,4 +1,8 @@
-"""Actuator and PD gains management for GenesisBinding."""
+"""Actuator management for LabScene.
+
+This module provides the ActuatorManager class for processing and managing
+actuator configurations for robots in the scene.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +10,7 @@ import torch
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .binding import GenesisBinding
+    from .lab_scene import LabScene
 
 from genesislab.components.actuators import ActuatorBase
 import logging
@@ -15,13 +19,13 @@ logger = logging.getLogger(__name__)
 class ActuatorManager:
     """Helper class for managing actuators and PD gains."""
 
-    def __init__(self, binding: "GenesisBinding"):
+    def __init__(self, scene: "LabScene"):
         """Initialize the actuator manager.
 
         Args:
-            binding: Reference to the GenesisBinding instance.
+            scene: Reference to the LabScene instance.
         """
-        self._binding = binding
+        self._scene = scene
 
     def process_actuators_cfg(self) -> None:
         """Process and apply actuator configurations for robots (IsaacLab-style).
@@ -32,15 +36,15 @@ class ActuatorManager:
         3. All actuators compute torques and apply them via control_dofs_force()
         """
 
-        for entity_name, robot_cfg in self._binding.cfg.robots.items():
+        for entity_name, robot_cfg in self._scene.cfg.robots.items():
             actuators_cfg = getattr(robot_cfg, "actuators", None)
             if actuators_cfg is None:
                 continue
 
-            lab_entity = self._binding.entities[entity_name]
+            lab_entity = self._scene.entities[entity_name]
             # Get raw entity for direct access
             entity = lab_entity.raw_entity
-            self._binding._actuators[entity_name] = {}
+            self._scene._actuators[entity_name] = {}
 
             # Get Robot asset from LabEntity (required)
             robot_asset = lab_entity.robot_asset
@@ -58,7 +62,7 @@ class ActuatorManager:
             normalized_joint_names = robot_asset.get_normalized_joint_names()
 
             # Get joint state to infer number of DOFs
-            dof_pos, _ = self._binding.get_joint_state(entity_name)
+            dof_pos, _ = self._scene.querier.get_joint_state(entity_name)
             num_dofs = dof_pos.shape[-1]
             num_envs = dof_pos.shape[0]
 
@@ -104,18 +108,18 @@ class ActuatorManager:
                 if len(matched_raw_names) == len(raw_joint_names):
                     joint_ids_tensor = slice(None)
                 else:
-                    joint_ids_tensor = torch.tensor(matched_indices, dtype=torch.long, device=self._binding.device)
+                    joint_ids_tensor = torch.tensor(matched_indices, dtype=torch.long, device=self._scene.device)
 
                 # Get default joint properties from entity (for now, use zeros as defaults)
                 # In a full implementation, these would be read from the USD/URDF file
-                default_stiffness = torch.zeros(num_envs, num_actuator_joints, device=self._binding.device)
-                default_damping = torch.zeros(num_envs, num_actuator_joints, device=self._binding.device)
-                default_armature = torch.zeros(num_envs, num_actuator_joints, device=self._binding.device)
-                default_friction = torch.zeros(num_envs, num_actuator_joints, device=self._binding.device)
-                default_dynamic_friction = torch.zeros(num_envs, num_actuator_joints, device=self._binding.device)
-                default_viscous_friction = torch.zeros(num_envs, num_actuator_joints, device=self._binding.device)
-                default_effort_limit = torch.full((num_envs, num_actuator_joints), float('inf'), device=self._binding.device)
-                default_velocity_limit = torch.full((num_envs, num_actuator_joints), float('inf'), device=self._binding.device)
+                default_stiffness = torch.zeros(num_envs, num_actuator_joints, device=self._scene.device)
+                default_damping = torch.zeros(num_envs, num_actuator_joints, device=self._scene.device)
+                default_armature = torch.zeros(num_envs, num_actuator_joints, device=self._scene.device)
+                default_friction = torch.zeros(num_envs, num_actuator_joints, device=self._scene.device)
+                default_dynamic_friction = torch.zeros(num_envs, num_actuator_joints, device=self._scene.device)
+                default_viscous_friction = torch.zeros(num_envs, num_actuator_joints, device=self._scene.device)
+                default_effort_limit = torch.full((num_envs, num_actuator_joints), float('inf'), device=self._scene.device)
+                default_velocity_limit = torch.full((num_envs, num_actuator_joints), float('inf'), device=self._scene.device)
 
                 # Create actuator instance (use normalized names for actuator's internal use)
                 actuator: ActuatorBase = actuator_cfg.class_type(
@@ -123,7 +127,7 @@ class ActuatorManager:
                     joint_names=matched_normalized_names,  # Use normalized names for consistency
                     joint_ids=joint_ids_tensor,
                     num_envs=num_envs,
-                    device=self._binding.device,
+                    device=self._scene.device,
                     stiffness=default_stiffness,
                     damping=default_damping,
                     armature=default_armature,
@@ -135,13 +139,13 @@ class ActuatorManager:
                 )
 
                 # Store actuator instance
-                self._binding._actuators[entity_name][actuator_name] = actuator
+                self._scene._actuators[entity_name][actuator_name] = actuator
 
                 # Set engine kp/kv to 0 for all actuators
                 # All actuators compute torques explicitly and apply them via control_dofs_force()
-                dof_indices_tensor = torch.tensor(matched_dof_indices, dtype=torch.long, device=self._binding.device)
-                zero_kp = torch.zeros(len(matched_dof_indices), device=self._binding.device)
-                zero_kd = torch.zeros(len(matched_dof_indices), device=self._binding.device)
+                dof_indices_tensor = torch.tensor(matched_dof_indices, dtype=torch.long, device=self._scene.device)
+                zero_kp = torch.zeros(len(matched_dof_indices), device=self._scene.device)
+                zero_kd = torch.zeros(len(matched_dof_indices), device=self._scene.device)
                 entity.set_dofs_kp(zero_kp, dof_indices_tensor)
                 entity.set_dofs_kv(zero_kd, dof_indices_tensor)
                 
@@ -150,4 +154,3 @@ class ActuatorManager:
                     f"Set engine kp/kv to 0 for joints {matched_normalized_names}. "
                     f"Actuator will compute torques explicitly."
                 )
-

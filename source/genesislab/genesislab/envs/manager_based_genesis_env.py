@@ -11,7 +11,7 @@ import torch
 from genesislab.components.entities.scene_cfg import SceneCfg
 from genesislab.utils.configclass import configclass
 
-from genesislab.engine.binding import GenesisBinding
+from genesislab.engine.scene import LabScene
 from genesislab.engine.entity import LabEntity
 from genesislab.envs.common import VecEnvObs, VecEnvStepReturn
 from genesislab.managers.action_manager import ActionManager
@@ -64,9 +64,9 @@ class ManagerBasedGenesisEnv:
         if cfg.seed is not None:
             self.seed(cfg.seed)
 
-        # Build engine binding
-        self._binding = GenesisBinding(cfg.scene, device=device)
-        self._binding.build(env=self)
+        # Build scene
+        self._scene = LabScene(cfg.scene, device=device)
+        self._scene.build(env=self)
 
         # Compute step timing
         self.physics_dt: float = cfg.scene.sim_options.dt
@@ -84,7 +84,7 @@ class ManagerBasedGenesisEnv:
             self._max_episode_length = None
 
         # Initialize buffers
-        self.num_envs: int = self._binding.num_envs
+        self.num_envs: int = self._scene.num_envs
         self.episode_length_buf = torch.zeros(self.num_envs, dtype=torch.long, device=device)
         self.common_step_counter = 0
 
@@ -179,14 +179,14 @@ class ManagerBasedGenesisEnv:
     # -------------------------------------------------------------------------
 
     @property
-    def scene(self):
-        """The Scene wrapper instance (provides access to both Genesis Scene and framework objects)."""
-        return self._binding.scene
+    def scene(self) -> LabScene:
+        """The LabScene instance (provides access to scene, entities, sensors, query and control)."""
+        return self._scene
 
     @property
     def gsscene(self) -> "gs.Scene":
         """The Genesis Scene instance."""
-        return self._binding.gs_scene
+        return self._scene.gs_scene
 
     @property
     def entities(self) -> dict[str, LabEntity]:
@@ -197,8 +197,7 @@ class ManagerBasedGenesisEnv:
         - `env.entities["go2"].data.root_pos_w` - root position in world frame
         - etc.
         """
-        # Entities are managed in SceneWrapper, accessed through scene
-        return self.scene.entities
+        return self._scene.entities
 
     def reset(
         self,
@@ -227,8 +226,8 @@ class ManagerBasedGenesisEnv:
         elif isinstance(env_ids, (list, tuple)):
             env_ids = torch.tensor(env_ids, dtype=torch.long, device=self.device)
 
-        # Reset engine binding
-        self._binding.reset(env_ids=env_ids)
+        # Reset scene
+        self._scene.controller.reset(env_ids=env_ids)
 
         # Reset episode counters
         self.episode_length_buf[env_ids] = 0
@@ -276,7 +275,7 @@ class ManagerBasedGenesisEnv:
             self.action_manager.apply_action()
 
             # Step physics
-            self._binding.step()
+            self._scene.controller.step()
 
             # Update sensors (if any) at physics rate.
             self._update_sensors()
@@ -310,7 +309,7 @@ class ManagerBasedGenesisEnv:
 
         # Debug visualization (if enabled)
         if hasattr(self, "command_manager") and self.command_manager is not None:
-            self.command_manager.debug_vis(self._binding.gs_scene)
+            self.command_manager.debug_vis(self._scene.gs_scene)
 
         # Compute observations
         obs_buf = self.observation_manager.compute(update_history=True)
@@ -326,7 +325,7 @@ class ManagerBasedGenesisEnv:
 
     def _update_sensors(self) -> None:
         """Update any scene-attached sensors after a physics step."""
-        sensors = self._binding.scene.sensors
+        sensors = self._scene.sensors
         for sensor_name, sensor in sensors.items():
             if not hasattr(sensor, "update"):
                 raise AttributeError(
@@ -341,8 +340,8 @@ class ManagerBasedGenesisEnv:
         Args:
             env_ids: Environment indices to reset.
         """
-        # Reset engine binding
-        self._binding.reset(env_ids=env_ids)
+        # Reset scene
+        self._scene.controller.reset(env_ids=env_ids)
 
         # Reset episode counters
         self.episode_length_buf[env_ids] = 0

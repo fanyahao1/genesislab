@@ -1,7 +1,7 @@
 """Joint-space action term implementations for GenesisLab.
 
 These classes follow the same high-level structure as IsaacLab's joint
-actions, but drive Genesis through the existing actuator / binding layer.
+actions, but drive Genesis through the existing actuator / scene layer.
 """
 
 from __future__ import annotations
@@ -39,8 +39,8 @@ class JointPositionAction(ActionTerm):
         # Check if actuators are configured for this entity.
         self._actuators: dict[str, ActuatorBase] = {}
         self._has_explicit_actuators = False
-        if hasattr(env, "_binding") and hasattr(env._binding, "_actuators"):
-            entity_actuators = env._binding._actuators.get(self._entity_name, {})
+        if hasattr(env, "scene") and hasattr(env.scene, "_actuators"):
+            entity_actuators = env.scene._actuators.get(self._entity_name, {})
             if entity_actuators:
                 self._actuators = entity_actuators
                 self._has_explicit_actuators = any(
@@ -164,8 +164,8 @@ class JointPositionAction(ActionTerm):
                             joint_indices_tensor = torch.tensor(joint_indices, dtype=torch.long, device=self.device)
                         total_torques[:, joint_indices_tensor] = control_action.joint_efforts
 
-            self._env._binding.set_joint_targets(self._entity_name, total_torques, control_type="torque")
+            self._env.scene.controller.set_joint_targets(self._entity_name, total_torques, control_type="torque")
         else:
             # Implicit actuators / PD: set desired positions directly.
-            self._env._binding.set_joint_targets(self._entity_name, self._targets, control_type="position")
+            self._env.scene.controller.set_joint_targets(self._entity_name, self._targets, control_type="position")
 

@@ -37,7 +37,7 @@ class ActuatorManager:
             if actuators_cfg is None:
                 continue
 
-            lab_entity = self._binding._entities[entity_name]
+            lab_entity = self._binding.entities[entity_name]
             # Get raw entity for direct access
             entity = lab_entity.raw_entity
             self._binding._actuators[entity_name] = {}

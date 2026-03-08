@@ -39,7 +39,6 @@ class JointPositionActionCfg(JointActionCfg):
     class_type: type = JointPositionAction  # Will be set to JointPositionAction below
     """The action term class type. Set automatically."""
 
-    asset_name: str = "robot"
     use_default_offset: bool = True
 
 

@@ -22,6 +22,7 @@ from genesislab.engine.binding.actuators import ActuatorManager
 from genesislab.engine.binding.control import Controller
 from genesislab.engine.binding.dof_resolver import DOFResolver
 from genesislab.engine.binding.scene import SceneBuilder
+from genesislab.engine.binding.scene_wrapper import SceneWrapper
 from genesislab.engine.binding.state import StateQuerier
 
 
@@ -49,8 +50,8 @@ class GenesisBinding:
         """
         self.cfg = cfg
         self.device = device
-        self._scene: gs.Scene = None
-        self._entities: dict[str, "LabEntity"] = {}
+        self._gs_scene: gs.Scene = None
+        self._scene_wrapper: SceneWrapper = None
         self._dof_indices: dict[str, torch.Tensor] = {}
         self._actuators: dict[str, dict[str, "ActuatorBase"]] = {}  # entity_name -> {actuator_name -> actuator_instance}
         self._num_envs = cfg.num_envs
@@ -63,11 +64,18 @@ class GenesisBinding:
         self._controller            = Controller(self)
 
     @property
-    def scene(self) -> "gs.Scene":
-        """The Genesis Scene instance."""
-        if self._scene is None:
+    def scene(self) -> SceneWrapper:
+        """The Scene wrapper instance (provides access to both Genesis Scene and framework objects)."""
+        if self._scene_wrapper is None:
             raise RuntimeError("Scene not built. Call build() first.")
-        return self._scene
+        return self._scene_wrapper
+    
+    @property
+    def gs_scene(self) -> "gs.Scene":
+        """The underlying Genesis Scene instance."""
+        if self._gs_scene is None:
+            raise RuntimeError("Scene not built. Call build() first.")
+        return self._gs_scene
 
     @property
     def num_envs(self) -> int:
@@ -77,7 +85,7 @@ class GenesisBinding:
     @property
     def entities(self) -> dict[str, "LabEntity"]:
         """Dictionary of entity objects keyed by name."""
-        return self._entities
+        return self.scene.entities
 
     def build(self, env: Any = None) -> None:
         """Build the Genesis scene and entities.
@@ -92,24 +100,23 @@ class GenesisBinding:
         Args:
             env: Optional environment instance (ManagerBasedGenesisEnv). Required for constructing LabEntity.
         """
-        # Create scene
-        self._scene = self._scene_builder.create_scene()
-
-        # Initialize sensors dict (even if empty) so that MDP code can safely access env.scene.sensors
-        if not hasattr(self._scene, "sensors"):
-            self._scene.sensors = {}
+        # Create Genesis scene
+        self._gs_scene = self._scene_builder.create_scene()
+        
+        # Create scene wrapper to manage framework-internal objects
+        self._scene_wrapper = SceneWrapper(self._gs_scene)
 
         # Add terrain if specified
         if self.cfg.terrain is not None:
-            self._scene_builder.add_terrain(self._scene)
+            self._scene_builder.add_terrain(self._gs_scene)
 
         for entity_name, robot_cfg in self.cfg.robots.items():
-            lab_entity = self._scene_builder.add_robot(self._scene, entity_name, robot_cfg, env=env)
-            self._entities[entity_name] = lab_entity
+            lab_entity = self._scene_builder.add_robot(self._gs_scene, entity_name, robot_cfg, env=env)
+            self._scene_wrapper.add_entity(entity_name, lab_entity)
 
         # Add sensors if specified
         for sensor_name, sensor_cfg in self.cfg.sensors.items():
-            self._scene_builder.add_sensor(self._scene, sensor_name, sensor_cfg)
+            self._scene_builder.add_sensor(self._scene_wrapper, sensor_name, sensor_cfg)
 
         # Optional: attach a simple camera and start video recording before
         # building the scene, if requested via the scene config.
@@ -119,7 +126,7 @@ class GenesisBinding:
             attach_video_recorder(self._scene, str(video_path))
 
         # Build the scene
-        self._scene_builder.build_scene(self._scene)
+        self._scene_builder.build_scene(self._gs_scene)
 
         # Resolve DOF indices for controlled joints
         self._dof_resolver.resolve_dof_indices()
@@ -135,16 +142,16 @@ class GenesisBinding:
             env_ids: Environment indices to reset. If None, resets all environments.
         """
         if env_ids is None:
-            self.scene.reset()
+            self.gs_scene.reset()
         else:
             # Convert to list if tensor
             if isinstance(env_ids, torch.Tensor):
                 env_ids = env_ids.cpu().tolist()
-            self.scene.reset(envs_idx=env_ids)
+            self.gs_scene.reset(envs_idx=env_ids)
 
     def step(self) -> None:
         """Step the physics simulation by one timestep."""
-        self.scene.step()
+        self.gs_scene.step()
 
     def get_joint_state(self, entity_name: str) -> tuple[torch.Tensor, torch.Tensor]:
         """Get joint positions and velocities for an entity.

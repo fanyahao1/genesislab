@@ -22,7 +22,7 @@ class DOFResolver:
     def resolve_dof_indices(self) -> None:
         """Resolve DOF indices for controlled joints in each robot."""
         for entity_name, robot_cfg in self._binding.cfg.robots.items():
-            lab_entity = self._binding._entities[entity_name]
+            lab_entity = self._binding.entities[entity_name]
             entity = lab_entity.raw_entity
             control_dofs = robot_cfg.control_dofs
 

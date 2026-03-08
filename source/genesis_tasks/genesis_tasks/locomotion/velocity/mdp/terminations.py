@@ -136,19 +136,19 @@ def terrain_out_of_bounds(
         Boolean tensor of shape (num_envs,) indicating terminated environments.
     """
     # Check terrain type
-    if not hasattr(env.scene, "cfg"):
+    if not hasattr(env.gsscene, "cfg"):
         raise AttributeError(
             "Scene does not have 'cfg' attribute. "
             "Cannot determine terrain type for bounds checking."
         )
     
-    if not hasattr(env.scene.cfg, "terrain"):
+    if not hasattr(env.gsscene.cfg, "terrain"):
         raise AttributeError(
             "Scene config does not have 'terrain' attribute. "
             "Cannot determine terrain type for bounds checking."
         )
     
-    terrain_cfg = env.scene.cfg.terrain
+    terrain_cfg = env.gsscene.cfg.terrain
     if terrain_cfg is None:
         # No terrain configured, no bounds to check
         return torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)

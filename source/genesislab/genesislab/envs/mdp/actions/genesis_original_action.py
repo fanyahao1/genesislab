@@ -73,8 +73,8 @@ class GenesisOriginalAction(ActionTerm):
     def __init__(self, cfg: "GenesisOriginalActionCfg", env: "ManagerBasedRlEnv"):
         super().__init__(cfg, env)
 
-        self._entity_name = getattr(cfg, "entity_name", None) or cfg.asset_name
-        entity_obj = env._binding.entities[self._entity_name]
+        self._entity_name = cfg.entity_name
+        entity_obj = env.scene.entities[self._entity_name]
 
         self._actuators: dict[str, ActuatorBase] = {}
         if hasattr(env, "_binding") and hasattr(env._binding, "_actuators"):
@@ -198,7 +198,7 @@ class GenesisOriginalAction(ActionTerm):
         # Try to get joint limits from entity if clip config is not provided
         if self._clip_cfg is None:
             # Try to get limits from entity joints (if available)
-            entity_obj = self._env._binding.entities[self._entity_name]
+            entity_obj = self._env.scene.entities[self._entity_name]
             idx = 0
             for joint in entity_obj.joints:
                 if hasattr(joint, "name") and joint.name.lower() == "base":
@@ -327,5 +327,5 @@ class GenesisOriginalAction(ActionTerm):
             self._targets[:] = torch.clamp(self._targets, min=lower, max=upper)
 
     def apply_actions(self) -> None:
-        entity = self._env._binding.entities[self._entity_name]
+        entity = self._env.scene.entities[self._entity_name]
         entity.control_dofs_position(self._targets, self._dofs_idx if self._dofs_idx else None)

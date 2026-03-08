@@ -58,13 +58,13 @@ def terrain_levels_vel(
     entity = env.entities[asset_cfg.entity_name]
 
     # Check if terrain generator is available - required for this curriculum
-    if not hasattr(env.scene, "terrain"):
+    if not hasattr(env.gsscene, "terrain"):
         raise AttributeError(
             "Scene does not have 'terrain' attribute. "
             "This curriculum term requires terrain to be configured."
         )
     
-    terrain = env.scene.terrain
+    terrain = env.gsscene.terrain
     if terrain is None:
         raise ValueError(
             "Scene.terrain is None. "
@@ -92,13 +92,13 @@ def terrain_levels_vel(
         )
 
     # Compute the distance the robot walked
-    if not hasattr(env.scene, "env_origins"):
+    if not hasattr(env.gsscene, "env_origins"):
         raise AttributeError(
             "Scene does not have 'env_origins' attribute. "
             "This curriculum term requires environment origins to be set on the scene."
         )
     
-    env_origins = env.scene.env_origins
+    env_origins = env.gsscene.env_origins
 
     distance = torch.norm(
         entity.data.root_pos_w[env_ids, :2] - env_origins[env_ids, :2], dim=1

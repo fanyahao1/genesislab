@@ -39,13 +39,13 @@ class ActionTerm(ManagerTermBase):
 				"Binding may not be properly initialized."
 			)
 		
-		if self.cfg.entity_name not in self._env._binding.entities:
+		if self.cfg.entity_name not in self._env.scene.entities:
 			raise KeyError(
-				f"Entity '{self.cfg.entity_name}' not found in binding.entities. "
-				f"Available entities: {list(self._env._binding.entities.keys())}"
+				f"Entity '{self.cfg.entity_name}' not found in scene.entities. "
+				f"Available entities: {list(self._env.scene.entities.keys())}"
 			)
 		
-		self._entity = self._env._binding.entities[self.cfg.entity_name]
+		self._entity = self._env.scene.entities[self.cfg.entity_name]
 
 	@property
 	@abc.abstractmethod

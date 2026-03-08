@@ -33,10 +33,7 @@ class JointPositionAction(ActionTerm):
 
     def __init__(self, cfg: "JointPositionActionCfg", env: "ManagerBasedRlEnv"):
         super().__init__(cfg, env)
-
-        # Resolve entity.
-        # Use entity_name if set, otherwise fall back to asset_name for backward compatibility
-        self._entity_name = getattr(cfg, "entity_name", None) or cfg.asset_name
+        self._entity_name = cfg.entity_name
         entity = env.entities[self._entity_name]
 
         # Check if actuators are configured for this entity.

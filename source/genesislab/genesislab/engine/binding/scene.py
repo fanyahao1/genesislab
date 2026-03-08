@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from genesislab.engine.binding import GenesisBinding
     from genesislab.components.entities.scene_cfg import SceneCfg
     from genesislab.components.sensors import SensorBaseCfg
+    from genesislab.engine.binding.scene_wrapper import SceneWrapper
 
 
 from genesislab.engine.assets.articulation import GenesisArticulationCfg
@@ -126,7 +127,7 @@ class SceneBuilder:
         lab_entity = LabEntity(env, entity_name, raw_entity, robot_asset=asset)
         return lab_entity
 
-    def add_sensor(self, scene: gs.Scene, sensor_name: str, sensor_cfg: "SensorBaseCfg") -> None:
+    def add_sensor(self, scene_wrapper: "SceneWrapper", sensor_name: str, sensor_cfg: "SensorBaseCfg") -> None:
         """Add a sensor to the scene.
 
         Sensors are created using their configuration's class_type. The sensor
@@ -134,17 +135,11 @@ class SceneBuilder:
         that inherits from SensorBase.
 
         Args:
-            scene: The Genesis Scene instance.
+            scene_wrapper: The SceneWrapper instance (manages framework-internal objects).
             sensor_name: Name to assign to the sensor.
             sensor_cfg: Sensor configuration (configclass or dict). Must have
                 a class_type attribute pointing to the sensor class.
         """
-
-        # Lazily attach a sensors dict to the Scene so that MDP code can access
-        # ``env.scene.sensors[name]`` similar to IsaacLab.
-        if not hasattr(scene, "sensors"):
-            scene.sensors = {}
-
 
         # Set name if not set
         if sensor_cfg.name is None:
@@ -165,13 +160,13 @@ class SceneBuilder:
         # For contact sensors, we need to provide the entity
         sensor_kwargs = {}
         if hasattr(sensor_cfg, "entity_name") and sensor_cfg.entity_name:
-            if sensor_cfg.entity_name not in self._binding._entities:
+            if sensor_cfg.entity_name not in self._binding.entities:
                 raise KeyError(
                     f"Entity '{sensor_cfg.entity_name}' not found in binding.entities. "
                     f"Sensor '{sensor_name}' requires the entity to exist. "
-                    f"Available entities: {list(self._binding._entities.keys())}"
+                    f"Available entities: {list(self._binding.entities.keys())}"
                 )
-            lab_entity = self._binding._entities[sensor_cfg.entity_name]
+            lab_entity = self._binding.entities[sensor_cfg.entity_name]
             sensor_kwargs["entity"] = lab_entity.raw_entity
 
         # Create the sensor instance
@@ -182,4 +177,5 @@ class SceneBuilder:
             **sensor_kwargs
         )
         
-        scene.sensors[sensor_name] = sensor
+        # Add sensor to the scene wrapper (framework-managed)
+        scene_wrapper.add_sensor(sensor_name, sensor)

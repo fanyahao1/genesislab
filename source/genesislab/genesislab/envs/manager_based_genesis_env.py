@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import MISSING
 import random
-from typing import Any, ClassVar
+from typing import ClassVar, TYPE_CHECKING, Dict
 
 import torch
 
@@ -21,6 +21,8 @@ from genesislab.managers.reward_manager import RewardManager
 from genesislab.managers.termination_manager import TerminationManager
 from genesislab.managers import EventManager
 
+if TYPE_CHECKING:
+    from genesislab.engine.gstype import gs
 
 class ManagerBasedGenesisEnv:
     """Manager-based RL environment for Genesis.
@@ -42,7 +44,7 @@ class ManagerBasedGenesisEnv:
     is_vector_env: ClassVar[bool] = True
     """Whether this environment manages a batch of parallel sub-environments."""
 
-    metadata: ClassVar[dict[str, Any]] = {
+    metadata: ClassVar[dict[str, list]] = {
         "render_modes": [None, "rgb_array"],
     }
     """Environment metadata (render modes, fps, etc.)."""
@@ -177,9 +179,14 @@ class ManagerBasedGenesisEnv:
     # -------------------------------------------------------------------------
 
     @property
-    def scene(self) -> Any:
-        """The Genesis Scene instance."""
+    def scene(self):
+        """The Scene wrapper instance (provides access to both Genesis Scene and framework objects)."""
         return self._binding.scene
+
+    @property
+    def gsscene(self) -> "gs.Scene":
+        """The Genesis Scene instance."""
+        return self._binding.gs_scene
 
     @property
     def entities(self) -> dict[str, LabEntity]:
@@ -190,16 +197,15 @@ class ManagerBasedGenesisEnv:
         - `env.entities["go2"].data.root_pos_w` - root position in world frame
         - etc.
         """
-        # Entities are already constructed as LabEntity in binding.build()
-        # Just return them directly
-        return self._binding.entities
+        # Entities are managed in SceneWrapper, accessed through scene
+        return self.scene.entities
 
     def reset(
         self,
         seed: int = None,
         env_ids: torch.Tensor = None,
-        options: dict[str, Any] = None,
-    ) -> tuple[VecEnvObs, dict[str, Any]]:
+        options: dict[str, object] = None,
+    ) -> tuple[VecEnvObs, dict[str, object]]:
         """Reset the environment.
 
         Args:
@@ -304,13 +310,13 @@ class ManagerBasedGenesisEnv:
 
         # Debug visualization (if enabled)
         if hasattr(self, "command_manager") and self.command_manager is not None:
-            self.command_manager.debug_vis(self._binding.scene)
+            self.command_manager.debug_vis(self._binding.gs_scene)
 
         # Compute observations
         obs_buf = self.observation_manager.compute(update_history=True)
 
         # Build info dict, including any episode-level metrics produced at reset.
-        info: dict[str, Any] = {
+        info: dict[str, dict] = {
             "time_outs": reset_time_outs,
             "terminated": reset_terminated,
             "log": manager_extras
@@ -320,14 +326,7 @@ class ManagerBasedGenesisEnv:
 
     def _update_sensors(self) -> None:
         """Update any scene-attached sensors after a physics step."""
-        scene = self._binding.scene
-        if not hasattr(scene, "sensors"):
-            raise AttributeError(
-                "Scene does not have 'sensors' attribute. "
-                "Sensors dict should be initialized during scene building."
-            )
-        
-        sensors = scene.sensors
+        sensors = self._binding.scene.sensors
         for sensor_name, sensor in sensors.items():
             if not hasattr(sensor, "update"):
                 raise AttributeError(
@@ -349,7 +348,7 @@ class ManagerBasedGenesisEnv:
         self.episode_length_buf[env_ids] = 0
 
         # Reset managers and collect extras (episode-level summaries, metrics, etc.).
-        manager_extras: dict[str, Any] = {}
+        manager_extras: dict[str, object] = {}
         manager_extras.update(self.action_manager.reset(env_ids=env_ids))
         manager_extras.update(self.observation_manager.reset(env_ids=env_ids))
         manager_extras.update(self.reward_manager.reset(env_ids=env_ids))

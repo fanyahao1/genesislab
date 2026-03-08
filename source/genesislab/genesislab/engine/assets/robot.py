@@ -7,7 +7,7 @@ between asset formats (URDF, MJCF, USD).
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import torch
 
@@ -16,6 +16,8 @@ import genesis as gs
 from genesislab.engine.assets.articulation import GenesisArticulation, GenesisArticulationCfg
 from genesislab.engine.assets.utils.name_normalizer import NameNormalizer
 
+if TYPE_CHECKING:
+    from genesislab.engine.gstype import KinematicEntity
 
 class GenesisArticulationRobot(GenesisArticulation):
     """Robot asset wrapper with unified name resolution.
@@ -49,47 +51,18 @@ class GenesisArticulationRobot(GenesisArticulation):
             The created entity.
         """
         entity = super().build_into_scene(scene)
-        
         # Initialize name normalizers after entity is built
         self._initialize_name_normalizers(entity)
-        
         return entity
 
-    def _initialize_name_normalizers(self, entity: Any) -> None:
-        """Initialize name normalizers for joints and bodies/links.
-        
-        Args:
-            entity: The Genesis entity.
-        """
+    def _initialize_name_normalizers(self, entity: KinematicEntity) -> None:
         # Initialize joint normalizer
-        raw_joint_names = []
-        for joint in entity.joints:
-            if hasattr(joint, "name"):
-                raw_joint_names.append(joint.name)
-        if raw_joint_names:
-            self._joint_normalizer = NameNormalizer(raw_joint_names)
+        raw_joint_names = [joint.name for joint in entity.joints]
+        if raw_joint_names: self._joint_normalizer = NameNormalizer(raw_joint_names)
         
         # Initialize body/link normalizer
-        raw_body_names = []
-        # Try to get body/link names from entity
-        if hasattr(entity, "n_links") and hasattr(entity, "get_link"):
-            for i in range(entity.n_links):
-                link = entity.get_link(i)
-                if hasattr(link, "name"):
-                    raw_body_names.append(link.name)
-        elif hasattr(entity, "links"):
-            # Alternative: entity.links might be a list or iterable
-            for link in entity.links:
-                if hasattr(link, "name"):
-                    raw_body_names.append(link.name)
-        elif hasattr(entity, "bodies"):
-            # Alternative: entity.bodies might be a list or iterable
-            for body in entity.bodies:
-                if hasattr(body, "name"):
-                    raw_body_names.append(body.name)
-        
-        if raw_body_names:
-            self._body_normalizer = NameNormalizer(raw_body_names)
+        raw_body_names = [link.name for link in entity.links]
+        if raw_body_names: self._body_normalizer = NameNormalizer(raw_body_names)
 
     # ------------------------------------------------------------------ #
     # Joint name resolution
@@ -97,11 +70,6 @@ class GenesisArticulationRobot(GenesisArticulation):
 
     @property
     def joint_normalizer(self) -> Optional[NameNormalizer]:
-        """Get the joint name normalizer.
-        
-        Returns:
-            Joint name normalizer, or None if not initialized.
-        """
         return self._joint_normalizer
 
     def get_joint_names(self, normalized: bool = True) -> List[str]:

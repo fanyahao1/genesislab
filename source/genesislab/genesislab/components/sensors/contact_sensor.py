@@ -16,23 +16,6 @@ from genesislab.engine.entity import LabEntity
 from .sensor_base import SensorBase
 from .sensor_base_cfg import SensorBaseCfg
 
-
-@dataclass
-class _ContactSensorData:
-    """Data buffers exposed by :class:`ContactSensor`.
-
-    For now, these are zero tensors with the right shapes. The fields mirror
-    those used in the MDP reward/termination functions:
-
-    - ``net_forces_w_history``: Tensor of shape
-      ``(history_length, num_envs, num_channels, 3)``.
-    - ``last_air_time``: Tensor of shape ``(num_envs, num_channels)``.
-    """
-
-    net_forces_w_history: torch.Tensor
-    last_air_time: torch.Tensor
-
-
 class ContactSensor(SensorBase):
     """Contact sensor for GenesisLab that reads real contact forces from Genesis engine.
 
@@ -59,15 +42,7 @@ class ContactSensor(SensorBase):
         """
         # Store entity reference before calling super().__init__()
         self._entity = entity
-        
-        # Get number of links/channels from entity if available
-        # Otherwise, we'll infer it on first update
-        if entity is not None and hasattr(entity, "n_links"):
-            num_channels = entity.n_links
-        else:
-            # Default to 1 channel, will be updated on first update
-            num_channels = 1
-
+        num_channels = entity.n_links
         history_len = max(int(cfg.history_length), 1)
         
         # Create buffers BEFORE calling super().__init__() because
@@ -91,17 +66,32 @@ class ContactSensor(SensorBase):
         # Initialize base class (this will call _initialize_impl())
         super().__init__(cfg=cfg, num_envs=num_envs, device=device)
 
+    @dataclass
+    class _ContactSensorData:
+        """Data buffers exposed by :class:`ContactSensor`.
+
+        For now, these are zero tensors with the right shapes. The fields mirror
+        those used in the MDP reward/termination functions:
+
+        - ``net_forces_w_history``: Tensor of shape
+        ``(history_length, num_envs, num_channels, 3)``.
+        - ``last_air_time``: Tensor of shape ``(num_envs, num_channels)``.
+        """
+
+        net_forces_w_history: torch.Tensor
+        last_air_time: torch.Tensor
+
     def _initialize_impl(self) -> None:
         """Initialize the sensor data buffers."""
         super()._initialize_impl()
         # Create data object
-        self._data = _ContactSensorData(
+        self._data = self._ContactSensorData(
             net_forces_w_history=self._net_forces_buffer,
             last_air_time=self._last_air_time_buffer,
         )
 
     @property
-    def data(self) -> _ContactSensorData:
+    def data(self) -> "_ContactSensorData":
         """Data from the sensor."""
         # Update sensors if needed
         self._update_outdated_buffers()
@@ -115,27 +105,26 @@ class ContactSensor(SensorBase):
         """
         self._entity = entity
         # Resize buffers if entity has different number of links
-        if entity is not None and hasattr(entity, "n_links"):
-            num_channels = entity.n_links
-            if num_channels != self._data.net_forces_w_history.shape[2]:
-                # Resize buffers to match number of links
-                history_len = self._data.net_forces_w_history.shape[0]
-                self._data.net_forces_w_history = torch.zeros(
-                    history_len,
-                    self.num_envs,
-                    num_channels,
-                    3,
-                    device=self.device,
-                    dtype=torch.float32,
-                )
-                self._data.last_air_time = torch.zeros(
-                    self.num_envs,
-                    num_channels,
-                    device=self.device,
-                    dtype=torch.float32,
-                )
-                # Initialize previous air time
-                self._prev_air_time = self._data.last_air_time.clone()
+        num_channels = entity.n_links
+        if num_channels != self._data.net_forces_w_history.shape[2]:
+            # Resize buffers to match number of links
+            history_len = self._data.net_forces_w_history.shape[0]
+            self._data.net_forces_w_history = torch.zeros(
+                history_len,
+                self.num_envs,
+                num_channels,
+                3,
+                device=self.device,
+                dtype=torch.float32,
+            )
+            self._data.last_air_time = torch.zeros(
+                self.num_envs,
+                num_channels,
+                device=self.device,
+                dtype=torch.float32,
+            )
+            # Initialize previous air time
+            self._prev_air_time = self._data.last_air_time.clone()
 
     def _update_buffers_impl(self, env_ids) -> None:
         """Update sensor buffers for the specified environment ids."""

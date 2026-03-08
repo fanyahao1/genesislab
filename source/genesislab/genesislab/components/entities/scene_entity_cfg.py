@@ -11,13 +11,14 @@ time so that term functions can access the resolved handle efficiently.
 from __future__ import annotations
 
 from dataclasses import MISSING
-from typing import Any, List
+from typing import List, TYPE_CHECKING
 
+from genesislab.engine.entity.entity import LabEntity
 from genesislab.utils.configclass import configclass
 from genesislab.utils.configclass.string import resolve_matching_names
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
+    from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
     from genesislab.engine.gstype import KinematicEntity
 
 @configclass
@@ -75,7 +76,7 @@ class SceneEntityCfg:
     are preserved in the order of the specified joint or body names.
     """
 
-    resolved: Any = None
+    resolved: object = None
     """Resolved engine-level entity handle. Set by :meth:`resolve`."""
 
     def __post_init__(self):
@@ -87,7 +88,7 @@ class SceneEntityCfg:
         elif self.entity_name != MISSING:
             self.name = self.entity_name
 
-    def resolve(self, container: Any, env: Any = None) -> None:
+    def resolve(self, container: dict, env: "ManagerBasedRlEnv" = None) -> None:
         """Resolve the entity reference against a container and convert body/joint names to indices.
 
         Args:
@@ -113,7 +114,7 @@ class SceneEntityCfg:
                 if env is not None and hasattr(env, "scene") and hasattr(env.scene, "sensors"):
                     if self.name in env.scene.sensors:
                         resolved_obj = env.scene.sensors[self.name]
-                        # For sensors, get the associated entity
+                        # For sensors, get the associated entity (if needed for body/joint resolution)
                         if hasattr(resolved_obj, "cfg") and hasattr(resolved_obj.cfg, "entity_name"):
                             entity_name = resolved_obj.cfg.entity_name
                             if entity_name in container:
@@ -121,7 +122,9 @@ class SceneEntityCfg:
                             elif hasattr(env, "entities") and entity_name in env.entities:
                                 # Try to get from env.entities (Entity wrapper)
                                 entity_wrapper = env.entities[entity_name]
-                                if hasattr(entity_wrapper, "_raw_entity"):
+                                if hasattr(entity_wrapper, "raw_entity"):
+                                    entity = entity_wrapper.raw_entity
+                                elif hasattr(entity_wrapper, "_raw_entity"):
                                     entity = entity_wrapper._raw_entity
                                 else:
                                     entity = entity_wrapper
@@ -145,64 +148,63 @@ class SceneEntityCfg:
         self.resolved = resolved_obj
 
         # Resolve body names to indices if needed
-        # For sensors, we need the associated entity, not the sensor itself
-        if self.body_names is not None:
+        # For sensors, we need the associated LabEntity, not the sensor itself
+        lab_entity = None
+        if self.body_names is not None or self.joint_names is not None:
             if entity is None and env is not None:
-                # Try to get entity from sensor
+                # Try to get LabEntity from sensor's associated entity
                 if hasattr(resolved_obj, "cfg") and hasattr(resolved_obj.cfg, "entity_name"):
                     entity_name = resolved_obj.cfg.entity_name
-                    if hasattr(env, "_binding") and hasattr(env._binding, "entities"):
-                        if entity_name in env._binding.entities:
-                            entity = env._binding.entities[entity_name]
-                    elif hasattr(env, "entities") and entity_name in env.entities:
-                        entity_wrapper = env.entities[entity_name]
-                        if hasattr(entity_wrapper, "_raw_entity"):
-                            entity = entity_wrapper._raw_entity
-                        else:
-                            entity = entity_wrapper
-            
-            if entity is not None:
-                self._resolve_body_names(entity)
+                    # Prefer env.entities (LabEntity objects)
+                    if hasattr(env, "entities") and entity_name in env.entities:
+                        lab_entity = env.entities[entity_name]
+                    elif hasattr(env, "scene") and hasattr(env.scene, "entities"):
+                        if entity_name in env.scene.entities:
+                            lab_entity = env.scene.entities[entity_name]
+            elif entity is not None:
+                # If entity is already a LabEntity, use it directly
+                if isinstance(entity, LabEntity):
+                    lab_entity = entity
+                # Otherwise, try to find the LabEntity wrapper
+                elif env is not None:
+                    # Try to find by name in container
+                    if isinstance(container, dict) and self.name in container:
+                        potential_entity = container[self.name]
+                        if isinstance(potential_entity, LabEntity):
+                            lab_entity = potential_entity
+                    # Try to find in env.entities
+                    if lab_entity is None and hasattr(env, "entities"):
+                        for name, ent in env.entities.items():
+                            if hasattr(ent, "raw_entity") and ent.raw_entity is entity:
+                                lab_entity = ent
+                                break
+        
+        # Resolve body names to indices if needed
+        if self.body_names is not None:
+            if lab_entity is not None:
+                self._resolve_body_names(lab_entity)
             else:
                 raise ValueError(
                     f"Cannot resolve body_names for '{self.name}': "
-                    "entity not found. For sensors, ensure the environment is provided to resolve()."
+                    "LabEntity not found. For sensors, ensure the environment is provided to resolve()."
                 )
 
         # Resolve joint names to indices if needed
         if self.joint_names is not None:
-            if entity is None and env is not None:
-                # Try to get entity from sensor
-                if hasattr(resolved_obj, "cfg") and hasattr(resolved_obj.cfg, "entity_name"):
-                    entity_name = resolved_obj.cfg.entity_name
-                    if hasattr(env, "_binding") and hasattr(env._binding, "entities"):
-                        if entity_name in env._binding.entities:
-                            entity = env._binding.entities[entity_name]
-                    elif hasattr(env, "entities") and entity_name in env.entities:
-                        entity_wrapper = env.entities[entity_name]
-                        if hasattr(entity_wrapper, "_raw_entity"):
-                            entity = entity_wrapper._raw_entity
-                        else:
-                            entity = entity_wrapper
-            
-            if entity is not None:
-                self._resolve_joint_names(entity)
+            if lab_entity is not None:
+                self._resolve_joint_names(lab_entity)
             else:
                 raise ValueError(
                     f"Cannot resolve joint_names for '{self.name}': "
-                    "entity not found. For sensors, ensure the environment is provided to resolve()."
+                    "LabEntity not found. For sensors, ensure the environment is provided to resolve()."
                 )
 
-    def _resolve_body_names(self, entity: "KinematicEntity") -> None:
+    def _resolve_body_names(self, entity: "LabEntity") -> None:
         """Convert body names to body indices based on regex matching.
 
         Args:
             entity: The Genesis entity object with link/body information.
         """
-        entity._links
-        # Get all link names
-        num_links = int(entity.n_links)
-        link_names: List[str] = [link._name for link in entity._links]
 
         # Resolve matching names
         if isinstance(self.body_names, str): body_names_list = [self.body_names]
@@ -210,19 +212,17 @@ class SceneEntityCfg:
 
         try:
             body_indices, matched_names = resolve_matching_names(
-                body_names_list, link_names, preserve_order=self.preserve_order
+                body_names_list, entity.link_names, preserve_order=self.preserve_order
             )
             self.body_ids = body_indices
-            # Performance optimization: if all bodies are selected, use slice(None)
-            if len(body_indices) == num_links:
-                self.body_ids = slice(None)
+            if len(body_indices) == entity.n_links: self.body_ids = slice(None)
         except ValueError as e:
             raise ValueError(
                 f"Could not resolve body names '{self.body_names}' for entity '{self.name}'. "
-                f"Available body/link names: {link_names}. Error: {e}"
+                f"Available body/link names: {entity.link_names}. Error: {e}"
             )
 
-    def _resolve_joint_names(self, entity: Any) -> None:
+    def _resolve_joint_names(self, entity: "LabEntity") -> None:
         """Convert joint names to joint indices based on regex matching.
 
         Args:

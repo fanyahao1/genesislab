@@ -7,10 +7,12 @@ allowing MDP code to access entity state through a clean, typed interface like
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from genesislab.envs.manager_based_genesis_env import ManagerBasedGenesisEnv
+    from genesislab.engine.gstype import KinematicEntity
+    from genesislab.engine.assets.robot import GenesisArticulationRobot
 
 from .entity_data import EntityData
 
@@ -22,7 +24,11 @@ class LabEntity:
     similar to IsaacLab's Articulation class.
     """
 
-    def __init__(self, env: "ManagerBasedGenesisEnv" | None, entity_name: str, raw_entity: Any, robot_asset: Any = None):
+    _raw_entity: "KinematicEntity"
+    _robot_asset: "GenesisArticulationRobot"
+    _data: "EntityData" = None
+
+    def __init__(self, env: "ManagerBasedGenesisEnv", entity_name: str, raw_entity: "KinematicEntity", robot_asset: "GenesisArticulationRobot" = None):
         """Initialize the entity wrapper.
 
         Args:
@@ -35,8 +41,6 @@ class LabEntity:
         self._entity_name = entity_name
         self._raw_entity = raw_entity
         self._robot_asset = robot_asset
-        # EntityData will be created lazily when needed (if env is available)
-        self._data: EntityData | None = None
 
     @property
     def name(self) -> str:
@@ -47,20 +51,39 @@ class LabEntity:
     def data(self) -> EntityData:
         """Data view for accessing entity state."""
         if self._data is None:
-            if self._env is None:
-                raise RuntimeError(
-                    f"Cannot create EntityData for entity '{self._entity_name}': env is None. "
-                    f"Entity must be initialized with env parameter to access data property."
-                )
             self._data = EntityData(self._env, self._entity_name)
         return self._data
 
     @property
-    def raw_entity(self) -> Any:
+    def raw_entity(self) -> KinematicEntity:
         """Access to the underlying Genesis entity (for advanced use cases)."""
         return self._raw_entity
 
     @property
-    def robot_asset(self) -> Any:
+    def robot_asset(self) -> GenesisArticulationRobot:
         """Access to the Robot asset wrapper (for name resolution, if available)."""
         return self._robot_asset
+
+    @property
+    def n_links(self):
+        return self._raw_entity.n_links
+    
+    @property
+    def raw_link_names(self):
+        return self._robot_asset.body_normalizer.raw_names
+    
+    @property
+    def link_names(self):
+        return self._robot_asset.body_normalizer.normalized_names
+    
+    @property
+    def n_joints(self):
+        return self._raw_entity.n_joints
+    
+    @property
+    def raw_joint_names(self):
+        return self._robot_asset.joint_normalizer.raw_names
+    
+    @property
+    def joint_names(self):
+        return self._robot_asset.joint_normalizer.normalized_names

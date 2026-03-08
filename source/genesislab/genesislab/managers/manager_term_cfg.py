@@ -105,7 +105,6 @@ class ActionTermCfg:
 	The class should inherit from :class:`genesislab.managers.action_manager.ActionTerm`.
 	"""
 
-	# GenesisLab uses entity_name instead of asset_name
 	entity_name: str = MISSING
 	"""The name of the scene entity.
 

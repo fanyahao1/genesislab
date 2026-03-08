@@ -244,7 +244,7 @@ class ManagerBase(abc.ABC):
 						"Binding may not be properly initialized."
 					)
 				
-				value.resolve(self._env._binding.entities, env=self._env)
+				value.resolve(self._env.scene.entities, env=self._env)
 
 		# Get the corresponding function or functional class
 		if isinstance(term_cfg.func, str):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import MISSING
 import random
 from typing import Any, ClassVar
 
@@ -18,6 +19,7 @@ from genesislab.managers.command_manager import CommandManager, NullCommandManag
 from genesislab.managers.observation_manager import ObservationManager
 from genesislab.managers.reward_manager import RewardManager
 from genesislab.managers.termination_manager import TerminationManager
+from genesislab.managers import EventManager
 
 
 class ManagerBasedGenesisEnv:
@@ -90,6 +92,10 @@ class ManagerBasedGenesisEnv:
         # Configure Gym-style spaces
         self._configure_spaces()
 
+        # Apply startup events if event manager is configured
+        if self.event_manager is not None and "startup" in self.event_manager.available_modes:
+            self.event_manager.apply(mode="startup")
+
     def seed(self, seed: int = None) -> None:
         """Set random seed for reproducibility.
 
@@ -129,12 +135,17 @@ class ManagerBasedGenesisEnv:
         # Termination manager
         self.termination_manager = TerminationManager(cfg=self.cfg.terminations, env=self)
 
+        # Event manager (optional)
+        self.event_manager = EventManager(cfg=self.cfg.events, env=self) if self.cfg.events is not None else None
+
         # Report initialized managers (IsaacLab-style summary).
         print("[ManagerBasedGenesisEnv] Command manager: %s", self.command_manager)
         print("[ManagerBasedGenesisEnv] Action manager: %s", self.action_manager)
         print("[ManagerBasedGenesisEnv] Observation manager: %s", self.observation_manager)
         print("[ManagerBasedGenesisEnv] Reward manager: %s", self.reward_manager)
         print("[ManagerBasedGenesisEnv] Termination manager: %s", self.termination_manager)
+        if self.event_manager is not None:
+            print("[ManagerBasedGenesisEnv] Event manager: %s", self.event_manager)
 
     def _configure_spaces(self) -> None:
         """Configure Gym-style observation and action spaces."""
@@ -219,6 +230,10 @@ class ManagerBasedGenesisEnv:
         # Reset episode counters
         self.episode_length_buf[env_ids] = 0
 
+        # Apply reset events if event manager is configured
+        if self.event_manager is not None and "reset" in self.event_manager.available_modes:
+            self.event_manager.apply(mode="reset", env_ids=env_ids, global_env_step_count=self.common_step_counter)
+
         # Reset managers and collect extras
         manager_extras = {}
         manager_extras.update(self.action_manager.reset(env_ids=env_ids))
@@ -226,6 +241,11 @@ class ManagerBasedGenesisEnv:
         manager_extras.update(self.reward_manager.reset(env_ids=env_ids))
         manager_extras.update(self.termination_manager.reset(env_ids=env_ids))
         manager_extras.update(self.command_manager.reset(env_ids=env_ids))
+        
+        # Reset event manager and collect extras
+        if self.event_manager is not None:
+            event_extras = self.event_manager.reset(env_ids=env_ids)
+            manager_extras.update(event_extras)
 
         # Compute initial observations
         obs_buf = self.observation_manager.compute(update_history=True)
@@ -280,6 +300,10 @@ class ManagerBasedGenesisEnv:
 
         # Update commands
         self.command_manager.compute(dt=self.step_dt)
+
+        # Apply interval events if event manager is configured
+        if self.event_manager is not None and "interval" in self.event_manager.available_modes:
+            self.event_manager.apply(mode="interval", dt=self.step_dt)
 
         # Debug visualization (if enabled)
         if hasattr(self, "command_manager") and self.command_manager is not None:
@@ -360,26 +384,37 @@ class ManagerBasedGenesisEnvCfg:
 
     # Manager configs are kept intentionally untyped here; task configs are expected
     # to populate them with the appropriate term config objects from the managers.
-    observations: dict[str, object] = {}
+    observations: object = MISSING
     """Observation groups configuration (typically `ObservationGroupCfg` instances)."""
 
-    actions: dict[str, object] = {}
+    actions: object = MISSING
     """Action term configurations."""
 
-    rewards: dict[str, object] = {}
+    rewards: object = MISSING
     """Reward term configurations."""
 
-    terminations: dict[str, object] = {}
+    terminations: object = MISSING
     """Termination term configurations."""
 
-    commands: dict[str, object] = None
+    commands: object = MISSING
     """Command term configurations. If None, no command manager is created."""
 
+    events: object = MISSING
+    """Event term configurations. If None, no event manager is created.
+    
+    Events are triggered at different simulation stages:
+    - "startup": Once at initialization
+    - "reset": On episode reset
+    - "interval": Periodically during simulation
+    
+    Please refer to the :class:`genesislab.managers.EventManager` class for more details.
+    """
+
     # RL-specific configuration
-    seed: int = None
+    seed: int = 42
     """Random seed for reproducibility."""
 
-    episode_length_s: float = None
+    episode_length_s: float = 20
     """Episode length in seconds. If None, horizon is infinite unless terminated by terms."""
 
     is_finite_horizon: bool = False

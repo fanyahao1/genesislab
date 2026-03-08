@@ -1,6 +1,7 @@
-"""Reset functions for simple Go2 task.
+"""Event functions for simple Go2 task.
 
-These functions align with genesis-forge's reset functions.
+These functions align with genesis-forge's event functions and can be used
+with the EventManager for reset, startup, and interval events.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ def position(
     env: "ManagerBasedRlEnv",
     env_ids: torch.Tensor | list[int],
     position: tuple[float, float, float],
-    quat: tuple[float, float, float, float] | None = None,
+    quat: tuple[float, float, float, float] = None,
     zero_velocity: bool = True,
     asset_cfg: SceneEntityCfg = None,
 ) -> None:
@@ -38,9 +39,20 @@ def position(
     
     entity_obj = env._binding.entities[asset_cfg.entity_name]
     
-    # Convert env_ids to tensor if needed
-    if isinstance(env_ids, list):
+    # Handle env_ids: convert to tensor or handle slice(None)
+    if env_ids is None or env_ids == slice(None):
+        env_ids = torch.arange(env.num_envs, device=env.device, dtype=torch.long)
+    elif isinstance(env_ids, list):
         env_ids = torch.tensor(env_ids, dtype=torch.long, device=env.device)
+    elif isinstance(env_ids, slice):
+        # Handle slice by converting to tensor
+        if env_ids == slice(None):
+            env_ids = torch.arange(env.num_envs, device=env.device, dtype=torch.long)
+        else:
+            start = env_ids.start if env_ids.start is not None else 0
+            stop = env_ids.stop if env_ids.stop is not None else env.num_envs
+            step = env_ids.step if env_ids.step is not None else 1
+            env_ids = torch.arange(start, stop, step, device=env.device, dtype=torch.long)
     
     # Convert position to tensor
     pos_tensor = torch.tensor(position, device=env.device, dtype=torch.float32)

@@ -1,10 +1,10 @@
 """MDP functions for simple Go2 task.
 
 This sub-module contains the functions that align with genesis-forge's simple example.
-It exports observation, action, reward, termination, and reset functions.
+It exports observation, action, reward, termination, event, and command functions.
 """
 
-from .reset import position
+from .events import position
 from .rewards import (
     base_height,
     command_tracking_lin_vel,
@@ -22,10 +22,14 @@ from .observations import (
     dof_velocity,
     actions,
 )
+# Import command configuration from locomotion velocity task
+from genesis_tasks.locomotion.velocity.mdp.commands import UniformVelocityCommandCfg
 
 __all__ = [
-    # Reset
+    # Events
     "position",
+    # Commands
+    "UniformVelocityCommandCfg",
     # Rewards
     "base_height",
     "command_tracking_lin_vel",

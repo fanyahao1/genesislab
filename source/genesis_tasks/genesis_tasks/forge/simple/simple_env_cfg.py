@@ -15,6 +15,7 @@ from genesislab.managers.observation_manager import ObservationGroupCfg, Observa
 from genesislab.managers.action_manager import ActionTermCfg
 from genesislab.managers.reward_manager import RewardTermCfg
 from genesislab.managers.termination_manager import TerminationTermCfg
+from genesislab.managers.manager_term_cfg import EventTermCfg
 from genesislab.utils.configclass import configclass
 
 from genesis_assets.robots import UNITREE_GO2_CFG
@@ -80,7 +81,7 @@ class SimpleActionsCfg:
     """Action specifications for the simple task."""
 
     joint_pos: GenesisOriginalActionCfg = GenesisOriginalActionCfg(
-        asset_name="robot",
+        entity_name="robot",
         scale=0.25,  # Same as Genesis Forge
         clip=(-100.0, 100.0),  # Same as Genesis Forge
         use_default_offset=True,  # Same as Genesis Forge
@@ -183,6 +184,25 @@ class SimpleTerminationsCfg:
 
 
 @configclass
+class SimpleEventsCfg:
+    """Event terms for the simple task.
+
+    Aligned with Genesis Forge's simple example events.
+    """
+
+    reset_robot_position: EventTermCfg = EventTermCfg(
+        func=mdp.position,
+        mode="reset",
+        params={
+            "position": [0.0, 0.0, 0.4],  # Same as Genesis Forge INITIAL_BODY_POSITION
+            "quat": [1.0, 0.0, 0.0, 0.0],  # Same as Genesis Forge INITIAL_QUAT
+            "zero_velocity": True,
+            "asset_cfg": SceneEntityCfg("robot"),
+        },
+    )
+
+
+@configclass
 class SimpleGo2EnvCfg(ManagerBasedRlEnvCfg):
     """Configuration for simple Go2 locomotion task.
 
@@ -210,6 +230,9 @@ class SimpleGo2EnvCfg(ManagerBasedRlEnvCfg):
 
     terminations: SimpleTerminationsCfg = SimpleTerminationsCfg()
     """Termination terms."""
+
+    events: SimpleEventsCfg = SimpleEventsCfg()
+    """Event terms for reset and domain randomization."""
 
     # Environment settings
     decimation: int = 1

@@ -156,6 +156,11 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
         # Reset episode counters
         self.episode_length_buf[env_ids] = 0
 
+        # Apply reset events if event manager is configured
+        if hasattr(self, "event_manager") and self.event_manager is not None:
+            if "reset" in self.event_manager.available_modes:
+                self.event_manager.apply(mode="reset", env_ids=env_ids, global_env_step_count=self.common_step_counter)
+
         # Reset managers and collect extras.
         manager_extras: dict[str, Any] = {}
         manager_extras.update(self.action_manager.reset(env_ids=env_ids))
@@ -164,6 +169,11 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
         manager_extras.update(self.termination_manager.reset(env_ids=env_ids))
         manager_extras.update(self.command_manager.reset(env_ids=env_ids))
         manager_extras.update(self.curriculum_manager.reset(env_ids=env_ids))
+        
+        # Reset event manager and collect extras
+        if hasattr(self, "event_manager") and self.event_manager is not None:
+            event_extras = self.event_manager.reset(env_ids=env_ids)
+            manager_extras.update(event_extras)
 
         return manager_extras
 

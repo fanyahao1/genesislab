@@ -233,5 +233,5 @@ class GenesisArticulation(GenesisAssetBase):
         """
 
         # In a more feature-complete implementation we would cache state here.
-        return
+        raise NotImplementedError("Currently this is a no-op placeholder; state queries should go through the underlying Genesis entity directly.")
 

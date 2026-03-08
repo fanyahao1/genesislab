@@ -39,18 +39,8 @@ class SceneCfg:
         gravity: tuple[float, float, float] = (0.0, 0.0, -9.81)
         """Gravity vector (x, y, z)."""
 
-        def to_genesis_options(self) -> dict[str, Any]:
-            """Convert this config to keyword arguments for ``gs.options.SimOptions``.
-            
-            Note: The `backend` field is not included here because it is set during
-            `gs.init()`, not in `SimOptions`.
-            """
-            return {
-                "dt": self.dt,
-                "substeps": self.substeps,
-                "requires_grad": self.requires_grad,
-                "gravity": self.gravity,
-            }
+        def to_genesis_options(self) -> dict:
+            return self.to_dict()
 
 
     @configclass
@@ -96,14 +86,9 @@ class SceneCfg:
         rendered_envs_idx: list[int] = None
         """List of environment indices to render. If None, all environments are rendered."""
 
-        def to_genesis_options(self) -> dict[str, Any]:
-            """Convert this config to keyword arguments for ``gs.options.VisOptions``.
-            
-            Returns None if rendered_envs_idx is None (no vis options needed).
-            """
-            if self.rendered_envs_idx is None:
-                return None
-            return {"rendered_envs_idx": self.rendered_envs_idx}
+        def to_genesis_options(self) -> dict[str, list[int]]:
+            if self.rendered_envs_idx is None: return None
+            return self.to_dict()
 
 
     @configclass

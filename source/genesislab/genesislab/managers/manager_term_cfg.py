@@ -296,7 +296,7 @@ class EventTermCfg(ManagerTermBaseCfg):
 	and any other parameters as input.
 	"""
 
-	mode: str = MISSING
+	mode: Literal["interval", "reset", "setup"] = MISSING
 	"""The mode in which the event term is applied.
 
 	Note:

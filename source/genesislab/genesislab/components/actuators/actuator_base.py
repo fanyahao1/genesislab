@@ -136,8 +136,6 @@ class ActuatorBase(ABC):
             corresponding to the joints in the actuator model; these values serve as default values if the parameters
             are not specified in the cfg.
 
-
-
         Args:
             cfg: The configuration of the actuator model.
             joint_names: The joint names in the articulation.

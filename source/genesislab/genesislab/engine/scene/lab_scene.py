@@ -14,7 +14,6 @@ import torch
 if TYPE_CHECKING:
     from genesislab.components.entities.scene_cfg import SceneCfg
     from genesislab.components.sensors import SensorBase
-    from genesislab.components.actuators import ActuatorBase
     from genesislab.engine.entity import LabEntity
 
 from genesislab.engine.scene.scene_builder import SceneBuilder
@@ -47,7 +46,6 @@ class LabScene:
         self._entities: Dict[str, "LabEntity"] = {}
         self._sensors: Dict[str, "SensorBase"] = {}
         self._dof_indices: Dict[str, torch.Tensor] = {}
-        self._actuators: Dict[str, Dict[str, "ActuatorBase"]] = {}
         self._num_envs = cfg.num_envs
         
         # Initialize helper components

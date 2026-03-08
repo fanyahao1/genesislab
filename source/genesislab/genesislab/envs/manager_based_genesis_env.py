@@ -146,8 +146,7 @@ class ManagerBasedGenesisEnv:
         print("[ManagerBasedGenesisEnv] Observation manager: %s", self.observation_manager)
         print("[ManagerBasedGenesisEnv] Reward manager: %s", self.reward_manager)
         print("[ManagerBasedGenesisEnv] Termination manager: %s", self.termination_manager)
-        if self.event_manager is not None:
-            print("[ManagerBasedGenesisEnv] Event manager: %s", self.event_manager)
+        print("[ManagerBasedGenesisEnv] Event manager: %s", self.event_manager)
 
     def _configure_spaces(self) -> None:
         """Configure Gym-style observation and action spaces."""

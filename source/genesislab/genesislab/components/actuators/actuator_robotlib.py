@@ -142,18 +142,40 @@ class UnitreeActuator(IdealPDActuator):
         return super().compute(control_action, joint_pos, joint_vel)
 
     def _clip_effort(self, effort: torch.Tensor) -> torch.Tensor:
+        # Ensure _joint_vel has the same shape as effort
+        if self._joint_vel.shape != effort.shape:
+            # Reshape _joint_vel to match effort shape
+            if effort.shape[-1] <= self._joint_vel.shape[-1]:
+                self._joint_vel = self._joint_vel[:, :effort.shape[-1]]
+            else:
+                # Pad with zeros if effort has more joints
+                padded = torch.zeros_like(effort)
+                padded[:, :self._joint_vel.shape[-1]] = self._joint_vel
+                self._joint_vel = padded
+        
         # Check if the effort is the same direction as the joint velocity
         same_direction = (self._joint_vel * effort) > 0
-        max_effort = torch.where(same_direction, self._effort_y1, self._effort_y2)
+        
+        # Ensure effort limits are scalar tensors for proper broadcasting
+        # They should broadcast to (num_envs, num_joints) shape
+        effort_y1 = self._effort_y1 if self._effort_y1.dim() == 0 else self._effort_y1.squeeze()
+        effort_y2 = self._effort_y2 if self._effort_y2.dim() == 0 else self._effort_y2.squeeze()
+        velocity_x1 = self._velocity_x1 if self._velocity_x1.dim() == 0 else self._velocity_x1.squeeze()
+        
+        max_effort = torch.where(same_direction, effort_y1, effort_y2)
         # Check if the joint velocity is less than the max speed at full torque
         max_effort = torch.where(
-            self._joint_vel.abs() < self._velocity_x1, max_effort, self._compute_effort_limit(max_effort)
+            self._joint_vel.abs() < velocity_x1, max_effort, self._compute_effort_limit(max_effort)
         )
         return torch.clip(effort, -max_effort, max_effort)
 
     def _compute_effort_limit(self, max_effort):
-        k = -max_effort / (self._velocity_x2 - self._velocity_x1)
-        limit = k * (self._joint_vel.abs() - self._velocity_x1) + max_effort
+        # Ensure velocity limits are scalar tensors for proper broadcasting
+        velocity_x1 = self._velocity_x1 if self._velocity_x1.dim() == 0 else self._velocity_x1.squeeze()
+        velocity_x2 = self._velocity_x2 if self._velocity_x2.dim() == 0 else self._velocity_x2.squeeze()
+        
+        k = -max_effort / (velocity_x2 - velocity_x1)
+        limit = k * (self._joint_vel.abs() - velocity_x1) + max_effort
         return limit.clip(min=0.0)
 
 

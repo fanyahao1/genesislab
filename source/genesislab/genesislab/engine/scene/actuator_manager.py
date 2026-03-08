@@ -44,7 +44,8 @@ class ActuatorManager:
             lab_entity = self._scene.entities[entity_name]
             # Get raw entity for direct access
             entity = lab_entity.raw_entity
-            self._scene._actuators[entity_name] = {}
+            # Initialize actuators dictionary in the entity
+            lab_entity._actuators = {}
 
             # Get Robot asset from LabEntity (required)
             robot_asset = lab_entity.robot_asset
@@ -138,8 +139,8 @@ class ActuatorManager:
                     velocity_limit=default_velocity_limit,
                 )
 
-                # Store actuator instance
-                self._scene._actuators[entity_name][actuator_name] = actuator
+                # Store actuator instance in the entity
+                lab_entity._actuators[actuator_name] = actuator
 
                 # Set engine kp/kv to 0 for all actuators
                 # All actuators compute torques explicitly and apply them via control_dofs_force()

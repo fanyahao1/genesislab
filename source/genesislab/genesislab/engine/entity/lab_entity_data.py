@@ -189,7 +189,8 @@ class LabEntityData:
         # Initialize with zeros
         applied_torques = torch.zeros(num_envs, num_dofs, device=self._env.device)
         
-        entity_actuators = self._env.scene._actuators.get(self._entity_name, {})
+        entity = self._env.entities[self._entity_name]
+        entity_actuators = entity.actuators
         if not entity_actuators: raise ValueError("The actuators not specified.")
         
         # Collect applied efforts from all actuators

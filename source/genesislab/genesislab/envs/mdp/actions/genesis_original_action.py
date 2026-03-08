@@ -76,20 +76,9 @@ class GenesisOriginalAction(ActionTerm):
         self._entity_name = cfg.entity_name
         entity_obj = env.scene.entities[self._entity_name]
 
-        self._actuators: dict[str, ActuatorBase] = {}
-        if hasattr(env, "scene") and hasattr(env.scene, "_actuators"):
-            entity_actuators = env.scene._actuators.get(self._entity_name, {})
-            if entity_actuators:
-                self._actuators = entity_actuators
-                self._action_dim = sum(actuator.num_joints for actuator in self._actuators.values())
-            else:
-                num_joints = 0
-                for joint in entity_obj.joints:
-                    if hasattr(joint, "name") and joint.name.lower() == "base":
-                        continue
-                    if hasattr(joint, "dof_start") and joint.dof_start is not None:
-                        num_joints += 1
-                self._action_dim = num_joints
+        self._actuators: dict[str, ActuatorBase] = entity_obj.actuators
+        if self._actuators:
+            self._action_dim = sum(actuator.num_joints for actuator in self._actuators.values())
         else:
             num_joints = 0
             for joint in entity_obj.joints:

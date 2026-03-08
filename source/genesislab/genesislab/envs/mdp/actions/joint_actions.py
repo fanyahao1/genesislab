@@ -37,31 +37,20 @@ class JointPositionAction(ActionTerm):
         entity = env.entities[self._entity_name]
 
         # Check if actuators are configured for this entity.
-        self._actuators: dict[str, ActuatorBase] = {}
-        self._has_explicit_actuators = False
-        if hasattr(env, "scene") and hasattr(env.scene, "_actuators"):
-            entity_actuators = env.scene._actuators.get(self._entity_name, {})
-            if entity_actuators:
-                self._actuators = entity_actuators
-                self._has_explicit_actuators = any(
-                    not isinstance(act, ImplicitActuator) for act in self._actuators.values()
-                )
+        entity = env.entities[self._entity_name]
+        self._actuators = entity.actuators
+        self._has_explicit_actuators = any(
+            not isinstance(act, ImplicitActuator) for act in self._actuators.values()
+        )
 
-        # Infer action dimension:
-        # 1) sum of actuator joint counts if actuators exist
-        # 2) otherwise, all DOFs on the entity.
-        if self._actuators:
-            self._action_dim = sum(actuator.num_joints for actuator in self._actuators.values())
-        else:
-            dof_pos = entity.data.joint_pos
-            self._action_dim = dof_pos.shape[-1]
+        self._action_dim = sum(actuator.num_joints for actuator in self._actuators.values())
 
         # Buffers.
         self._raw_action = torch.zeros((self.num_envs, self._action_dim), device=self.device)
-        self._targets = torch.zeros_like(self._raw_action)
+        self._targets = torch.zeros_like(entity.data.joint_pos)
 
         # Offset.
-        self._offset = torch.zeros_like(self._targets)
+        self._offset = torch.zeros_like(self._raw_action)
         if cfg.use_default_offset:
             default_joint_pos = entity.data.default_joint_pos
             if default_joint_pos.shape[-1] >= self._action_dim:
@@ -106,7 +95,7 @@ class JointPositionAction(ActionTerm):
 
             for actuator in self._actuators.values():
                 if isinstance(actuator, ImplicitActuator):
-                    continue
+                    raise NotImplementedError("ImplicitActuator NotImplementedError")
 
                 if actuator.joint_indices == slice(None):
                     num_act_joints = actuator.num_joints
@@ -150,19 +139,18 @@ class JointPositionAction(ActionTerm):
                     joint_vel=act_joint_vel,
                 )
 
-                if control_action.joint_efforts is not None:
-                    if actuator.joint_indices == slice(None):
-                        num_act_joints = actuator.num_joints
-                        if total_torques.shape[-1] >= num_act_joints:
-                            total_torques[:, :num_act_joints] = control_action.joint_efforts
-                        else:
-                            total_torques[:] = control_action.joint_efforts[:, : total_torques.shape[-1]]
+                if actuator.joint_indices == slice(None):
+                    num_act_joints = actuator.num_joints
+                    if total_torques.shape[-1] >= num_act_joints:
+                        total_torques[:, :num_act_joints] = control_action.joint_efforts
                     else:
-                        if isinstance(actuator.joint_indices, torch.Tensor):
-                            joint_indices_tensor = actuator.joint_indices
-                        else:
-                            joint_indices_tensor = torch.tensor(joint_indices, dtype=torch.long, device=self.device)
-                        total_torques[:, joint_indices_tensor] = control_action.joint_efforts
+                        total_torques[:] = control_action.joint_efforts[:, : total_torques.shape[-1]]
+                else:
+                    if isinstance(actuator.joint_indices, torch.Tensor):
+                        joint_indices_tensor = actuator.joint_indices
+                    else:
+                        joint_indices_tensor = torch.tensor(joint_indices, dtype=torch.long, device=self.device)
+                    total_torques[:, joint_indices_tensor] = control_action.joint_efforts
 
             self._env.scene.controller.set_joint_targets(self._entity_name, total_torques, control_type="torque")
         else:

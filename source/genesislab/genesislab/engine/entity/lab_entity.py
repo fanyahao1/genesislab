@@ -7,12 +7,13 @@ allowing MDP code to access entity state through a clean, typed interface like
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict
 
 if TYPE_CHECKING:
     from genesislab.envs.manager_based_genesis_env import ManagerBasedGenesisEnv
     from genesislab.engine.gstype import KinematicEntity
     from genesislab.engine.assets.robot import ArticulationRobot
+    from genesislab.components.actuators import ActuatorBase
 
 from .lab_entity_data import LabEntityData
 
@@ -27,6 +28,7 @@ class LabEntity:
     _raw_entity: "KinematicEntity"
     _robot_asset: "ArticulationRobot"
     _data: "LabEntityData" = None
+    _actuators: Dict[str, "ActuatorBase"] = None
 
     def __init__(self, env: "ManagerBasedGenesisEnv", entity_name: str, raw_entity: "KinematicEntity", robot_asset: "ArticulationRobot" = None):
         """Initialize the entity wrapper.
@@ -41,6 +43,7 @@ class LabEntity:
         self._entity_name = entity_name
         self._raw_entity = raw_entity
         self._robot_asset = robot_asset
+        self._actuators = {}
 
     @property
     def name(self) -> str:
@@ -87,3 +90,8 @@ class LabEntity:
     @property
     def joint_names(self):
         return self._robot_asset.joint_normalizer.normalized_names
+    
+    @property
+    def actuators(self) -> Dict[str, "ActuatorBase"]:
+        """Dictionary of actuators for this entity, keyed by actuator name."""
+        return self._actuators

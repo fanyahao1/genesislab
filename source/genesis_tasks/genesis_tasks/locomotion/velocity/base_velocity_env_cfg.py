@@ -57,6 +57,8 @@ class BaseVelocityEnvCfg(ManagerBasedRlEnvCfg):
 
     curriculum: CurriculumCfg = CurriculumCfg()
     """Curriculum terms."""
+    
+    events: None = None
 
     def __post_init__(self):
         """Post initialization."""

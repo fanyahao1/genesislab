@@ -26,7 +26,7 @@ class LabEntity:
 
     _raw_entity: "KinematicEntity"
     _robot_asset: "ArticulationRobot"
-    _data: "EntityData" = None
+    _data: "LabEntityData" = None
 
     def __init__(self, env: "ManagerBasedGenesisEnv", entity_name: str, raw_entity: "KinematicEntity", robot_asset: "ArticulationRobot" = None):
         """Initialize the entity wrapper.
@@ -48,10 +48,10 @@ class LabEntity:
         return self._entity_name
 
     @property
-    def data(self) -> EntityData:
+    def data(self) -> LabEntityData:
         """Data view for accessing entity state."""
         if self._data is None:
-            self._data = EntityData(self._env, self._entity_name)
+            self._data = LabEntityData(self._env, self._entity_name)
         return self._data
 
     @property

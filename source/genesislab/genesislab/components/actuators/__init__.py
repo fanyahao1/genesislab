@@ -33,7 +33,7 @@ from .actuator_pd_cfg import (
     ImplicitActuatorCfg,
     RemotizedPDActuatorCfg,
 )
-from .actuator_robotlib import (
+from .third_party import (
     DelayedImplicitActuator,
     UnitreeActuator,
     DelayedImplicitActuatorCfg,

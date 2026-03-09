@@ -32,7 +32,7 @@ class VelocitySceneCfg(SceneCfg):
     num_envs    : int = 4096
     env_spacing : tuple = (2.5, 2.5)
     dt          : float = 0.005
-    substeps    : int = 2
+    substeps    : int = 1
     backend     : str = "cuda"
     viewer      : bool = False
 
@@ -115,18 +115,18 @@ class RewardsCfg:
     # Task rewards
     track_lin_vel_xy_exp: RewardTermCfg = RewardTermCfg(
         func=mdp.track_lin_vel_xy_exp,
-        weight=5.0,
+        weight=2.5,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
     )
     track_ang_vel_z_exp: RewardTermCfg = RewardTermCfg(
         func=mdp.track_ang_vel_z_exp,
-        weight=2.5,
+        weight=1.0,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
     )
 
     # Penalties
-    lin_vel_z_l2: RewardTermCfg = RewardTermCfg(func=mdp.lin_vel_z_l2, weight=-0.0)
-    ang_vel_xy_l2: RewardTermCfg = RewardTermCfg(func=mdp.ang_vel_xy_l2, weight=-0.00)
+    lin_vel_z_l2: RewardTermCfg = RewardTermCfg(func=mdp.lin_vel_z_l2, weight=-0.1)
+    ang_vel_xy_l2: RewardTermCfg = RewardTermCfg(func=mdp.ang_vel_xy_l2, weight=-0.1)
     dof_torques_l2: RewardTermCfg = RewardTermCfg(func=mdp.joint_torques_l2, weight=-1.0e-5)
     dof_acc_l2: RewardTermCfg = RewardTermCfg(func=mdp.joint_acc_l2, weight=-2.5e-7)
     action_rate_l2: RewardTermCfg = RewardTermCfg(func=mdp.action_rate_l2, weight=-0.01)

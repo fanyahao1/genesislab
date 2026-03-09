@@ -235,7 +235,7 @@ class GenesisOriginalAction(ActionTerm):
 
     def apply_actions(self) -> None:
         entity = self._env.scene.entities[self._entity_name]
-        entity.control_dofs_position(self._targets, self._dofs_idx if self._dofs_idx else None)
+        entity._raw_entity.control_dofs_position(self._targets, self._dofs_idx if self._dofs_idx else None)
 
 
 @configclass

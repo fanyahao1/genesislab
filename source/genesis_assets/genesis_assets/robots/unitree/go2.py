@@ -19,7 +19,7 @@ UNITREE_GO2_CFG = RobotCfg(
     morph_type="USD",
     morph_path=f"{UNITREE_MODEL_DIR}/unitree_go2/usd/go2.usd",
     initial_pose=InitialPoseCfg(
-        pos=[0.0, 0.0, 0.2],
+        pos=[0.0, 0.0, 0.4],
         quat=[0.0, 0.0, 0.0, 1.0],
     ),
     fixed_base=False,
@@ -40,7 +40,7 @@ UNITREE_GO2_CFG = RobotCfg(
                 "RL_.*_joint",
                 "RR_.*_joint",
             ],
-            stiffness=30.0,
+            stiffness=20.0,
             damping=0.5,
             friction=0.01,
         ),

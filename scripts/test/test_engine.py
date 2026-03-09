@@ -18,7 +18,8 @@ import genesis as gs
 import torch
 
 from genesislab.components.entities.scene_cfg import SceneCfg
-from genesislab.components.entities.robot_cfg import RobotCfg
+from genesislab.engine.assets.robot_cfg import RobotCfg
+from genesislab.components.entities.terrain_cfg import TerrainCfg
 from genesislab.engine.binding import GenesisBinding
 
 
@@ -32,8 +33,10 @@ def test_engine_binding(num_envs: int = 4, backend: str = "cpu") -> bool:
     # Create a simple scene config
     scene_cfg = SceneCfg(
         num_envs=num_envs,
-        dt=0.002,
-        substeps=1,
+        sim_options=SceneCfg.SimOptionsCfg(
+            dt=0.002,
+            substeps=1,
+        ),
         backend=backend,
         robots={
             "robot": RobotCfg(
@@ -43,7 +46,7 @@ def test_engine_binding(num_envs: int = 4, backend: str = "cpu") -> bool:
                 fixed_base=False,
             )
         },
-        terrain={"type": "plane"},
+        terrain=TerrainCfg(type="plane"),
     )
 
     # Create binding

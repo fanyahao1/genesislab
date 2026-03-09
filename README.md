@@ -86,7 +86,7 @@ Hardware compatibility follows the official Genesis runtime environment and back
 ```bash
 conda create -n genesislab python=3.10
 conda activate genesislab
-````
+```
 
 ```bash
 pip install genesis-world
@@ -145,9 +145,8 @@ python scripts/test/test_engine.py --backend cpu --num-envs 4
 Run sanity checks to verify stepping logic and vectorized rollouts.
 
 ```bash
-python scripts/test/test_env.py
 python scripts/test/test_env_vectorized.py
-python scripts/test/test_random_rollout.py
+python scripts/test/test_env_random_rollout.py
 ```
 </detail>
 
@@ -188,7 +187,6 @@ genesislab
 │   │   └── setup_ext.sh
 │   └── test
 │       ├── test_engine.py
-│       ├── test_env.py
 │       ├── test_env_vectorized.py
 │       └── test_random_rollout.py
 │
@@ -212,7 +210,7 @@ A typical workflow for implementing a new RL environment is:
 Recommended validation scripts:
 
 ```
-test_env.py
+test_engine.py
 test_env_vectorized.py
 test_random_rollout.py
 ```

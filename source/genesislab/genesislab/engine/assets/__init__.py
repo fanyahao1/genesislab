@@ -17,12 +17,12 @@ simple terrain or rigid objects can be added incrementally as needed.
 
 from .lab_asset_base import LabAssetBase
 from .articulation import Articulation, ArticulationCfg
-from .robot import ArticulationRobot
+from .robot import Robot
 
 __all__ = [
     "LabAssetBase",
     "Articulation",
     "ArticulationCfg",
-    "ArticulationRobot",
+    "Robot",
 ]
 

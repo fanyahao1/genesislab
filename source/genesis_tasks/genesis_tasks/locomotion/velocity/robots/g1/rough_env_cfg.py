@@ -1,8 +1,5 @@
-"""Configuration for G1Beyondmimic velocity tracking task on rough terrain."""
+"""Configuration for G1 BeyondMimic velocity tracking task on rough terrain."""
 
-from dataclasses import MISSING
-
-from genesislab.components.entities.scene_cfg import SceneCfg, TerrainCfg
 from genesislab.managers import SceneEntityCfg
 from genesislab.utils.configclass import configclass
 
@@ -12,27 +9,16 @@ import genesis_tasks.locomotion.velocity.mdp as mdp
 
 
 @configclass
-class G1BeyondMimicRoughEnvCfg(BaseVelocityEnvCfg):
-    """Configuration for G1Beyondmimic velocity tracking on rough terrain."""
+class G1RoughEnvCfg(BaseVelocityEnvCfg):
+    """Configuration for G1 BeyondMimic velocity tracking on rough terrain."""
 
     def __post_init__(self):
         # Post init of parent
         super().__post_init__()
 
-        # Scene: Set robot and terrain
-        if isinstance(self.scene, type(MISSING)) or self.scene is MISSING or self.scene is None:
-            self.scene = SceneCfg(
-                num_envs=4096,
-                env_spacing=(2.5, 2.5),
-                dt=0.005,
-                substeps=1,
-                backend="cuda",
-                viewer=False,
-                robots={"robot": G1_BEYONDMIMIC_CFG},
-                terrain=TerrainCfg(type="rough"),
-            )
+        self.scene.robots["robot"] = G1_BEYONDMIMIC_CFG
 
-        # Scale down terrains for small robot
+        # Scale down terrains for humanoid
         if hasattr(self.scene.terrain, "terrain_generator") and self.scene.terrain.terrain_generator is not None:
             if hasattr(self.scene.terrain.terrain_generator, "sub_terrains"):
                 sub_terrains = self.scene.terrain.terrain_generator.sub_terrains
@@ -42,22 +28,57 @@ class G1BeyondMimicRoughEnvCfg(BaseVelocityEnvCfg):
                     sub_terrains["random_rough"].noise_range = (0.01, 0.06)
                     sub_terrains["random_rough"].noise_step = 0.01
 
-        # Actions: Reduce action scale
+        # Actions: align with genesis-forge style (G1 has multiple actuator groups)
         self.actions.joint_pos.scale = 0.25
+        self.actions.joint_pos.use_default_offset = True
 
-        # Rewards
-        self.rewards.dof_torques_l2.weight = -0.0002
-        self.rewards.track_lin_vel_xy_exp.weight = 1.5
-        self.rewards.track_ang_vel_z_exp.weight = 0.75
+        # Rewards: align with IsaacLab-style velocity config
+        self.rewards.dof_torques_l2.weight = -0.001
+        self.rewards.track_lin_vel_xy_exp.weight = 2.5
+        self.rewards.track_ang_vel_z_exp.weight = 1.25
         self.rewards.dof_acc_l2.weight = -2.5e-7
 
-        # Terminations
-        self.terminations.base_height.params["asset_cfg"] = SceneEntityCfg("robot")
+        # Events: align with IsaacLab-style config
+        if getattr(self, "events", None) is not None:
+            self.events.push_robot = None
+            if getattr(self.events, "add_base_mass", None) is not None:
+                self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 3.0)
+                if isinstance(self.events.add_base_mass.params.get("asset_cfg"), SceneEntityCfg):
+                    self.events.add_base_mass.params["asset_cfg"].body_names = "base"
+            if getattr(self.events, "base_external_force_torque", None) is not None:
+                if isinstance(self.events.base_external_force_torque.params.get("asset_cfg"), SceneEntityCfg):
+                    self.events.base_external_force_torque.params["asset_cfg"].body_names = "base"
+            if getattr(self.events, "reset_robot_joints", None) is not None:
+                self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
+            if getattr(self.events, "reset_base", None) is not None:
+                self.events.reset_base.params = {
+                    "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "z": (0.0, 0.0), "roll": (0.0, 0.0), "pitch": (0.0, 0.0), "yaw": (-3.14, 3.14)},
+                    "velocity_range": {
+                        "x": (0.0, 0.0),
+                        "y": (0.0, 0.0),
+                        "z": (0.0, 0.0),
+                        "roll": (0.0, 0.0),
+                        "pitch": (0.0, 0.0),
+                        "yaw": (0.0, 0.0),
+                    },
+                }
+            if getattr(self.events, "base_com", None) is not None:
+                self.events.base_com = None
+
+        # Feet air-time and undesired contacts
+        if hasattr(self.rewards, "feet_air_time") and self.rewards.feet_air_time is not None:
+            self.rewards.feet_air_time.params["sensor_cfg"] = "contact_forces"
+            self.rewards.feet_air_time.params["command_name"] = "base_velocity"
+            self.rewards.feet_air_time.params["threshold"] = 0.5
+            self.rewards.feet_air_time.weight = 0.01
+
+        if hasattr(self.rewards, "undesired_contacts"):
+            self.rewards.undesired_contacts = None
 
 
 @configclass
-class G1BeyondMimicRoughEnvCfg_PLAY(G1BeyondMimicRoughEnvCfg):
-    """Configuration for G1Beyondmimic velocity tracking on rough terrain (play mode)."""
+class G1RoughEnvCfg_PLAY(G1RoughEnvCfg):
+    """Configuration for G1 BeyondMimic velocity tracking on rough terrain (play mode)."""
 
     def __post_init__(self):
         # Post init of parent
@@ -66,10 +87,8 @@ class G1BeyondMimicRoughEnvCfg_PLAY(G1BeyondMimicRoughEnvCfg):
         # Make a smaller scene for play
         self.scene.num_envs = 50
         self.scene.env_spacing = (2.5, 2.5)
-        # Spawn robot randomly in grid
         if hasattr(self.scene.terrain, "max_init_terrain_level"):
             self.scene.terrain.max_init_terrain_level = None
-        # Reduce number of terrains
         if hasattr(self.scene.terrain, "terrain_generator") and self.scene.terrain.terrain_generator is not None:
             terrain_gen = self.scene.terrain.terrain_generator
             if hasattr(terrain_gen, "num_rows"):
@@ -81,3 +100,8 @@ class G1BeyondMimicRoughEnvCfg_PLAY(G1BeyondMimicRoughEnvCfg):
 
         # Disable randomization for play
         self.observations.policy.enable_corruption = False
+        if getattr(self, "events", None) is not None:
+            if hasattr(self.events, "base_external_force_torque"):
+                self.events.base_external_force_torque = None
+            if hasattr(self.events, "push_robot"):
+                self.events.push_robot = None

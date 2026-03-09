@@ -117,10 +117,18 @@ class SceneController:
         lab_entity = self._scene.entities[entity_name]
         entity = lab_entity.raw_entity
         # Set position
-        if position is not None: entity.set_pos(position, envs_idx=env_ids)
+        if position is not None:
+            entity.set_pos(position, envs_idx=env_ids)
         # Set quaternion
-        if quaternion is not None: entity.set_quat(quaternion, envs_idx=env_ids)
-        # Set linear velocity
-        if linear_velocity is not None: entity.set_vel(linear_velocity, envs_idx=env_ids)
-        # Set angular velocity
-        if angular_velocity is not None: entity.set_ang(angular_velocity, envs_idx=env_ids)
+        if quaternion is not None:
+            entity.set_quat(quaternion, envs_idx=env_ids)
+        # Set base velocity: Genesis RigidEntity has no set_vel/set_ang; the first 6 DOFs
+        # are (lin_vel_xyz, ang_vel_xyz) for floating base. Use set_dofs_velocity.
+        if linear_velocity is not None or angular_velocity is not None:
+            if linear_velocity is not None and angular_velocity is not None:
+                vel_6d = torch.cat([linear_velocity, angular_velocity], dim=-1)
+                entity.set_dofs_velocity(vel_6d, dofs_idx_local=slice(0, 6), envs_idx=env_ids)
+            elif linear_velocity is not None:
+                entity.set_dofs_velocity(linear_velocity, dofs_idx_local=slice(0, 3), envs_idx=env_ids)
+            else:
+                entity.set_dofs_velocity(angular_velocity, dofs_idx_local=slice(3, 6), envs_idx=env_ids)

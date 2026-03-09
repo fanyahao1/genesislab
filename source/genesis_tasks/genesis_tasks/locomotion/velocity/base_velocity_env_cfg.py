@@ -17,10 +17,11 @@ from .components import (
     ActionsCfg,
     CommandsCfg,
     CurriculumCfg,
+    EventsCfg,
     ObservationsCfg,
     RewardsCfg,
     TerminationsCfg,
-    VelocitySceneCfg
+    VelocitySceneCfg,
 )
 import genesis_tasks.locomotion.velocity.mdp as mdp
 
@@ -57,8 +58,8 @@ class BaseVelocityEnvCfg(ManagerBasedRlEnvCfg):
 
     curriculum: CurriculumCfg = CurriculumCfg()
     """Curriculum terms."""
-    
-    events: None = None
+
+    events: EventsCfg = EventsCfg()
 
     def __post_init__(self):
         """Post initialization."""

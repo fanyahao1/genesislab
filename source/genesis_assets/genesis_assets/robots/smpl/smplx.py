@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from genesislab.components.actuators import ImplicitActuatorCfg
-from genesislab.components.entities.robot_cfg import InitialPoseCfg, RobotCfg
+from genesislab.engine.assets.robot_cfg import InitialPoseCfg, RobotCfg
 
 # Import asset paths from genesis_assets
 from genesis_assets import GENESIS_ASSETS_USD_DIR

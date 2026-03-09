@@ -11,6 +11,7 @@ from .curriculums import *
 from .observations import *
 from .rewards import *
 from .terminations import *
+from .events import *
 
 __all__ = [
     # actions

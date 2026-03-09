@@ -19,7 +19,7 @@ from genesislab.engine.assets.utils.name_normalizer import NameNormalizer
 if TYPE_CHECKING:
     from genesislab.engine.gstype import KinematicEntity
 
-class ArticulationRobot(Articulation):
+class Robot(Articulation):
     """Robot asset wrapper with unified name resolution.
     
     This class extends GenesisArticulation to provide:

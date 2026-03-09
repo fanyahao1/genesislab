@@ -282,7 +282,8 @@ class EventManager(ManagerBase):
 		self._reset_term_last_triggered_step_id: list[torch.Tensor] = list()
 		self._reset_term_last_triggered_once: list[torch.Tensor] = list()
 
-		for term_name, term_cfg in self.cfg.items():
+		cfg_items = self.cfg.items() if isinstance(self.cfg, dict) else self.cfg.__dict__.items()
+		for term_name, term_cfg in cfg_items:
 			term_cfg: EventTermCfg
 			if term_cfg is None:
 				print(f"term: {term_name} set to None, skipping...")

@@ -16,7 +16,7 @@ from genesislab.managers.reward_manager import RewardTermCfg
 from genesislab.managers.termination_manager import TerminationTermCfg
 from genesislab.managers.command_manager import CommandTermCfg
 from genesislab.managers.curriculum_manager import CurriculumTermCfg
-from genesislab.managers import SceneEntityCfg
+from genesislab.managers import SceneEntityCfg, EventTermCfg
 from genesislab.utils.configclass import configclass
 
 import genesis_tasks.locomotion.velocity.mdp as mdp
@@ -131,9 +131,6 @@ class RewardsCfg:
     dof_acc_l2: RewardTermCfg = RewardTermCfg(func=mdp.joint_acc_l2, weight=-2.5e-7)
     action_rate_l2: RewardTermCfg = RewardTermCfg(func=mdp.action_rate_l2, weight=-0.01)
 
-    # Contact / gait-related terms (kept for IsaacLab compatibility; currently no contact sensors).
-    # NOTE: Our SceneEntityCfg is Genesis-specific and currently only carries `entity_name`.
-    # We therefore keep contact/body selection logic inside the reward functions themselves.
     # feet_air_time: RewardTermCfg = RewardTermCfg(
     #     func=mdp.feet_air_time,
     #     weight=0.125,
@@ -143,6 +140,7 @@ class RewardsCfg:
     #         "threshold": 0.5,
     #     },
     # )
+    
     undesired_contacts: RewardTermCfg = RewardTermCfg(
         func=mdp.undesired_contacts,
         weight=-0.0,
@@ -162,11 +160,6 @@ class TerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out: TerminationTermCfg = TerminationTermCfg(func=mdp.time_out, time_out=True)
-    # base_height: TerminationTermCfg = TerminationTermCfg(
-    #     func=mdp.base_height,
-    #     time_out=False,
-    #     params={"threshold": 0.15, "asset_cfg": SceneEntityCfg("robot")},
-    # )
 
     # IsaacLab-style contact-based termination (currently a no-op without contact sensors,
     # but kept for configuration compatibility).
@@ -183,3 +176,81 @@ class CurriculumCfg:
 
     terrain_levels: CurriculumTermCfg = None
     """Terrain levels curriculum (optional)."""
+
+
+@configclass
+class EventsCfg:
+    """Event terms for the MDP (startup/reset/interval events)."""
+
+    # Startup events (domain randomization-style; currently lightweight/no-op).
+    physics_material: EventTermCfg = EventTermCfg(
+        func=mdp.randomize_rigid_body_material,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg(entity_name="robot", body_names=".*"),
+            "scale_range": (1.0, 1.0),
+        },
+    )
+
+    add_base_mass: EventTermCfg = EventTermCfg(
+        func=mdp.randomize_rigid_body_mass,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg(entity_name="robot", body_names="base"),
+            "mass_distribution_params": (-1.0, 3.0),
+            "operation": "add",
+        },
+    )
+
+    base_com: EventTermCfg = EventTermCfg(
+        func=mdp.randomize_rigid_body_com,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg(entity_name="robot", body_names="base"),
+            "com_range": {"x": (-0.05, 0.05), "y": (-0.05, 0.05), "z": (-0.01, 0.01)},
+        },
+    )
+
+    # Reset events (pose/joint state randomization).
+    base_external_force_torque: EventTermCfg = EventTermCfg(
+        func=mdp.apply_external_force_torque,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg(entity_name="robot", body_names="base"),
+            "force_range": (0.0, 0.0),
+            "torque_range": (0.0, 0.0),
+        },
+    )
+
+    reset_base: EventTermCfg = EventTermCfg(
+        func=mdp.reset_root_state_uniform,
+        mode="reset",
+        params={
+            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "z": (0.0, 0.0), "roll": (0.0, 0.0), "pitch": (0.0, 0.0), "yaw": (-3.14, 3.14)},
+            "velocity_range": {
+                "x": (-0.5, 0.5),
+                "y": (-0.5, 0.5),
+                "z": (-0.5, 0.5),
+                "roll": (-0.5, 0.5),
+                "pitch": (-0.5, 0.5),
+                "yaw": (-0.5, 0.5),
+            },
+        },
+    )
+
+    reset_robot_joints: EventTermCfg = EventTermCfg(
+        func=mdp.reset_joints_by_scale,
+        mode="reset",
+        params={
+            "position_range": (0.5, 1.5),
+            "velocity_range": (0.0, 0.0),
+        },
+    )
+
+    # Interval events (occasional perturbations).
+    push_robot: EventTermCfg = EventTermCfg(
+        func=mdp.push_by_setting_velocity,
+        mode="interval",
+        interval_range_s=(10.0, 15.0),
+        params={"velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "z": (0.0, 0.0), "roll": (0.0, 0.0), "pitch": (0.0, 0.0), "yaw": (0.0, 0.0)}},
+    )

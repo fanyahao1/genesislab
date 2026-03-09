@@ -43,6 +43,39 @@ class UnitreeGo2RoughEnvCfg(BaseVelocityEnvCfg):
         self.rewards.track_ang_vel_z_exp.weight = 1.25
         self.rewards.dof_acc_l2.weight = -2.5e-7
 
+        # Events: align with IsaacLab's Unitree Go2 rough config.
+        if getattr(self, "events", None) is not None:
+            # Disable random push for training by default.
+            self.events.push_robot = None
+            # Narrower base mass randomization focused on base body.
+            if getattr(self.events, "add_base_mass", None) is not None:
+                self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 3.0)
+                if isinstance(self.events.add_base_mass.params.get("asset_cfg"), SceneEntityCfg):
+                    self.events.add_base_mass.params["asset_cfg"].body_names = "base"
+            # Configure external force/torque event to act on base only.
+            if getattr(self.events, "base_external_force_torque", None) is not None:
+                if isinstance(self.events.base_external_force_torque.params.get("asset_cfg"), SceneEntityCfg):
+                    self.events.base_external_force_torque.params["asset_cfg"].body_names = "base"
+            # Make joint reset deterministic around default pose.
+            if getattr(self.events, "reset_robot_joints", None) is not None:
+                self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
+            # Reset base without extra velocity noise for Go2.
+            if getattr(self.events, "reset_base", None) is not None:
+                self.events.reset_base.params = {
+                    "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "z": (0.0, 0.0), "roll": (0.0, 0.0), "pitch": (0.0, 0.0), "yaw": (-3.14, 3.14)},
+                    "velocity_range": {
+                        "x": (0.0, 0.0),
+                        "y": (0.0, 0.0),
+                        "z": (0.0, 0.0),
+                        "roll": (0.0, 0.0),
+                        "pitch": (0.0, 0.0),
+                        "yaw": (0.0, 0.0),
+                    },
+                }
+            # Disable COM randomization for Go2 by default.
+            if getattr(self.events, "base_com", None) is not None:
+                self.events.base_com = None
+
         # Feet air-time and undesired contacts
         # Note: contact-based rewards are currently implemented as no-ops until contact
         # sensors are available, but we still mirror IsaacLab's configuration.
@@ -84,3 +117,9 @@ class UnitreeGo2RoughEnvCfg_PLAY(UnitreeGo2RoughEnvCfg):
 
         # Disable randomization for play
         self.observations.policy.enable_corruption = False
+        if getattr(self, "events", None) is not None:
+            # Remove random pushes for play mode.
+            if hasattr(self.events, "base_external_force_torque"):
+                self.events.base_external_force_torque = None
+            if hasattr(self.events, "push_robot"):
+                self.events.push_robot = None

@@ -58,10 +58,10 @@ def main() -> None:
             raise ValueError(
                 "No '--train-cfg' provided and gym spec.kwargs has no 'rsl_rl_cfg_entry_point'."
             )
-
+        if callable(cfg_obj): cfg_obj = cfg_obj()
         # Support either a dict-like object or an object with ``to_dict()``.
         if hasattr(cfg_obj, "to_dict"):
-            train_cfg = cfg_obj().to_dict()  # type: ignore[assignment]
+            train_cfg = cfg_obj.to_dict()  # type: ignore[assignment]
         elif isinstance(cfg_obj, dict):
             train_cfg = dict(cfg_obj)
         else:

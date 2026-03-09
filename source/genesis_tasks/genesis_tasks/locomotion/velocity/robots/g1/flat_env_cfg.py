@@ -1,34 +1,36 @@
-"""Configuration for G1Beyondmimic velocity tracking task on flat terrain."""
+"""Configuration for G1 BeyondMimic velocity tracking task on flat terrain."""
 
 from genesislab.components.entities.scene_cfg import TerrainCfg
 from genesislab.utils.configclass import configclass
 
-from .rough_env_cfg import G1BeyondMimicRoughEnvCfg
+from .rough_env_cfg import G1RoughEnvCfg
 
 
 @configclass
-class G1BeyondMimicFlatEnvCfg(G1BeyondMimicRoughEnvCfg):
-    """Configuration for G1Beyondmimic velocity tracking on flat terrain."""
+class G1FlatEnvCfg(G1RoughEnvCfg):
+    """Configuration for G1 BeyondMimic velocity tracking on flat terrain."""
 
     def __post_init__(self):
         # Post init of parent
         super().__post_init__()
 
-        # Override rewards
+        # Override rewards (follow IsaacLab-style flat config)
         self.rewards.flat_orientation_l2.weight = -2.5
-        if hasattr(self.rewards, "feet_air_time"):
+        if hasattr(self.rewards, "feet_air_time") and self.rewards.feet_air_time is not None:
+            self.rewards.feet_air_time.params["sensor_cfg"] = "contact_forces"
+            self.rewards.feet_air_time.params["command_name"] = "base_velocity"
+            self.rewards.feet_air_time.params["threshold"] = 0.5
             self.rewards.feet_air_time.weight = 0.25
 
         # Change terrain to flat
         self.scene.terrain = TerrainCfg(type="plane")
-        # No terrain curriculum
         if self.curriculum is not None:
             self.curriculum.terrain_levels = None
 
 
 @configclass
-class G1BeyondMimicFlatEnvCfg_PLAY(G1BeyondMimicFlatEnvCfg):
-    """Configuration for G1Beyondmimic velocity tracking on flat terrain (play mode)."""
+class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
+    """Configuration for G1 BeyondMimic velocity tracking on flat terrain (play mode)."""
 
     def __post_init__(self):
         # Post init of parent

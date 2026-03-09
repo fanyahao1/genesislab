@@ -1,7 +1,6 @@
-"""RSL-RL PPO runner configs for Go2 velocity tasks (GenesisLab).
+"""RSL-RL PPO runner configs for velocity tasks (GenesisLab).
 
-These configs mirror the structure of IsaacLab's Go2 velocity tasks:
-``isaaclab_tasks.manager_based.locomotion.velocity.config.go2.agents.rsl_rl_ppo_cfg``.
+Shared by B2, Booster K1/T1, G1, H1. Structure mirrors Go2 velocity agents.
 """
 
 from __future__ import annotations
@@ -15,22 +14,19 @@ from genesis_rl.rsl_rl.configs import (
 
 
 @configclass
-class Go2RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
-    """Default PPO runner configuration for Go2 rough-terrain velocity tracking."""
+class VelocityRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+    """Default PPO runner configuration for rough-terrain velocity tracking."""
 
     num_steps_per_env = 24
     max_iterations = 1500
     save_interval = 100
     experiment_name = "rough"
 
-    # Observation groups mapping – we use the single "policy" group for both
-    # actor and critic, matching the current GenesisLab env wrapper.
     obs_groups = {
         "actor": ["policy"],
         "critic": ["policy"],
     }
 
-    # Policy network
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
         actor_obs_normalization=False,
@@ -40,7 +36,6 @@ class Go2RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         activation="elu",
     )
 
-    # PPO algorithm hyperparameters
     algorithm = RslRlPpoAlgorithmCfg(
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
@@ -58,8 +53,8 @@ class Go2RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
 
 @configclass
-class Go2FlatPPORunnerCfg(Go2RoughPPORunnerCfg):
-    """PPO runner configuration for Go2 flat-terrain velocity tracking."""
+class VelocityFlatPPORunnerCfg(VelocityRoughPPORunnerCfg):
+    """PPO runner configuration for flat-terrain velocity tracking."""
 
     def __post_init__(self):
         super().__post_init__()
@@ -68,4 +63,3 @@ class Go2FlatPPORunnerCfg(Go2RoughPPORunnerCfg):
         self.experiment_name = "flat"
         self.policy.actor_hidden_dims = [128, 128, 128]
         self.policy.critic_hidden_dims = [128, 128, 128]
-

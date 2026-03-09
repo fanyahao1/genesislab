@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gymnasium as gym
 
+from genesis_tasks.locomotion.velocity import agents as velocity_agents
 from .flat_env_cfg import UnitreeB2FlatEnvCfg, UnitreeB2FlatEnvCfg_PLAY
 from .rough_env_cfg import UnitreeB2RoughEnvCfg, UnitreeB2RoughEnvCfg_PLAY
 
@@ -22,6 +23,7 @@ gym.register(
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.flat_env_cfg:UnitreeB2FlatEnvCfg",
+        "rsl_rl_cfg_entry_point": velocity_agents.VelocityFlatPPORunnerCfg(experiment_name="b2_flat"),
     },
 )
 
@@ -41,6 +43,7 @@ gym.register(
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.rough_env_cfg:UnitreeB2RoughEnvCfg",
+        "rsl_rl_cfg_entry_point": velocity_agents.VelocityRoughPPORunnerCfg(experiment_name="b2_rough"),
     },
 )
 

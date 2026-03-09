@@ -15,12 +15,14 @@ Currently, this package focuses on rigid-body articulations (robots) and
 simple terrain or rigid objects can be added incrementally as needed.
 """
 
-from .base import GenesisAssetBase
-from .articulation import GenesisArticulation, GenesisArticulationCfg
+from .lab_asset_base import LabAssetBase
+from .articulation import Articulation, ArticulationCfg
+from .robot import ArticulationRobot
 
 __all__ = [
-    "GenesisAssetBase",
-    "GenesisArticulation",
-    "GenesisArticulationCfg",
+    "LabAssetBase",
+    "Articulation",
+    "ArticulationCfg",
+    "ArticulationRobot",
 ]
 

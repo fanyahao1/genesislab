@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING
 import torch
 
 from genesislab.components.additional.buffers import DelayBuffer, LinearInterpolation
-from genesislab.utils.types import ArticulationActions
 
 from .actuator_base import ActuatorBase
+from .articulation_actions import ArticulationActions
 
 if TYPE_CHECKING:
     from .actuator_pd_cfg import (

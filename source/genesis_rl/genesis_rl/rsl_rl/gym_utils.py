@@ -33,7 +33,7 @@ def resolve_env_cfg_entry_point(env_id: str) -> str:
     return entry_point
 
 
-def resolve_rsl_rl_cfg_object(env_id: str) -> Any | None:
+def resolve_rsl_rl_cfg_object(env_id: str) -> Any:
     """Resolve the RSL-RL configuration object from a Gymnasium env spec.
 
     This function:

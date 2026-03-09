@@ -30,7 +30,9 @@ interpretation of the prim paths for different sensor types:
 
 """
 
+from .sensor_base import SensorBase
+from .sensor_base_cfg import SensorBaseCfg
 from .contact_sensor import ContactSensor as ContactSensor
 from .contact_sensor import ContactSensorCfg as ContactSensorCfg
 
-__all__ = ["ContactSensor", "ContactSensorCfg"]
+__all__ = ["SensorBase", "SensorBaseCfg", "ContactSensor", "ContactSensorCfg"]

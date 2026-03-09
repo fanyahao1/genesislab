@@ -32,13 +32,15 @@ class UnitreeGo2RoughEnvCfg(BaseVelocityEnvCfg):
         # Actions: Align with genesis-forge example
         # - scale: 0.25 (same as genesis-forge)
         # - use_default_offset: True (use default joint positions as offset)
+        # - actuator_name: "GO2HV" (from robot configuration)
+        self.actions.joint_pos.actuator_name = "GO2HV"
         self.actions.joint_pos.scale = 0.25
         self.actions.joint_pos.use_default_offset = True
 
         # Rewards: align with IsaacLab's Unitree Go2 rough config where applicable.
-        self.rewards.dof_torques_l2.weight = -0.0002
-        self.rewards.track_lin_vel_xy_exp.weight = 1.5
-        self.rewards.track_ang_vel_z_exp.weight = 0.75
+        self.rewards.dof_torques_l2.weight = -0.001
+        self.rewards.track_lin_vel_xy_exp.weight = 2.5
+        self.rewards.track_ang_vel_z_exp.weight = 1.25
         self.rewards.dof_acc_l2.weight = -2.5e-7
 
         # Feet air-time and undesired contacts
@@ -54,9 +56,6 @@ class UnitreeGo2RoughEnvCfg(BaseVelocityEnvCfg):
         if hasattr(self.rewards, "undesired_contacts"):
             # Disable undesired_contacts for Go2 rough task (IsaacLab sets this to None).
             self.rewards.undesired_contacts = None
-
-        if hasattr(self.terminations, "base_contact") and self.terminations.base_contact is not None:
-            self.terminations.base_contact.params["sensor_cfg"] = "contact_forces"
 
 
 @configclass

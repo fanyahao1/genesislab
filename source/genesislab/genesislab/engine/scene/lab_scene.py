@@ -1,0 +1,180 @@
+"""LabScene: Complete scene management for GenesisLab.
+
+This module provides the LabScene class that manages all scene-related functionality,
+including entities, sensors, scene construction, and coordination of query and control components.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Dict
+
+import genesis as gs
+import torch
+
+if TYPE_CHECKING:
+    from genesislab.components.entities.scene_cfg import SceneCfg
+    from genesislab.components.sensors import SensorBase
+    from genesislab.engine.entity import LabEntity
+
+from genesislab.engine.scene.scene_builder import SceneBuilder
+from genesislab.engine.scene.scene_querier import SceneQuerier
+from genesislab.engine.scene.scene_controller import SceneController
+from genesislab.engine.scene.actuator_manager import ActuatorManager
+
+
+class LabScene:
+    """Complete scene management for GenesisLab.
+    
+    This class manages:
+    - Genesis Scene instance
+    - Framework-managed entities and sensors
+    - Scene construction and building
+    - Coordination of query and control components
+    """
+    
+    def __init__(self, cfg: "SceneCfg", device: str = "cuda"):
+        """Initialize the LabScene.
+        
+        Args:
+            cfg: Scene configuration.
+            device: Device to use for tensors ('cuda' or 'cpu').
+        """
+        self.cfg = cfg
+        self.device = device
+        self._gs_scene: gs.Scene = None
+        self._entities: Dict[str, "LabEntity"] = {}
+        self._sensors: Dict[str, "SensorBase"] = {}
+        self._num_envs = cfg.num_envs
+        
+        # Initialize helper components
+        self._scene_builder = SceneBuilder(self)
+        self._actuator_manager = ActuatorManager(self)
+        self._querier = SceneQuerier(self)
+        self._controller = SceneController(self)
+    
+    @property
+    def gs_scene(self) -> gs.Scene:
+        """The underlying Genesis Scene instance."""
+        if self._gs_scene is None:
+            raise RuntimeError("Scene not built. Call build() first.")
+        return self._gs_scene
+    
+    @property
+    def entities(self) -> Dict[str, "LabEntity"]:
+        """Dictionary of entities keyed by name."""
+        return self._entities
+    
+    @property
+    def sensors(self) -> Dict[str, "SensorBase"]:
+        """Dictionary of sensors keyed by name."""
+        return self._sensors
+    
+    @property
+    def num_envs(self) -> int:
+        """Number of parallel environments."""
+        return self._num_envs
+    
+    @property
+    def querier(self) -> "SceneQuerier":
+        """Scene querier for state queries."""
+        return self._querier
+    
+    @property
+    def controller(self) -> "SceneController":
+        """Scene controller for control and state setting."""
+        return self._controller
+    
+    def build(self, env: Any = None) -> None:
+        """Build the Genesis scene and entities.
+        
+        This method:
+        1. Creates a Genesis Scene with appropriate options
+        2. Adds robots and terrain according to cfg
+        3. Builds the scene with num_envs
+        4. Constructs LabEntity objects for each robot
+        5. Processes actuator configurations
+        
+        Args:
+            env: Optional environment instance (ManagerBasedGenesisEnv). 
+                Required for constructing LabEntity.
+        """
+        # Create Genesis scene
+        self._gs_scene = self._scene_builder.create_scene()
+        
+        # Add terrain if specified
+        if self.cfg.terrain is not None:
+            self._scene_builder.add_terrain(self._gs_scene)
+        
+        # Add robots
+        for entity_name, robot_cfg in self.cfg.robots.items():
+            lab_entity = self._scene_builder.add_robot(self._gs_scene, entity_name, robot_cfg, env=env)
+            self._entities[entity_name] = lab_entity
+        
+        # Add sensors if specified
+        for sensor_name, sensor_cfg in self.cfg.sensors.items():
+            self._scene_builder.add_sensor(self, sensor_name, sensor_cfg)
+        
+        # Optional: attach a simple camera and start video recording
+        video_path = getattr(self.cfg, "record_video_path", None)
+        if video_path is not None:
+            from genesislab.engine.visualize import attach_video_recorder
+            attach_video_recorder(self._gs_scene, str(video_path))
+        
+        # Build the scene
+        self._scene_builder.build_scene(self._gs_scene)
+        
+        # Process actuator configurations (IsaacLab-style)
+        # All actuators compute torques explicitly and apply them via control_dofs_force()
+        self._actuator_manager.process_actuators_cfg()
+    
+    def add_entity(self, name: str, entity: "LabEntity") -> None:
+        """Add an entity to the scene.
+        
+        Args:
+            name: Entity name.
+            entity: LabEntity instance.
+        """
+        self._entities[name] = entity
+    
+    def add_sensor(self, name: str, sensor: "SensorBase") -> None:
+        """Add a sensor to the scene.
+        
+        Args:
+            name: Sensor name.
+            sensor: Sensor instance.
+        """
+        self._sensors[name] = sensor
+    
+    def get_sensor(self, name: str) -> "SensorBase":
+        """Get a sensor by name.
+        
+        Args:
+            name: Sensor name.
+            
+        Returns:
+            Sensor instance.
+            
+        Raises:
+            KeyError: If sensor not found.
+        """
+        if name not in self._sensors:
+            raise KeyError(
+                f"Sensor '{name}' not found. "
+                f"Available sensors: {list(self._sensors.keys())}"
+            )
+        return self._sensors[name]
+    
+    def __getattr__(self, name: str) -> Any:
+        """Delegate attribute access to the underlying Genesis Scene.
+        
+        This allows LabScene to be used as a drop-in replacement for
+        the Genesis Scene object while managing framework-internal objects
+        separately.
+        
+        Args:
+            name: Attribute name.
+            
+        Returns:
+            Attribute value from the Genesis Scene.
+        """
+        return getattr(self._gs_scene, name)

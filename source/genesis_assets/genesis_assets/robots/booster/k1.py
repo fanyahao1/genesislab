@@ -6,7 +6,7 @@ Reference: Booster humanoid robots from BeyondMimic.
 from __future__ import annotations
 
 from genesislab.components.actuators.actuator_robotlib import DelayedImplicitActuatorCfg
-from genesislab.components.entities.robot_cfg import PoseCfg, RobotCfg
+from genesislab.components.entities.robot_cfg import InitialPoseCfg, RobotCfg
 
 # Import asset paths from genesis_assets
 from genesis_assets import GENESIS_ASSETS_ASSETLIB_DIR as ASSET_DIR
@@ -44,15 +44,12 @@ DAMPING_ROB_14 = 1.0
 BOOSTER_K1_CFG = RobotCfg(
     morph_type="URDF",
     morph_path=f"{ASSET_DIR}/robots/K1/K1_22dof.urdf",
-    initial_pose=PoseCfg(
+    initial_pose=InitialPoseCfg(
         pos=[0.0, 0.0, 0.57],
         quat=[0.0, 0.0, 0.0, 1.0],
     ),
     fixed_base=False,
     control_dofs=None,
-    pd_gains=None,
-    default_pd_kp=None,
-    default_pd_kd=None,
     actuators={
         "legs": DelayedImplicitActuatorCfg(
             max_delay=8,

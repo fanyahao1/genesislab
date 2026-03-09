@@ -24,7 +24,7 @@ class ManagerTermBase:
 	inherit from this base class and implement the required methods.
 	"""
 
-	def __init__(self, cfg: ManagerTermBaseCfg | None = None, env: "ManagerBasedRlEnv" = None):
+	def __init__(self, cfg: ManagerTermBaseCfg = None, env: "ManagerBasedRlEnv" = None):
 		"""Initialize the manager term.
 
 		Args:
@@ -59,7 +59,7 @@ class ManagerTermBase:
 
 	# Methods.
 
-	def reset(self, env_ids: torch.Tensor | slice | Sequence[int] | None = None) -> None:
+	def reset(self, env_ids: torch.Tensor | slice | Sequence[int] = None) -> None:
 		"""Resets the manager term.
 
 		Args:
@@ -95,7 +95,7 @@ class ManagerTermBase:
 class ManagerBase(abc.ABC):
 	"""Base class for all managers."""
 
-	def __init__(self, cfg: object | None = None, env: "ManagerBasedRlEnv" = None):
+	def __init__(self, cfg: object = None, env: "ManagerBasedRlEnv" = None):
 		"""Initialize the manager.
 
 		This function is responsible for parsing the configuration object and creating the terms.
@@ -109,8 +109,7 @@ class ManagerBase(abc.ABC):
 		self._env = env
 
 		# Parse config to create terms information
-		if self.cfg:
-			self._prepare_terms()
+		if self.cfg: self._prepare_terms()
 
 	# Properties.
 
@@ -132,7 +131,7 @@ class ManagerBase(abc.ABC):
 
 	# Methods.
 
-	def reset(self, env_ids: torch.Tensor | Sequence[int] | None = None) -> dict[str, float]:
+	def reset(self, env_ids: torch.Tensor | Sequence[int] = None) -> dict[str, float]:
 		"""Resets the manager and returns logging information for the current time-step.
 
 		Args:
@@ -232,13 +231,20 @@ class ManagerBase(abc.ABC):
 		# Resolve entity config references.
 		for key, value in term_cfg.params.items():
 			if isinstance(value, SceneEntityCfg):
-				# Prefer resolving against the binding's entities when available.
-				if hasattr(self._env, "_binding") and hasattr(self._env._binding, "entities"):
-					value.resolve(self._env._binding.entities)
-				else:
-					# Fallback: resolve against the scene object.
-					if hasattr(self._env, "scene"):
-						value.resolve(self._env.scene)
+				# Resolve against the scene's entities - required
+				if not hasattr(self._env, "scene"):
+					raise AttributeError(
+						"Environment does not have 'scene' attribute. "
+						"ManagerBase requires LabScene to resolve SceneEntityCfg."
+					)
+				
+				if not hasattr(self._env.scene, "entities"):
+					raise AttributeError(
+						"Binding does not have 'entities' attribute. "
+						"Binding may not be properly initialized."
+					)
+				
+				value.resolve(self._env.scene.entities, env=self._env)
 
 		# Get the corresponding function or functional class
 		if isinstance(term_cfg.func, str):

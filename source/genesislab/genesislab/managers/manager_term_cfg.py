@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import MISSING
-from typing import TYPE_CHECKING, Any, Literal, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Literal, Tuple, Union
 
 import torch
 
@@ -16,13 +16,10 @@ if TYPE_CHECKING:
 	from genesislab.managers.command_manager import CommandTerm
 	from genesislab.managers.manager_base import ManagerTermBase
 	from genesislab.managers.recorder_manager import RecorderTerm
+	from genesislab.envs import ManagerBasedRlEnv
 
-try:
-	from genesislab.components.additional.noise.noise_cfg import NoiseCfg, NoiseModelCfg
-except ImportError:
-	# Fallback if noise_cfg is not available
-	NoiseCfg = None
-	NoiseModelCfg = None
+from genesislab.components.additional.noise.noise_cfg import NoiseCfg, NoiseModelCfg
+
 
 
 @configclass
@@ -66,11 +63,11 @@ class ManagerTermBaseCfg:
 
 	# Required callable: annotated and given a member value using MISSING to
 	# indicate "no default" for configclass' mutable-type processing.
-	func: Any = MISSING
+	func: Callable = MISSING
 	"""The callable that computes this term's value. Can be a function or a class.
 	Classes are auto-instantiated with ``(cfg=term_cfg, env=env)``."""
 
-	params: dict[str, Any | SceneEntityCfg] = {}
+	params: dict[str, object | SceneEntityCfg] = {}
 	"""Additional keyword arguments passed to func when called."""
 
 
@@ -99,25 +96,32 @@ class RecorderTermCfg:
 class ActionTermCfg:
 	"""Configuration for an action term."""
 
-	# GenesisLab uses entity_name instead of asset_name
+	class_type: type[ActionTerm] = MISSING
+	"""The associated action term class.
+	
+	The class should inherit from :class:`genesislab.managers.action_manager.ActionTerm`.
+	"""
+
 	entity_name: str = MISSING
 	"""The name of the scene entity.
 
 	This is the name defined in the scene configuration file.
 	"""
 
-	clip: dict[str, tuple] | None = None
-	"""Clip range for the action (dict of regex expressions). Defaults to None."""
+	clip: tuple[float, float] | dict[str, tuple[float, float]] = (-100, 100)
+	"""Clip range for the action.
+	
+	All action terms support tuple clip (scalar clip) for uniform clipping of the
+	entire action tensor.
+	
+	Joint action terms (e.g., JointPositionAction) also support dict clip for
+	per-joint clipping using regex pattern matching.
+	
+	Defaults to None (no clipping).
+	"""
 
 	debug_vis: bool = False
 	"""Whether to visualize debug information. Defaults to False."""
-
-	def build(self, env: Any) -> ActionTerm:
-		"""Build the action term from this config.
-		
-		This method must be implemented by subclasses.
-		"""
-		raise NotImplementedError("Subclasses must implement build()")
 
 
 ##
@@ -129,18 +133,17 @@ class ActionTermCfg:
 class CommandTermCfg:
 	"""Configuration for a command generator term."""
 
+	class_type: type[CommandTerm] = MISSING
+	"""The associated command term class.
+	
+	The class should inherit from :class:`genesislab.managers.command_manager.CommandTerm`.
+	"""
+
 	resampling_time_range: tuple[float, float] = MISSING
 	"""Time before commands are changed [s]."""
 
 	debug_vis: bool = False
 	"""Whether to visualize debug information. Defaults to False."""
-
-	def build(self, env: Any) -> CommandTerm:
-		"""Build the command term from this config.
-		
-		This method must be implemented by subclasses.
-		"""
-		raise NotImplementedError("Subclasses must implement build()")
 
 
 ##
@@ -152,7 +155,7 @@ class CommandTermCfg:
 class CurriculumTermCfg(ManagerTermBaseCfg):
 	"""Configuration for a curriculum term."""
 
-	func: Callable[..., float | dict[str, float] | None] = MISSING
+	func: Callable[..., float | dict[str, float]] = MISSING
 	"""The name of the function to be called.
 
 	This function should take the environment object, environment indices
@@ -179,14 +182,14 @@ class ObservationTermCfg(ManagerTermBaseCfg):
 	shape (num_envs, obs_term_dim).
 	"""
 
-	noise: NoiseCfg | NoiseModelCfg | None = None
+	noise: NoiseCfg | NoiseModelCfg = None
 	"""The noise to add to the observation. Defaults to None, in which case no noise is added."""
 
-	clip: tuple[float, float] | None = None
+	clip: tuple[float, float] = None
 	"""The clipping range for the observation after adding noise. Defaults to None,
 	in which case no clipping is applied."""
 
-	scale: tuple[float, ...] | float | None = None
+	scale: tuple[float, ...] | float = None
 	"""The scale to apply to the observation after clipping. Defaults to None,
 	in which case no scaling is applied (same as setting scale to :obj:`1`).
 
@@ -257,7 +260,7 @@ class ObservationGroupCfg:
 	Otherwise, no corruption is applied.
 	"""
 
-	history_length: int | None = None
+	history_length: int = None
 	"""Number of past observation to store in the observation buffers for all observation terms in group.
 
 	This parameter will override :attr:`ObservationTermCfg.history_length` if set. Defaults to None.
@@ -297,7 +300,7 @@ class EventTermCfg(ManagerTermBaseCfg):
 	and any other parameters as input.
 	"""
 
-	mode: str = MISSING
+	mode: Literal["interval", "reset", "setup"] = MISSING
 	"""The mode in which the event term is applied.
 
 	Note:
@@ -305,7 +308,7 @@ class EventTermCfg(ManagerTermBaseCfg):
 		manager Hence, its name is reserved and cannot be used for other modes.
 	"""
 
-	interval_range_s: tuple[float, float] | None = None
+	interval_range_s: tuple[float, float] = None
 	"""The range of time in seconds at which the term is applied. Defaults to None.
 
 	Based on this, the interval is sampled uniformly between the specified

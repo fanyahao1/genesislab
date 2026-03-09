@@ -1,23 +1,23 @@
 """Joint-space action term implementations for GenesisLab.
 
 These classes follow the same high-level structure as IsaacLab's joint
-actions, but drive Genesis through the existing actuator / binding layer.
+actions, but drive Genesis through the existing actuator / scene layer.
 """
 
 from __future__ import annotations
 
+from dataclasses import MISSING
 from typing import TYPE_CHECKING
 
 import torch
 
-from genesislab.components.actuators import ActuatorBase, ImplicitActuator
-from genesislab.managers.action_manager import ActionTerm
-from genesislab.utils.types import ArticulationActions
+from genesislab.components.actuators import ActuatorBase, ArticulationActions, ImplicitActuator
+from genesislab.managers.action_manager import ActionTerm, ActionTermCfg
+from genesislab.utils.configclass import configclass
+from genesislab.utils.configclass.string import resolve_matching_names_values
 
 if TYPE_CHECKING:
     from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
-    from .actions_cfg import JointPositionActionCfg
-
 
 class JointPositionAction(ActionTerm):
     """Action term that maps normalized actions to joint position targets.
@@ -33,46 +33,62 @@ class JointPositionAction(ActionTerm):
 
     def __init__(self, cfg: "JointPositionActionCfg", env: "ManagerBasedRlEnv"):
         super().__init__(cfg, env)
-
-        # Resolve entity.
-        self._entity_name = cfg.asset_name
+        self._entity_name = cfg.entity_name
         entity = env.entities[self._entity_name]
 
-        # Check if actuators are configured for this entity.
-        self._actuators: dict[str, ActuatorBase] = {}
-        self._has_explicit_actuators = False
-        if hasattr(env, "_binding") and hasattr(env._binding, "_actuators"):
-            entity_actuators = env._binding._actuators.get(self._entity_name, {})
-            if entity_actuators:
-                self._actuators = entity_actuators
-                self._has_explicit_actuators = any(
-                    not isinstance(act, ImplicitActuator) for act in self._actuators.values()
-                )
+        # Get the specific actuator for this action term
+        if cfg.actuator_name not in entity.actuators:
+            raise ValueError(
+                f"Actuator '{cfg.actuator_name}' not found for entity '{self._entity_name}'. "
+                f"Available actuators: {list(entity.actuators.keys())}"
+            )
+        self._actuator = entity.actuators[cfg.actuator_name]
+        self._has_explicit_actuator = not isinstance(self._actuator, ImplicitActuator)
 
-        # Infer action dimension:
-        # 1) sum of actuator joint counts if actuators exist
-        # 2) otherwise, all DOFs on the entity.
-        if self._actuators:
-            self._action_dim = sum(actuator.num_joints for actuator in self._actuators.values())
-        else:
-            dof_pos = entity.data.joint_pos
-            self._action_dim = dof_pos.shape[-1]
+        # Action dimension matches actuator's number of joints
+        self._action_dim = self._actuator.num_joints
 
-        # Buffers.
+        # Buffers: action-space buffers (in actuator's joint order)
         self._raw_action = torch.zeros((self.num_envs, self._action_dim), device=self.device)
-        self._targets = torch.zeros_like(self._raw_action)
+        self._targets = torch.zeros((self.num_envs, self._action_dim), device=self.device)
 
-        # Offset.
-        self._offset = torch.zeros_like(self._targets)
-        if cfg.use_default_offset:
-            default_joint_pos = entity.data.default_joint_pos
-            if default_joint_pos.shape[-1] >= self._action_dim:
-                self._offset[:] = default_joint_pos[:, :self._action_dim].clone()
+        # Build offset: combine default joint pos and config offset
+        self._offset = torch.zeros((self.num_envs, self._action_dim), device=self.device)
+        
+        default_joint_pos_dof = entity.data.default_joint_pos
+        actuator_joint_names = self._actuator.joint_names
+        
+        # Map default joint positions from DOF order to actuator's joint order
+        if default_joint_pos_dof is not None:
+            # Extract default positions for this actuator's DOFs
+            default_joint_pos_actuator = default_joint_pos_dof[:, self._actuator.dof_indices]
+            self._offset[:] = default_joint_pos_actuator
+        
+        # Apply config offset (if provided as dict, match to joint names)
+        if cfg.offset != 0.0:
+            if isinstance(cfg.offset, dict):
+                # Match offset values to actuator's joint names
+                _, _, offset_values = resolve_matching_names_values(
+                    cfg.offset, actuator_joint_names, preserve_order=False
+                )
+                offset_tensor = torch.tensor(offset_values, dtype=self._offset.dtype, device=self.device)
+                self._offset += offset_tensor.unsqueeze(0)  # Broadcast to (num_envs, num_joints)
             else:
-                self._offset[:, :default_joint_pos.shape[-1]] = default_joint_pos.clone()
+                # Scalar offset: apply to all joints
+                self._offset += float(cfg.offset)
 
-        # Scale.
-        self._scale = float(cfg.scale)
+        # Scale: handle dict or scalar
+        if isinstance(cfg.scale, dict):
+            # Match scale values to actuator's joint names
+            _, _, scale_values = resolve_matching_names_values(
+                cfg.scale, actuator_joint_names, preserve_order=False
+            )
+            self._scale = torch.tensor(scale_values, dtype=torch.float32, device=self.device).unsqueeze(0)
+        else:
+            self._scale = float(cfg.scale)
+        
+        # Build clip bounds (cached in base class)
+        self._build_clip_bounds(self._action_dim, cfg.clip, actuator_joint_names)
 
     @property
     def action_dim(self) -> int:
@@ -94,80 +110,60 @@ class JointPositionAction(ActionTerm):
                 )
 
         self._raw_action[:] = actions
-        self._targets[:] = self._offset + self._scale * actions
+        
+        # Apply scale (handle both scalar and tensor)
+        if isinstance(self._scale, torch.Tensor):
+            self._targets[:] = self._offset + self._scale * actions
+        else:
+            self._targets[:] = self._offset + self._scale * actions
+        
+        # Apply clipping using cached bounds from base class
+        self._targets[:] = self._apply_clip(self._targets)
 
     def apply_actions(self) -> None:
         """Apply position targets or torques to Genesis."""
-        if self._has_explicit_actuators:
-            # Explicit actuators: compute torques and apply.
-            entity = self._env.entities[self._entity_name]
-            joint_pos = entity.data.joint_pos
-            joint_vel = entity.data.joint_vel
+        entity = self._env.entities[self._entity_name]
+        raw_entity = entity.raw_entity
+        joint_pos = entity.data.joint_pos
+        
+        # Explicit actuator: compute torques and apply directly.
+        joint_vel = entity.data.joint_vel
+        
+        # Get joint state for this actuator's DOFs (in robot DOF order)
+        act_joint_pos = joint_pos[:, self._actuator.dof_indices]
+        act_joint_vel = joint_vel[:, self._actuator.dof_indices]
 
-            total_torques = torch.zeros_like(joint_pos)
+        # Create control action with position targets (in actuator's joint order)
+        control_action = ArticulationActions(
+            joint_positions=self._targets,
+            joint_velocities=None,
+            joint_efforts=None,
+            joint_indices=None,
+        )
+        # Compute torques (in actuator's joint order)
+        control_action = self._actuator.compute(
+            control_action,
+            joint_pos=act_joint_pos,
+            joint_vel=act_joint_vel,
+        )
+        # Apply torques directly using actuator's apply_torques method
+        # This allows multiple actuators to apply independently
+        if control_action.joint_efforts is not None:
+            self._actuator.apply_torques(raw_entity, control_action.joint_efforts)
 
-            for actuator in self._actuators.values():
-                if isinstance(actuator, ImplicitActuator):
-                    continue
+@configclass
+class JointActionCfg(ActionTermCfg):
+    joint_names: list[str] = MISSING
+    scale: float = 1.0
+    offset: float = 0.0
+    preserve_order: bool = False
 
-                if actuator.joint_indices == slice(None):
-                    num_act_joints = actuator.num_joints
-                    if joint_pos.shape[-1] >= num_act_joints:
-                        act_joint_pos = joint_pos[:, :num_act_joints]
-                        act_joint_vel = joint_vel[:, :num_act_joints]
-                        act_targets = self._targets[:, :num_act_joints]
-                    else:
-                        act_joint_pos = torch.zeros(
-                            joint_pos.shape[0], num_act_joints, dtype=joint_pos.dtype, device=joint_pos.device
-                        )
-                        act_joint_pos[:, :joint_pos.shape[-1]] = joint_pos
-                        act_joint_vel = torch.zeros(
-                            joint_vel.shape[0], num_act_joints, dtype=joint_vel.dtype, device=joint_vel.device
-                        )
-                        act_joint_vel[:, :joint_vel.shape[-1]] = joint_vel
-                        act_targets = torch.zeros(
-                            self._targets.shape[0], num_act_joints, dtype=self._targets.dtype, device=self._targets.device
-                        )
-                        act_targets[:, :self._targets.shape[-1]] = self._targets
-                    joint_indices = slice(None)
-                else:
-                    if isinstance(actuator.joint_indices, torch.Tensor):
-                        joint_indices = actuator.joint_indices.cpu().tolist()
-                    else:
-                        joint_indices = list(range(len(actuator.joint_names)))
-                    act_joint_pos = joint_pos[:, joint_indices]
-                    act_joint_vel = joint_vel[:, joint_indices]
-                    act_targets = self._targets[:, joint_indices]
 
-                control_action = ArticulationActions(
-                    joint_positions=act_targets,
-                    joint_velocities=None,
-                    joint_efforts=None,
-                    joint_indices=actuator.joint_indices,
-                )
-
-                control_action = actuator.compute(
-                    control_action,
-                    joint_pos=act_joint_pos,
-                    joint_vel=act_joint_vel,
-                )
-
-                if control_action.joint_efforts is not None:
-                    if actuator.joint_indices == slice(None):
-                        num_act_joints = actuator.num_joints
-                        if total_torques.shape[-1] >= num_act_joints:
-                            total_torques[:, :num_act_joints] = control_action.joint_efforts
-                        else:
-                            total_torques[:] = control_action.joint_efforts[:, : total_torques.shape[-1]]
-                    else:
-                        if isinstance(actuator.joint_indices, torch.Tensor):
-                            joint_indices_tensor = actuator.joint_indices
-                        else:
-                            joint_indices_tensor = torch.tensor(joint_indices, dtype=torch.long, device=self.device)
-                        total_torques[:, joint_indices_tensor] = control_action.joint_efforts
-
-            self._env.set_joint_targets(self._entity_name, total_torques, control_type="torque")
-        else:
-            # Implicit actuators / PD: set desired positions directly.
-            self._env.set_joint_targets(self._entity_name, self._targets, control_type="position")
-
+@configclass
+class JointPositionActionCfg(JointActionCfg):
+    """Configuration for joint position action term."""
+    class_type: type = JointPositionAction  # Will be set to JointPositionAction below
+    """The action term class type. Set automatically."""
+    actuator_name: str = MISSING
+    """Name of the actuator to use for this action term."""
+    use_default_offset: bool = True

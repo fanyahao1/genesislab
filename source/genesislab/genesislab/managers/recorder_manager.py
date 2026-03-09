@@ -78,8 +78,8 @@ class RecorderTerm(ManagerTermBase):
 	"""
 
 	def record_pre_reset(
-		self, env_ids: Sequence[int] | None
-	) -> tuple[str | None, torch.Tensor | dict | None]:
+		self, env_ids: Sequence[int]
+	) -> tuple[str, torch.Tensor | dict]:
 		"""Record data at the beginning of env.reset() before reset is effective.
 
 		Args:
@@ -95,8 +95,8 @@ class RecorderTerm(ManagerTermBase):
 		return None, None
 
 	def record_post_reset(
-		self, env_ids: Sequence[int] | None
-	) -> tuple[str | None, torch.Tensor | dict | None]:
+		self, env_ids: Sequence[int]
+	) -> tuple[str, torch.Tensor | dict]:
 		"""Record data at the end of env.reset().
 
 		Args:
@@ -108,7 +108,7 @@ class RecorderTerm(ManagerTermBase):
 		"""
 		return None, None
 
-	def record_pre_step(self) -> tuple[str | None, torch.Tensor | dict | None]:
+	def record_pre_step(self) -> tuple[str, torch.Tensor | dict]:
 		"""Record data in the beginning of env.step() after action is cached/processed in the ActionManager.
 
 		Returns:
@@ -117,7 +117,7 @@ class RecorderTerm(ManagerTermBase):
 		"""
 		return None, None
 
-	def record_post_step(self) -> tuple[str | None, torch.Tensor | dict | None]:
+	def record_post_step(self) -> tuple[str, torch.Tensor | dict]:
 		"""Record data at the end of env.step() when all the managers are processed.
 
 		Returns:
@@ -128,7 +128,7 @@ class RecorderTerm(ManagerTermBase):
 
 	def record_post_physics_decimation_step(
 		self,
-	) -> tuple[str | None, torch.Tensor | dict | None]:
+	) -> tuple[str, torch.Tensor | dict]:
 		"""Record data after the physics step is executed in the decimation loop.
 
 		Returns:
@@ -152,7 +152,7 @@ class RecorderTerm(ManagerTermBase):
 class RecorderManager(ManagerBase):
 	"""Manager for recording data from recorder terms."""
 
-	def __init__(self, cfg: RecorderManagerBaseCfg | dict[str, RecorderTermCfg] | None, env: "ManagerBasedRlEnv"):
+	def __init__(self, cfg: RecorderManagerBaseCfg | dict[str, RecorderTermCfg], env: "ManagerBasedRlEnv"):
 		"""Initialize the recorder manager.
 
 		Args:
@@ -256,7 +256,7 @@ class RecorderManager(ManagerBase):
 	Operations.
 	"""
 
-	def reset(self, env_ids: Sequence[int] | None = None) -> dict[str, torch.Tensor]:
+	def reset(self, env_ids: Sequence[int] = None) -> dict[str, torch.Tensor]:
 		"""Resets the recorder data.
 
 		Args:
@@ -297,7 +297,7 @@ class RecorderManager(ManagerBase):
 		return self._episodes.get(env_id, {})
 
 	def add_to_episodes(
-		self, key: str, value: torch.Tensor | dict, env_ids: Sequence[int] | None = None
+		self, key: str, value: torch.Tensor | dict, env_ids: Sequence[int] = None
 	):
 		"""Adds the given key-value pair to the episodes for the given environment ids.
 
@@ -365,7 +365,7 @@ class RecorderManager(ManagerBase):
 			self.add_to_episodes(key, value)
 
 	def record_pre_reset(
-		self, env_ids: Sequence[int] | None, force_export_or_skip=None
+		self, env_ids: Sequence[int], force_export_or_skip=None
 	) -> None:
 		"""Trigger recorder terms for pre-reset functions.
 
@@ -402,7 +402,7 @@ class RecorderManager(ManagerBase):
 		):
 			self.export_episodes(env_ids)
 
-	def record_post_reset(self, env_ids: Sequence[int] | None) -> None:
+	def record_post_reset(self, env_ids: Sequence[int]) -> None:
 		"""Trigger recorder terms for post-reset functions.
 
 		Args:
@@ -417,7 +417,7 @@ class RecorderManager(ManagerBase):
 			self.add_to_episodes(key, value, env_ids)
 
 	def export_episodes(
-		self, env_ids: Sequence[int] | None = None, demo_ids: Sequence[int] | None = None
+		self, env_ids: Sequence[int] = None, demo_ids: Sequence[int] = None
 	) -> None:
 		"""Concludes and exports the episodes for the given environment ids.
 

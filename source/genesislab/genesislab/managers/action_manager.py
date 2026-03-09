@@ -11,6 +11,7 @@ from prettytable import PrettyTable
 
 from genesislab.managers.manager_base import ManagerBase, ManagerTermBase
 from genesislab.managers.manager_term_cfg import ActionTermCfg
+from genesislab.utils.configclass.string import resolve_matching_names_values
 
 if TYPE_CHECKING:
 	from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
@@ -26,12 +27,30 @@ class ActionTerm(ManagerTermBase):
 	def __init__(self, cfg: ActionTermCfg, env: "ManagerBasedRlEnv"):
 		self.cfg = cfg
 		super().__init__(cfg=cfg, env=env)
-		# Get entity from binding
-		if hasattr(self._env, "_binding"):
-			self._entity = self._env._binding.entities[self.cfg.entity_name]
-		else:
-			# Fallback to scene if binding not available
-			self._entity = self._env.scene.entities[self.cfg.entity_name]
+		# Get entity from scene - required
+		if not hasattr(self._env, "scene"):
+			raise AttributeError(
+				"Environment does not have 'scene' attribute. "
+				"ActionManager requires LabScene to access entities."
+			)
+		
+		if not hasattr(self._env.scene, "entities"):
+			raise AttributeError(
+				"Scene does not have 'entities' attribute. "
+				"Scene may not be properly initialized."
+			)
+		
+		if self.cfg.entity_name not in self._env.scene.entities:
+			raise KeyError(
+				f"Entity '{self.cfg.entity_name}' not found in scene.entities. "
+				f"Available entities: {list(self._env.scene.entities.keys())}"
+			)
+		
+		self._entity = self._env.scene.entities[self.cfg.entity_name]
+		
+		# Clip bounds cache (will be initialized by _build_clip_bounds)
+		self._clip_lower: torch.Tensor | float | None = None
+		self._clip_upper: torch.Tensor | float | None = None
 
 	@property
 	@abc.abstractmethod
@@ -50,6 +69,94 @@ class ActionTerm(ManagerTermBase):
 	@abc.abstractmethod
 	def raw_action(self) -> torch.Tensor:
 		raise NotImplementedError
+
+	def _build_clip_bounds(
+		self,
+		action_dim: int,
+		clip: tuple[float, float] | dict[str, tuple[float, float]] | None,
+		joint_names: list[str] | None = None,
+	) -> None:
+		"""Build and cache clip bounds for efficient clipping.
+		
+		This method should be called once during initialization to pre-compute
+		clip bounds, avoiding repeated computation in _apply_clip.
+		
+		Args:
+			action_dim: Dimension of the action space.
+			clip: Clip configuration. Can be:
+				- tuple[float, float]: (min, max) for uniform clipping
+				- dict[str, tuple[float, float]]: Per-joint clipping with regex patterns
+				- None: No clipping
+			joint_names: List of joint names for dict clip matching. Required if clip is dict.
+				Must match action_dim.
+		
+		Raises:
+			TypeError: If clip is dict but joint_names is None.
+			ValueError: If joint_names length doesn't match action_dim.
+		"""
+		if clip is None:
+			self._clip_lower = None
+			self._clip_upper = None
+			return
+		
+		if isinstance(clip, tuple):
+			# Uniform clipping (scalar clip): store as float values
+			self._clip_lower = float(clip[0])
+			self._clip_upper = float(clip[1])
+		elif isinstance(clip, dict):
+			# Per-joint clipping: build bounds tensors
+			if joint_names is None:
+				raise TypeError(
+					"joint_names must be provided when clip is a dict. "
+					"Dict clip requires joint names for pattern matching."
+				)
+			if len(joint_names) != action_dim:
+				raise ValueError(
+					f"joint_names length ({len(joint_names)}) must match action_dim "
+					f"({action_dim}) for dict clip."
+				)
+			
+			# Resolve clip patterns to joint indices
+			matched_indices, matched_names, clip_values = resolve_matching_names_values(
+				clip, joint_names, preserve_order=False
+			)
+			
+			# Build bounds tensors
+			self._clip_lower = torch.full((action_dim,), -float('inf'), device=self.device)
+			self._clip_upper = torch.full((action_dim,), float('inf'), device=self.device)
+			
+			for idx, (min_val, max_val) in zip(matched_indices, clip_values):
+				self._clip_lower[idx] = float(min_val)
+				self._clip_upper[idx] = float(max_val)
+		else:
+			raise TypeError(
+				f"clip must be tuple[float, float], dict[str, tuple[float, float]], or None, "
+				f"got {type(clip)}"
+			)
+	
+	def _apply_clip(self, targets: torch.Tensor) -> torch.Tensor:
+		"""Apply clipping to action targets using pre-computed bounds.
+		
+		This method uses the cached clip bounds from _build_clip_bounds() for
+		efficient clipping without repeated computation.
+		
+		Args:
+			targets: Action targets tensor of shape (num_envs, action_dim) to clip.
+		
+		Returns:
+			Clipped targets tensor of same shape as input.
+		"""
+		if self._clip_lower is None or self._clip_upper is None:
+			return targets
+		
+		if isinstance(self._clip_lower, float) and isinstance(self._clip_upper, float):
+			# Uniform clipping (scalar clip)
+			return torch.clamp(targets, min=self._clip_lower, max=self._clip_upper)
+		else:
+			# Per-joint clipping (tensor bounds)
+			lower = self._clip_lower.unsqueeze(0)  # (1, action_dim)
+			upper = self._clip_upper.unsqueeze(0)  # (1, action_dim)
+			return torch.clamp(targets, min=lower, max=upper)
 
 
 class ActionManager(ManagerBase):
@@ -201,6 +308,13 @@ class ActionManager(ManagerBase):
 					f"Configuration for the term '{term_name}' is not of type 'ActionTermCfg'."
 					f" Received: '{type(term_cfg)}'."
 				)
-			term = term_cfg.build(self._env)
+			# Create the action term using class_type
+			term = term_cfg.class_type(term_cfg, self._env)
+			# Sanity check if term is valid type
+			if not isinstance(term, ActionTerm):
+				raise TypeError(
+					f"Returned object for the term '{term_name}' is not of type 'ActionTerm'."
+					f" Received: '{type(term)}'."
+				)
 			self._term_names.append(term_name)
 			self._terms[term_name] = term

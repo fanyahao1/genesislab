@@ -9,7 +9,7 @@ The actuator configuration follows the structure from robotlib/beyondMimic/robot
 from __future__ import annotations
 
 from genesislab.components.actuators import ImplicitActuatorCfg
-from genesislab.components.entities.robot_cfg import PoseCfg, RobotCfg
+from genesislab.components.entities.robot_cfg import InitialPoseCfg, RobotCfg
 
 # Import asset paths from genesis_assets
 from genesis_assets import GENESIS_ASSETS_ASSETLIB_DIR as ASSET_DIR
@@ -48,15 +48,12 @@ DAMPING_4010 = 2.0 * DAMPING_RATIO * ARMATURE_4010 * NATURAL_FREQ
 G1_BEYONDMIMIC_CFG = RobotCfg(
     morph_type="URDF",
     morph_path=f"{ASSET_DIR}/unitree/unitree_g1/urdf/g1_29dof.urdf",
-    initial_pose=PoseCfg(
+    initial_pose=InitialPoseCfg(
         pos=[0.0, 0.0, 0.76],
         quat=[0.0, 0.0, 0.0, 1.0],
     ),
     fixed_base=False,
     control_dofs=None,
-    pd_gains=None,
-    default_pd_kp=None,
-    default_pd_kd=None,
     actuators={
         "legs": ImplicitActuatorCfg(
             joint_names_expr=[

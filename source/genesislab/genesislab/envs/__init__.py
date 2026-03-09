@@ -3,7 +3,7 @@
 Environments define the interface between RL agents and the Genesis-based
 simulation. GenesisLab currently focuses on the manager-based workflow:
 
-- A thin engine binding over Genesis `Scene` (see :mod:`genesislab.engine`).
+- A scene management layer over Genesis `Scene` (see :mod:`genesislab.engine.scene`).
 - A manager-based environment core (see :mod:`genesislab.envs.base_env`).
 - A stack of managers for observations, rewards, actions, terminations, etc.
 

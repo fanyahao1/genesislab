@@ -67,18 +67,12 @@ def main() -> None:
     # ------------------------------------------------------------------ #
     # Environment construction
     # ------------------------------------------------------------------ #
-    if args.env_id is not None:
-        # Use Gym registry only to read env_cfg entry-point.
-        env_cfg_entry_point = resolve_env_cfg_entry_point(args.env_id)
-        env_cfg = _load_env_cfg(env_cfg_entry_point)
-        _apply_cli_overrides(env_cfg, args)
-        env = ManagerBasedRlEnv(cfg=env_cfg, device=args.device)
-    else:
-        if not args.env_cfg_entry:
-            raise ValueError("Either '--env-id' or '--env-cfg-entry' must be provided.")
-        env_cfg = _load_env_cfg(args.env_cfg_entry)
-        _apply_cli_overrides(env_cfg, args)
-        env = ManagerBasedRlEnv(cfg=env_cfg, device=args.device)
+    env_cfg_entry_point = resolve_env_cfg_entry_point(args.env_id) \
+        if args.env_id is not None else args.env_cfg_entry
+    env_cfg = _load_env_cfg(env_cfg_entry_point)
+    _apply_cli_overrides(env_cfg, args)
+    env_cfg.validate()
+    env = ManagerBasedRlEnv(cfg=env_cfg, device=args.device)
 
     vec_env = GenesisRslRlVecEnv(env)
 

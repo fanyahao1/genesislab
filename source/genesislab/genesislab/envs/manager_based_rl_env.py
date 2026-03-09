@@ -106,9 +106,9 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
 
     def reset(
         self,
-        seed: int | None = None,
-        env_ids: torch.Tensor | list[int] | tuple[int, ...] | None = None,
-        options: dict[str, Any] | None = None,
+        seed: int = None,
+        env_ids: torch.Tensor | list[int] | tuple[int, ...] = None,
+        options: dict[str, Any] = None,
     ) -> tuple[VecEnvObs, dict[str, Any]]:
         """Reset the environment with curriculum support.
 
@@ -150,11 +150,16 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
         # Update curriculum state before resetting environments.
         self.curriculum_manager.compute(env_ids=env_ids)
 
-        # Reset engine binding
-        self._binding.reset(env_ids=env_ids)
+        # Reset scene
+        self._scene.controller.reset(env_ids=env_ids)
 
         # Reset episode counters
         self.episode_length_buf[env_ids] = 0
+
+        # Apply reset events if event manager is configured
+        if hasattr(self, "event_manager") and self.event_manager is not None:
+            if "reset" in self.event_manager.available_modes:
+                self.event_manager.apply(mode="reset", env_ids=env_ids, global_env_step_count=self.common_step_counter)
 
         # Reset managers and collect extras.
         manager_extras: dict[str, Any] = {}
@@ -164,6 +169,11 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
         manager_extras.update(self.termination_manager.reset(env_ids=env_ids))
         manager_extras.update(self.command_manager.reset(env_ids=env_ids))
         manager_extras.update(self.curriculum_manager.reset(env_ids=env_ids))
+        
+        # Reset event manager and collect extras
+        if hasattr(self, "event_manager") and self.event_manager is not None:
+            event_extras = self.event_manager.reset(env_ids=env_ids)
+            manager_extras.update(event_extras)
 
         return manager_extras
 
@@ -195,10 +205,10 @@ class ManagerBasedRlEnvCfg(ManagerBasedGenesisEnvCfg):
 
     # Re-declare RL-related fields with RL-focused docstrings while keeping
     # defaults aligned with the base config.
-    episode_length_s: float | None = None
+    episode_length_s: float = None
     is_finite_horizon: bool = False
 
     rewards: object = {}
     terminations: object = {}
-    curriculum: object | None = None
-    commands: object | None = None
+    curriculum: object = None
+    commands: object = None

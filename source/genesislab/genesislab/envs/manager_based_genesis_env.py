@@ -2,23 +2,27 @@
 
 from __future__ import annotations
 
+from dataclasses import MISSING
 import random
-from typing import Any, ClassVar
+from typing import ClassVar, TYPE_CHECKING, Dict
 
 import torch
 
 from genesislab.components.entities.scene_cfg import SceneCfg
 from genesislab.utils.configclass import configclass
 
-from genesislab.engine.binding import GenesisBinding
+from genesislab.engine.scene import LabScene
+from genesislab.engine.entity import LabEntity
 from genesislab.envs.common import VecEnvObs, VecEnvStepReturn
-from genesislab.envs.entity import Entity
 from genesislab.managers.action_manager import ActionManager
 from genesislab.managers.command_manager import CommandManager, NullCommandManager
 from genesislab.managers.observation_manager import ObservationManager
 from genesislab.managers.reward_manager import RewardManager
 from genesislab.managers.termination_manager import TerminationManager
+from genesislab.managers import EventManager
 
+if TYPE_CHECKING:
+    from genesislab.engine.gstype import gs
 
 class ManagerBasedGenesisEnv:
     """Manager-based RL environment for Genesis.
@@ -40,7 +44,7 @@ class ManagerBasedGenesisEnv:
     is_vector_env: ClassVar[bool] = True
     """Whether this environment manages a batch of parallel sub-environments."""
 
-    metadata: ClassVar[dict[str, Any]] = {
+    metadata: ClassVar[dict[str, list]] = {
         "render_modes": [None, "rgb_array"],
     }
     """Environment metadata (render modes, fps, etc.)."""
@@ -60,12 +64,12 @@ class ManagerBasedGenesisEnv:
         if cfg.seed is not None:
             self.seed(cfg.seed)
 
-        # Build engine binding
-        self._binding = GenesisBinding(cfg.scene, device=device)
-        self._binding.build()
+        # Build scene
+        self._scene = LabScene(cfg.scene, device=device)
+        self._scene.build(env=self)
 
         # Compute step timing
-        self.physics_dt: float = cfg.scene.dt
+        self.physics_dt: float = cfg.scene.sim_options.dt
         """Physics simulation step size."""
 
         self.step_dt: float = self.physics_dt * cfg.decimation
@@ -80,7 +84,7 @@ class ManagerBasedGenesisEnv:
             self._max_episode_length = None
 
         # Initialize buffers
-        self.num_envs: int = self._binding.num_envs
+        self.num_envs: int = self._scene.num_envs
         self.episode_length_buf = torch.zeros(self.num_envs, dtype=torch.long, device=device)
         self.common_step_counter = 0
 
@@ -89,6 +93,10 @@ class ManagerBasedGenesisEnv:
 
         # Configure Gym-style spaces
         self._configure_spaces()
+
+        # Apply startup events if event manager is configured
+        if self.event_manager is not None and "startup" in self.event_manager.available_modes:
+            self.event_manager.apply(mode="startup")
 
     def seed(self, seed: int = None) -> None:
         """Set random seed for reproducibility.
@@ -129,12 +137,16 @@ class ManagerBasedGenesisEnv:
         # Termination manager
         self.termination_manager = TerminationManager(cfg=self.cfg.terminations, env=self)
 
+        # Event manager (optional)
+        self.event_manager = EventManager(cfg=self.cfg.events, env=self) if self.cfg.events is not None else None
+
         # Report initialized managers (IsaacLab-style summary).
         print("[ManagerBasedGenesisEnv] Command manager: %s", self.command_manager)
         print("[ManagerBasedGenesisEnv] Action manager: %s", self.action_manager)
         print("[ManagerBasedGenesisEnv] Observation manager: %s", self.observation_manager)
         print("[ManagerBasedGenesisEnv] Reward manager: %s", self.reward_manager)
         print("[ManagerBasedGenesisEnv] Termination manager: %s", self.termination_manager)
+        print("[ManagerBasedGenesisEnv] Event manager: %s", self.event_manager)
 
     def _configure_spaces(self) -> None:
         """Configure Gym-style observation and action spaces."""
@@ -166,12 +178,17 @@ class ManagerBasedGenesisEnv:
     # -------------------------------------------------------------------------
 
     @property
-    def scene(self) -> Any:
-        """The Genesis Scene instance."""
-        return self._binding.scene
+    def scene(self) -> LabScene:
+        """The LabScene instance (provides access to scene, entities, sensors, query and control)."""
+        return self._scene
 
     @property
-    def entities(self) -> dict[str, Entity]:
+    def gsscene(self) -> "gs.Scene":
+        """The Genesis Scene instance."""
+        return self._scene.gs_scene
+
+    @property
+    def entities(self) -> dict[str, LabEntity]:
         """Dictionary of entity wrappers keyed by name.
 
         Each entity provides a `data` property for accessing state:
@@ -179,47 +196,14 @@ class ManagerBasedGenesisEnv:
         - `env.entities["go2"].data.root_pos_w` - root position in world frame
         - etc.
         """
-        # Lazy initialization: create Entity wrappers on first access
-        if not hasattr(self, "_entity_wrappers"):
-            self._entity_wrappers: dict[str, Entity] = {}
-            for entity_name, raw_entity in self._binding.entities.items():
-                self._entity_wrappers[entity_name] = Entity(self, entity_name, raw_entity)
-        return self._entity_wrappers
-
-    def get_joint_state(self, entity_name: str) -> tuple[torch.Tensor, torch.Tensor]:
-        """Get joint positions and velocities for an entity."""
-        return self._binding.get_joint_state(entity_name)
-
-    def get_root_state(
-        self, entity_name: str
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Get root pose and velocities for an entity."""
-        return self._binding.get_root_state(entity_name)
-
-    def get_body_positions(self, entity_name: str) -> torch.Tensor:
-        """Get positions of all bodies/links for an entity.
-        
-        Args:
-            entity_name: Name of the entity.
-            
-        Returns:
-            Tensor of shape (num_envs, num_bodies, 3) containing the world frame
-            positions of all bodies/links.
-        """
-        return self._binding.get_body_positions(entity_name)
-
-    def set_joint_targets(
-        self, entity_name: str, targets: torch.Tensor, control_type: str = "position"
-    ) -> None:
-        """Set joint targets for an entity."""
-        self._binding.set_joint_targets(entity_name, targets, control_type=control_type)
+        return self._scene.entities
 
     def reset(
         self,
         seed: int = None,
         env_ids: torch.Tensor = None,
-        options: dict[str, Any] = None,
-    ) -> tuple[VecEnvObs, dict[str, Any]]:
+        options: dict[str, object] = None,
+    ) -> tuple[VecEnvObs, dict[str, object]]:
         """Reset the environment.
 
         Args:
@@ -241,11 +225,15 @@ class ManagerBasedGenesisEnv:
         elif isinstance(env_ids, (list, tuple)):
             env_ids = torch.tensor(env_ids, dtype=torch.long, device=self.device)
 
-        # Reset engine binding
-        self._binding.reset(env_ids=env_ids)
+        # Reset scene
+        self._scene.controller.reset(env_ids=env_ids)
 
         # Reset episode counters
         self.episode_length_buf[env_ids] = 0
+
+        # Apply reset events if event manager is configured
+        if self.event_manager is not None and "reset" in self.event_manager.available_modes:
+            self.event_manager.apply(mode="reset", env_ids=env_ids, global_env_step_count=self.common_step_counter)
 
         # Reset managers and collect extras
         manager_extras = {}
@@ -254,6 +242,11 @@ class ManagerBasedGenesisEnv:
         manager_extras.update(self.reward_manager.reset(env_ids=env_ids))
         manager_extras.update(self.termination_manager.reset(env_ids=env_ids))
         manager_extras.update(self.command_manager.reset(env_ids=env_ids))
+        
+        # Reset event manager and collect extras
+        if self.event_manager is not None:
+            event_extras = self.event_manager.reset(env_ids=env_ids)
+            manager_extras.update(event_extras)
 
         # Compute initial observations
         obs_buf = self.observation_manager.compute(update_history=True)
@@ -281,7 +274,7 @@ class ManagerBasedGenesisEnv:
             self.action_manager.apply_action()
 
             # Step physics
-            self._binding.step()
+            self._scene.controller.step()
 
             # Update sensors (if any) at physics rate.
             self._update_sensors()
@@ -309,15 +302,19 @@ class ManagerBasedGenesisEnv:
         # Update commands
         self.command_manager.compute(dt=self.step_dt)
 
+        # Apply interval events if event manager is configured
+        if self.event_manager is not None and "interval" in self.event_manager.available_modes:
+            self.event_manager.apply(mode="interval", dt=self.step_dt)
+
         # Debug visualization (if enabled)
         if hasattr(self, "command_manager") and self.command_manager is not None:
-            self.command_manager.debug_vis(self._binding.scene)
+            self.command_manager.debug_vis(self._scene.gs_scene)
 
         # Compute observations
         obs_buf = self.observation_manager.compute(update_history=True)
 
         # Build info dict, including any episode-level metrics produced at reset.
-        info: dict[str, Any] = {
+        info: dict[str, dict] = {
             "time_outs": reset_time_outs,
             "terminated": reset_terminated,
             "log": manager_extras
@@ -327,13 +324,14 @@ class ManagerBasedGenesisEnv:
 
     def _update_sensors(self) -> None:
         """Update any scene-attached sensors after a physics step."""
-        scene = self._binding.scene
-        if not hasattr(scene, "sensors"):
-            return
-        sensors = getattr(scene, "sensors", {})
-        for sensor in sensors.values():
-            if hasattr(sensor, "update"):
-                sensor.update(dt=self.physics_dt)
+        sensors = self._scene.sensors
+        for sensor_name, sensor in sensors.items():
+            if not hasattr(sensor, "update"):
+                raise AttributeError(
+                    f"Sensor '{sensor_name}' does not have 'update' method. "
+                    f"All sensors must implement the update() method."
+                )
+            sensor.update(dt=self.physics_dt)
 
     def _reset_idx(self, env_ids: torch.Tensor) -> None:
         """Reset specific environments.
@@ -341,14 +339,14 @@ class ManagerBasedGenesisEnv:
         Args:
             env_ids: Environment indices to reset.
         """
-        # Reset engine binding
-        self._binding.reset(env_ids=env_ids)
+        # Reset scene
+        self._scene.controller.reset(env_ids=env_ids)
 
         # Reset episode counters
         self.episode_length_buf[env_ids] = 0
 
         # Reset managers and collect extras (episode-level summaries, metrics, etc.).
-        manager_extras: dict[str, Any] = {}
+        manager_extras: dict[str, object] = {}
         manager_extras.update(self.action_manager.reset(env_ids=env_ids))
         manager_extras.update(self.observation_manager.reset(env_ids=env_ids))
         manager_extras.update(self.reward_manager.reset(env_ids=env_ids))
@@ -380,26 +378,37 @@ class ManagerBasedGenesisEnvCfg:
 
     # Manager configs are kept intentionally untyped here; task configs are expected
     # to populate them with the appropriate term config objects from the managers.
-    observations: dict[str, object] = {}
+    observations: object = MISSING
     """Observation groups configuration (typically `ObservationGroupCfg` instances)."""
 
-    actions: dict[str, object] = {}
+    actions: object = MISSING
     """Action term configurations."""
 
-    rewards: dict[str, object] = {}
+    rewards: object = MISSING
     """Reward term configurations."""
 
-    terminations: dict[str, object] = {}
+    terminations: object = MISSING
     """Termination term configurations."""
 
-    commands: dict[str, object] = None
+    commands: object = MISSING
     """Command term configurations. If None, no command manager is created."""
 
+    events: object = MISSING
+    """Event term configurations. If None, no event manager is created.
+    
+    Events are triggered at different simulation stages:
+    - "startup": Once at initialization
+    - "reset": On episode reset
+    - "interval": Periodically during simulation
+    
+    Please refer to the :class:`genesislab.managers.EventManager` class for more details.
+    """
+
     # RL-specific configuration
-    seed: int = None
+    seed: int = 42
     """Random seed for reproducibility."""
 
-    episode_length_s: float = None
+    episode_length_s: float = 20
     """Episode length in seconds. If None, horizon is infinite unless terminated by terms."""
 
     is_finite_horizon: bool = False

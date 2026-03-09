@@ -7,12 +7,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
 
 from genesislab.utils.configclass.string import resolve_matching_names, resolve_matching_names_values
-from genesislab.utils.types import ArticulationActions
+
+from .articulation_actions import ArticulationActions
 
 if TYPE_CHECKING:
     from .actuator_base_cfg import ActuatorBaseCfg
@@ -136,8 +137,6 @@ class ActuatorBase(ABC):
             corresponding to the joints in the actuator model; these values serve as default values if the parameters
             are not specified in the cfg.
 
-
-
         Args:
             cfg: The configuration of the actuator model.
             joint_names: The joint names in the articulation.
@@ -218,6 +217,9 @@ class ActuatorBase(ABC):
         # create commands buffers for allocation
         self.computed_effort = torch.zeros(self._num_envs, self.num_joints, device=self._device)
         self.applied_effort = torch.zeros_like(self.computed_effort)
+        
+        # DOF indices (set by ActuatorManager, used for mapping to robot DOF space)
+        self._dof_indices: torch.Tensor = None
 
     def __str__(self) -> str:
         """Returns: A string representation of the actuator group."""
@@ -260,6 +262,55 @@ class ActuatorBase(ABC):
             We do this to avoid unnecessary indexing of the joints for performance reasons.
         """
         return self._joint_indices
+    
+    @property
+    def dof_indices(self) -> torch.Tensor:
+        """DOF indices in the robot's DOF space that this actuator controls."""
+        if self._dof_indices is None:
+            raise RuntimeError("DOF indices not set for this actuator. This should be set by ActuatorManager.")
+        return self._dof_indices
+    
+    def apply_torques(self, entity: Any, torques: torch.Tensor) -> None:
+        """Apply torques directly to the entity for this actuator's DOFs.
+        
+        This method applies torques directly using control_dofs_force(), which allows
+        multiple actuators to apply their torques independently without needing to merge.
+        
+        Args:
+            entity: The Genesis entity to apply torques to.
+            torques: Torques tensor of shape (num_envs, num_joints) in actuator's joint order.
+        """
+        if len(self.dof_indices) == torques.shape[-1]:
+            entity.control_dofs_force(torques, self.dof_indices)
+        else:
+            # Handle shape mismatch
+            num_mapped = min(len(self.dof_indices), torques.shape[-1])
+            entity.control_dofs_force(torques[:, :num_mapped], self.dof_indices[:num_mapped])
+    
+    def map_action_to_dof_targets(self, action_targets: torch.Tensor, num_robot_dofs: int) -> torch.Tensor:
+        """Map action-space targets to robot DOF-space targets.
+        
+        Args:
+            action_targets: Action-space targets tensor of shape (num_envs, num_joints).
+                This should be the action targets for THIS actuator only (in actuator's joint order).
+            num_robot_dofs: Total number of DOFs in the robot.
+        
+        Returns:
+            Tensor of shape (num_envs, num_robot_dofs) with targets mapped to DOF indices.
+            Unmapped DOFs are set to zero.
+        """
+        num_envs = action_targets.shape[0]
+        dof_targets = torch.zeros(num_envs, num_robot_dofs, device=action_targets.device)
+        
+        # Map directly to DOF indices
+        if len(self.dof_indices) == action_targets.shape[-1]:
+            dof_targets[:, self.dof_indices] = action_targets
+        else:
+            # Handle shape mismatch
+            num_mapped = min(len(self.dof_indices), action_targets.shape[-1])
+            dof_targets[:, self.dof_indices[:num_mapped]] = action_targets[:, :num_mapped]
+        
+        return dof_targets
 
     """
     Operations.

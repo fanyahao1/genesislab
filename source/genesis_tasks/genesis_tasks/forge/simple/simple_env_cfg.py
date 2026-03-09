@@ -15,10 +15,13 @@ from genesislab.managers.observation_manager import ObservationGroupCfg, Observa
 from genesislab.managers.action_manager import ActionTermCfg
 from genesislab.managers.reward_manager import RewardTermCfg
 from genesislab.managers.termination_manager import TerminationTermCfg
+from genesislab.managers.manager_term_cfg import EventTermCfg
 from genesislab.utils.configclass import configclass
 
 from genesis_assets.robots import UNITREE_GO2_CFG
-import genesis_tasks.locomotion.velocity.mdp as mdp
+from genesislab.engine.assets.articulation import InitialPoseCfg
+from genesislab.envs.mdp.actions import GenesisOriginalActionCfg
+import genesis_tasks.forge.simple.mdp as mdp
 
 
 @configclass
@@ -77,10 +80,10 @@ class SimpleCommandsCfg:
 class SimpleActionsCfg:
     """Action specifications for the simple task."""
 
-    joint_pos: mdp.JointPositionActionCfg = mdp.JointPositionActionCfg(
-        asset_name="robot",
-        joint_names=[".*"],
+    joint_pos: GenesisOriginalActionCfg = GenesisOriginalActionCfg(
+        entity_name="robot",
         scale=0.25,  # Same as Genesis Forge
+        clip=(-100.0, 100.0),  # Same as Genesis Forge
         use_default_offset=True,  # Same as Genesis Forge
     )
     """Joint position action configuration."""
@@ -98,25 +101,25 @@ class SimpleObservationsCfg:
         """Observations for policy group."""
 
         # Observation terms (aligned with Genesis Forge)
-        base_ang_vel: ObservationTermCfg = ObservationTermCfg(
-            func=mdp.base_ang_vel,
+        angle_velocity: ObservationTermCfg = ObservationTermCfg(
+            func=mdp.angle_velocity,
             scale=0.25,  # Same scale as Genesis Forge
         )
-        base_lin_vel: ObservationTermCfg = ObservationTermCfg(
-            func=mdp.base_lin_vel,
+        linear_velocity: ObservationTermCfg = ObservationTermCfg(
+            func=mdp.linear_velocity,
             scale=2.0,  # Same scale as Genesis Forge
         )
         projected_gravity: ObservationTermCfg = ObservationTermCfg(
             func=mdp.projected_gravity
         )
-        joint_pos: ObservationTermCfg = ObservationTermCfg(
-            func=mdp.joint_pos_rel
+        dof_position: ObservationTermCfg = ObservationTermCfg(
+            func=mdp.dof_position
         )
-        joint_vel: ObservationTermCfg = ObservationTermCfg(
-            func=mdp.joint_vel_rel,
+        dof_velocity: ObservationTermCfg = ObservationTermCfg(
+            func=mdp.dof_velocity,
             scale=0.05,  # Same scale as Genesis Forge
         )
-        actions: ObservationTermCfg = ObservationTermCfg(func=mdp.last_action)
+        actions: ObservationTermCfg = ObservationTermCfg(func=mdp.actions)
 
         def __post_init__(self):
             self.enable_corruption = False  # No corruption for simple task
@@ -135,19 +138,19 @@ class SimpleRewardsCfg:
 
     # Task rewards
     base_height_target: RewardTermCfg = RewardTermCfg(
-        func=mdp.base_height_target,
+        func=mdp.base_height,
         weight=-50.0,  # Same as Genesis Forge
         params={"target_height": 0.3, "asset_cfg": SceneEntityCfg("robot")},
     )
-    track_lin_vel_xy_exp: RewardTermCfg = RewardTermCfg(
-        func=mdp.track_lin_vel_xy_exp,
+    tracking_lin_vel: RewardTermCfg = RewardTermCfg(
+        func=mdp.command_tracking_lin_vel,
         weight=1.0,  # Same as Genesis Forge
-        params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
+        params={"command_name": "base_velocity", "asset_cfg": SceneEntityCfg("robot")},
     )
-    track_ang_vel_z_exp: RewardTermCfg = RewardTermCfg(
-        func=mdp.track_ang_vel_z_exp,
+    tracking_ang_vel: RewardTermCfg = RewardTermCfg(
+        func=mdp.command_tracking_ang_vel,
         weight=0.2,  # Same as Genesis Forge
-        params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
+        params={"command_name": "base_velocity", "asset_cfg": SceneEntityCfg("robot")},
     )
 
     # Penalties
@@ -170,13 +173,32 @@ class SimpleTerminationsCfg:
     Aligned with Genesis Forge's simple example terminations.
     """
 
-    time_out: TerminationTermCfg = TerminationTermCfg(
-        func=mdp.time_out, time_out=True
+    timeout: TerminationTermCfg = TerminationTermCfg(
+        func=mdp.timeout, time_out=True
     )
-    bad_orientation: TerminationTermCfg = TerminationTermCfg(
+    fall_over: TerminationTermCfg = TerminationTermCfg(
         func=mdp.bad_orientation,
         time_out=False,
         params={"limit_angle": 10.0, "asset_cfg": SceneEntityCfg("robot")},
+    )
+
+
+@configclass
+class SimpleEventsCfg:
+    """Event terms for the simple task.
+
+    Aligned with Genesis Forge's simple example events.
+    """
+
+    reset_robot_position: EventTermCfg = EventTermCfg(
+        func=mdp.position,
+        mode="reset",
+        params={
+            "position": [0.0, 0.0, 0.4],  # Same as Genesis Forge INITIAL_BODY_POSITION
+            "quat": [1.0, 0.0, 0.0, 0.0],  # Same as Genesis Forge INITIAL_QUAT
+            "zero_velocity": True,
+            "asset_cfg": SceneEntityCfg("robot"),
+        },
     )
 
 
@@ -209,6 +231,9 @@ class SimpleGo2EnvCfg(ManagerBasedRlEnvCfg):
     terminations: SimpleTerminationsCfg = SimpleTerminationsCfg()
     """Termination terms."""
 
+    events: SimpleEventsCfg = SimpleEventsCfg()
+    """Event terms for reset and domain randomization."""
+
     # Environment settings
     decimation: int = 1
     """Number of physics steps per environment step."""
@@ -223,8 +248,14 @@ class SimpleGo2EnvCfg(ManagerBasedRlEnvCfg):
         """Post initialization."""
         super().__post_init__()
 
-        # Set robot configuration
-        self.scene.robots["robot"] = UNITREE_GO2_CFG
+        # Set robot configuration with initial pose aligned to Genesis Forge
+        robot_cfg = UNITREE_GO2_CFG.replace(
+            initial_pose=InitialPoseCfg(
+                pos=[0.0, 0.0, 0.4],  # Same as Genesis Forge INITIAL_BODY_POSITION
+                quat=[1.0, 0.0, 0.0, 0.0],  # Same as Genesis Forge INITIAL_QUAT
+            )
+        )
+        self.scene.robots["robot"] = robot_cfg
 
         # Initialize sensors dict if not present
         if not hasattr(self.scene, "sensors"):

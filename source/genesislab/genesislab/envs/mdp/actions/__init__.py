@@ -1,11 +1,13 @@
 """Action term configurations and implementations for GenesisLab envs."""
 
-from .actions_cfg import JointActionCfg, JointPositionActionCfg
-from .joint_actions import JointPositionAction
+from .joint_actions import JointPositionAction, JointActionCfg, JointPositionActionCfg
+from .genesis_original_action import GenesisOriginalAction, GenesisOriginalActionCfg
 
 __all__ = [
     "JointActionCfg",
     "JointPositionActionCfg",
     "JointPositionAction",
+    "GenesisOriginalActionCfg",
+    "GenesisOriginalAction",
 ]
 

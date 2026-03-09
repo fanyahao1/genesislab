@@ -6,7 +6,7 @@ Reference: https://github.com/unitreerobotics/unitree_ros
 from __future__ import annotations
 
 from genesislab.components.actuators import IdealPDActuatorCfg
-from genesislab.components.entities.robot_cfg import PoseCfg, RobotCfg
+from genesislab.components.entities.robot_cfg import InitialPoseCfg, RobotCfg
 
 # Import asset paths from genesis_assets
 from genesis_assets import GENESIS_ASSETS_UNITREE_MODEL_DIR as UNITREE_MODEL_DIR
@@ -18,15 +18,12 @@ from genesis_assets import GENESIS_ASSETS_UNITREE_MODEL_DIR as UNITREE_MODEL_DIR
 UNITREE_H1_CFG = RobotCfg(
     morph_type="USD",
     morph_path=f"{UNITREE_MODEL_DIR}/H1/h1/usd/h1.usd",
-    initial_pose=PoseCfg(
+    initial_pose=InitialPoseCfg(
         pos=[0.0, 0.0, 1.1],
         quat=[0.0, 0.0, 0.0, 1.0],
     ),
     fixed_base=False,
     control_dofs=None,
-    pd_gains=None,
-    default_pd_kp=None,
-    default_pd_kd=None,
     actuators={
         "GO2HV-1": IdealPDActuatorCfg(
             joint_names_expr=[".*ankle.*", ".*_shoulder_pitch_.*", ".*_shoulder_roll_.*"],

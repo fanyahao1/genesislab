@@ -24,7 +24,7 @@ import torch
 import genesis as gs
 
 
-class GenesisAssetBase(ABC):
+class LabAssetBase(ABC):
     """Abstract base class for Genesis-native assets.
 
     An asset is a lightweight wrapper around one or more Genesis entities

@@ -13,7 +13,7 @@ from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnvCfg
 from genesislab.managers import SceneEntityCfg
 from genesislab.utils.configclass import configclass
 
-from .velocity_env_cfg import (
+from .components import (
     ActionsCfg,
     CommandsCfg,
     CurriculumCfg,
@@ -57,6 +57,8 @@ class BaseVelocityEnvCfg(ManagerBasedRlEnvCfg):
 
     curriculum: CurriculumCfg = CurriculumCfg()
     """Curriculum terms."""
+    
+    events: None = None
 
     def __post_init__(self):
         """Post initialization."""

@@ -8,37 +8,46 @@ dependency on Omniverse or Isaac Sim.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import MISSING
 from typing import Any, Literal, Sequence
 
 import torch
 
 import genesis as gs
 
-from genesislab.engine.assets.base import GenesisAssetBase
+from genesislab.utils.configclass import configclass
 
+from genesislab.engine.assets.lab_asset_base import LabAssetBase
 
-@dataclass
-class GenesisArticulationCfg:
+@configclass
+class InitialPoseCfg:
+    """Initial pose configuration for a robot."""
+
+    pos: list[float] = [0.0, 0.0, 0.0]
+    """Initial position (x, y, z)."""
+
+    quat: list[float] = [0.0, 0.0, 0.0, 1.0]
+    """Initial orientation quaternion (x, y, z, w)."""
+
+@configclass
+class ArticulationCfg:
     """Configuration for a Genesis articulation asset.
 
     This is intentionally lightweight and aligned with :class:`RobotCfg` so
-    that environments can easily construct either binding-level robots or
+    that environments can easily construct either scene-level robots or
     explicit asset wrappers.
     """
 
-    name: str
+    name: str = MISSING
     """Logical name of the articulation asset."""
 
-    morph_type: Literal["URDF", "MJCF", "USD"] = "URDF"
+    morph_type: Literal["URDF", "MJCF", "USD"] = MISSING
     """Type of Genesis morph to construct."""
 
     morph_path: str = ""
     """File path to the robot description (URDF/MJCF/USD)."""
 
-    initial_pose: dict[str, Any] = field(
-        default_factory=lambda: {"pos": [0.0, 0.0, 0.0], "quat": [0.0, 0.0, 0.0, 1.0]}
-    )
+    initial_pose: InitialPoseCfg = InitialPoseCfg()
     """Initial pose of the articulation root."""
 
     fixed_base: bool = False
@@ -47,11 +56,11 @@ class GenesisArticulationCfg:
     control_dofs: list[str] = None
     """List of joint names to control. If None, all actuated joints are controlled."""
 
-    morph_options: dict[str, Any] = field(default_factory=dict)
+    morph_options: dict = {}
     """Additional keyword arguments forwarded to the Genesis morph constructor."""
 
 
-class GenesisArticulation(GenesisAssetBase):
+class Articulation(LabAssetBase):
     """Genesis-native articulation asset.
 
     This class wraps a single Genesis articulation entity and provides
@@ -65,7 +74,7 @@ class GenesisArticulation(GenesisAssetBase):
     # at import time. To keep this class usable with the current `genesis`
     # distribution, we provide a safe default ("cuda:0" if available, else "cpu")
     # and still allow callers to pass an explicit device.
-    def __init__(self, cfg: GenesisArticulationCfg, device: str | torch.device = None):
+    def __init__(self, cfg: ArticulationCfg, device: str | torch.device = None):
         super().__init__(name=cfg.name)
         self.cfg = cfg
         if device is None:
@@ -80,6 +89,15 @@ class GenesisArticulation(GenesisAssetBase):
         # Runtime buffers (allocated lazily once entity is available)
         self._targets_pos: torch.Tensor = None
         self._targets_vel: torch.Tensor = None
+    
+    @property
+    def dof_indices(self) -> torch.Tensor | None:
+        """DOF indices for controlled joints.
+        
+        Returns:
+            Tensor of DOF indices, or None if control_dofs was not specified.
+        """
+        return self._dof_indices
 
     # ------------------------------------------------------------------ #
     # Scene construction
@@ -90,12 +108,12 @@ class GenesisArticulation(GenesisAssetBase):
         morph_type = self.cfg.morph_type.upper()
         morph_kwargs = dict(self.cfg.morph_options)
         
-        # Handle both dict and PoseCfg object
+        # Handle both dict and InitialPoseCfg object
         if isinstance(self.cfg.initial_pose, dict):
             pos = self.cfg.initial_pose.get("pos", [0.0, 0.0, 0.0])
             quat = self.cfg.initial_pose.get("quat", [0.0, 0.0, 0.0, 1.0])
         else:
-            # PoseCfg object
+            # InitialPoseCfg object
             pos = getattr(self.cfg.initial_pose, "pos", [0.0, 0.0, 0.0])
             quat = getattr(self.cfg.initial_pose, "quat", [0.0, 0.0, 0.0, 1.0])
 
@@ -224,5 +242,5 @@ class GenesisArticulation(GenesisAssetBase):
         """
 
         # In a more feature-complete implementation we would cache state here.
-        return
+        raise NotImplementedError("Currently this is a no-op placeholder; state queries should go through the underlying Genesis entity directly.")
 

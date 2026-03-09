@@ -46,7 +46,8 @@ Rather than building a large infrastructure, the system emphasizes **readability
   Built-in debugging utilities and validation scripts help verify simulation stability, observation correctness, and reward behavior before large-scale training.
 </details>
 
-# Key Features
+<details>
+<summary>Key Features</summary>
 
 - **Lightweight RL task framework**  
   Provides a minimal structure for defining reinforcement learning environments while keeping the implementation small and easy to understand.
@@ -59,6 +60,8 @@ Rather than building a large infrastructure, the system emphasizes **readability
 
 - **Research-friendly architecture**  
   Designed to allow straightforward implementation of new robotics tasks, reward functions, and observation structures.
+
+</details>
 
 # Supported Hardware
 
@@ -78,27 +81,30 @@ Hardware compatibility follows the official Genesis runtime environment and back
 
 # Installation
 
-### 1. Create environment
+1. Create environment
 
 ```bash
 conda create -n genesislab python=3.10
 conda activate genesislab
 ````
 
-### 2. Install Genesis
-
 ```bash
 pip install genesis-world
+# Optional
+pip install genesis-world[usd]
 ```
 
-### 3. Install GenesisLab
+2. Install GenesisLab
 
 ```bash
 bash scripts/setup/setup_ext.sh
 ```
 
-This installs the `genesislab` package in **editable mode** for development.
+3. Install more extensions
 
+```bash
+bash third_party/setup_third_party.sh
+```
 
 # Training Example
 
@@ -125,6 +131,7 @@ python scripts/reinforcement_learning/rsl_rl/play.py \
 
 <detail>
 <summary>Engine smoke test</summary>
+
 Verify that the Genesis backend and Python bindings work correctly.
 
 ```bash
@@ -134,6 +141,7 @@ python scripts/test/test_engine.py --backend cpu --num-envs 4
 
 <detail>
 <summary>Environment validation</summary>
+
 Run sanity checks to verify stepping logic and vectorized rollouts.
 
 ```bash

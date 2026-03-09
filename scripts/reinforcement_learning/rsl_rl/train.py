@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import Any
 
 import torch
-import yaml
 import argparse
 
 import genesis as gs
@@ -23,36 +21,10 @@ from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv, ManagerBased
 from genesis_rl.rsl_rl import GenesisRslRlVecEnv
 from genesis_rl.rsl_rl.args_cli import add_common_args
 from genesis_rl.rsl_rl.gym_utils import resolve_env_cfg_entry_point, resolve_rsl_rl_cfg_object
+from genesis_rl.rsl_rl.utils.env_cfg import load_env_cfg, apply_cli_overrides
+from genesis_rl.rsl_rl.utils.config_io import load_train_cfg, save_env_and_train_cfg
 
 import genesis_tasks.locomotion
-import genesis_tasks.forge
-
-def _load_env_cfg(entry_point: str) -> ManagerBasedRlEnvCfg:
-    """Load a ``ManagerBasedRlEnvCfg`` from a module entry point.
-
-    Args:
-        entry_point: String of the form ``"module.path:ClassName"``.
-    """
-    module_name, class_name = entry_point.split(":")
-    module = __import__(module_name, fromlist=[class_name])
-    cfg_cls = getattr(module, class_name)
-    return cfg_cls()
-
-
-def _apply_cli_overrides(cfg: ManagerBasedRlEnvCfg, args: argparse.Namespace) -> None:
-    """Apply a few common command-line overrides to the env config."""
-    if hasattr(cfg, "seed") and args.seed is not None:
-        cfg.seed = args.seed
-
-    # Try to override number of envs if the scene exposes such a field.
-    if args.num_envs is not None and hasattr(cfg, "scene") and hasattr(cfg.scene, "num_envs"):
-        setattr(cfg.scene, "num_envs", args.num_envs)
-
-
-def _load_train_cfg(path: str) -> dict[str, Any]:
-    """Load an rsl_rl runner configuration from YAML."""
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
 
 
 def parse_args():
@@ -67,10 +39,11 @@ def main() -> None:
     # ------------------------------------------------------------------ #
     # Environment construction
     # ------------------------------------------------------------------ #
-    env_cfg_entry_point = resolve_env_cfg_entry_point(args.env_id) \
-        if args.env_id is not None else args.env_cfg_entry
-    env_cfg = _load_env_cfg(env_cfg_entry_point)
-    _apply_cli_overrides(env_cfg, args)
+    env_cfg_entry_point = (
+        resolve_env_cfg_entry_point(args.env_id) if args.env_id is not None else args.env_cfg_entry
+    )
+    env_cfg = load_env_cfg(env_cfg_entry_point)
+    apply_cli_overrides(env_cfg, args)
     env_cfg.validate()
     env = ManagerBasedRlEnv(cfg=env_cfg, device=args.device)
 
@@ -80,7 +53,7 @@ def main() -> None:
     # Training configuration and runner
     # ------------------------------------------------------------------ #
     if args.train_cfg:
-        train_cfg = _load_train_cfg(args.train_cfg)
+        train_cfg = load_train_cfg(args.train_cfg)
     else:
         # Optionally load from a registered rsl_rl cfg entry-point if provided.
         cfg_obj = resolve_rsl_rl_cfg_object(args.env_id) if args.env_id is not None else None
@@ -138,16 +111,7 @@ def main() -> None:
 
     os.makedirs(log_dir, exist_ok=True)
     params_dir = os.path.join(log_dir, "params")
-    os.makedirs(params_dir, exist_ok=True)
-
-    env_cfg_dict = env_cfg.to_dict() if hasattr(env_cfg, "to_dict") else None  # type: ignore[assignment]
-
-    if env_cfg_dict is not None:
-        with open(os.path.join(params_dir, "env.yaml"), "w", encoding="utf-8") as f:
-            yaml.safe_dump(env_cfg_dict, f, sort_keys=False)
-    # Training / agent config.
-    with open(os.path.join(params_dir, "train.yaml"), "w", encoding="utf-8") as f:
-        yaml.safe_dump(train_cfg, f, sort_keys=False)
+    save_env_and_train_cfg(env_cfg, train_cfg, params_dir)
 
     # ------------------------------------------------------------------ #
     # Runner construction and main training loop

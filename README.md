@@ -1,108 +1,108 @@
-# GenesisLab: Fast and Simple !
+# GenesisLab: Fast and simple to train a robot.
 
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](./LICENSE)
 ![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)
 ![OS Linux](https://img.shields.io/badge/OS-Linux-green.svg)
-![Isaac Lab 2.1.1](https://img.shields.io/badge/IsaacLab-2.1.1-3b5cff.svg)
-![RSL--RL](https://img.shields.io/badge/RSL--RL-integrated-orange.svg)
+![Genesis](https://img.shields.io/badge/Genesis-Physics%20Engine-orange.svg)
+![RSL-RL](https://img.shields.io/badge/RSL--RL-integrated-ff8c00.svg)
 
 <p align="center">
-  <img src="./.docs/assets/intro/genesislab_banner.png" alt="Multi-Modal Whole-Body Control" width="100%" />
+<img src="./.docs/assets/intro/genesislab_banner.png" width="100%">
 </p>
 
-**GenesisLab** is a lightweight **reinforcement learning task suite** built on top of the **Genesis physics engine**.
+**GenesisLab** is a lightweight **robotics reinforcement learning task suite** built on top of the **Genesis physics engine**.  
+It provides a compact framework for **developing RL environments, running large-scale vectorized simulations, and validating observation and reward pipelines**.
 
-It provides a minimal yet practical framework for:
+The project is intended as a **fast experimentation playground for robotics RL**, emphasizing clarity, modularity, and rapid iteration.
 
-- building RL environments
-- running vectorized simulations
-- debugging observations, rewards, and physics behaviors
+# Demo
 
-The repository is intended as a **fast experimentation playground** for robotics RL on Genesis.
+Example: **Unitree Go2 velocity tracking policy trained with RSL-RL**
 
----
+<!-- <p align="center">
+<img src="./.docs/assets/demo/go2_velocity.gif" width="70%">
+</p> -->
 
-## ✨ Features
+Additional environments, benchmarks, and demonstrations will be added as the project evolves.
 
-- **RL Task Library**
-  - Ready-to-use environments (e.g. **Unitree Go2 velocity tracking**)
-  - Consistent step/reset interfaces
+# Design Philosophy
 
-- **Vectorized Simulation**
-  - Batched environments for efficient RL rollouts
+GenesisLab focuses on providing a **minimal yet practical reinforcement learning experimentation framework** for robotics research.  
+Rather than building a large infrastructure, the system emphasizes **readability, modular design, and rapid development cycles**.
 
-- **Debugging Utilities**
-  - Engine smoke tests
-  - Environment sanity checks
-  - Random rollout scripts
+<details>
+<summary>Core principles</summary>
 
-- **Minimal & Hackable**
-  - Small codebase designed for rapid task iteration
+- **Minimal but complete**  
+  The framework includes only the essential components required to construct and train RL environments, avoiding unnecessary abstraction while remaining suitable for real experiments.
 
----
+- **Readable and hackable implementation**  
+  The codebase is intentionally compact so that researchers can understand the system quickly and modify reward functions, observations, or task logic without navigating complex infrastructure.
+
+- **Fast experimentation cycle**  
+  Environment templates, simple interfaces, and lightweight configuration allow rapid iteration when designing new RL tasks.
+
+- **Experiment validation first**  
+  Built-in debugging utilities and validation scripts help verify simulation stability, observation correctness, and reward behavior before large-scale training.
+</details>
+
+# Key Features
+
+- **Lightweight RL task framework**  
+  Provides a minimal structure for defining reinforcement learning environments while keeping the implementation small and easy to understand.
+
+- **Vectorized simulation support**  
+  Enables batched environment execution for efficient data collection and high-throughput reinforcement learning training.
+
+- **Integrated debugging utilities**  
+  Includes scripts for validating physics bindings, environment stepping, observation pipelines, and random rollout behavior.
+
+- **Research-friendly architecture**  
+  Designed to allow straightforward implementation of new robotics tasks, reward functions, and observation structures.
+
+# Supported Hardware
+
+GenesisLab inherits hardware compatibility directly from the **Genesis physics engine**.  
+Any device supported by Genesis is therefore supported by GenesisLab.
+
+<details>
+<summary>Typical supported configurations include:</summary>
+
+- **CPU execution** for debugging, development, and lightweight experiments.
+- **GPU-accelerated simulation** for large-scale vectorized reinforcement learning.
+- **Parallel multi-environment training** for high-throughput policy optimization.
+
+Hardware compatibility follows the official Genesis runtime environment and backend implementations.
+
+</details>
 
 # Installation
 
-GenesisLab depends on the **Genesis physics engine**.
-
-1. Create Environment
+### 1. Create environment
 
 ```bash
 conda create -n genesislab python=3.10
 conda activate genesislab
-```
+````
 
-2. Install Genesis
+### 2. Install Genesis
 
 ```bash
 pip install genesis-world
 ```
 
-3. Install GenesisLab
-
-From the repository root:
+### 3. Install GenesisLab
 
 ```bash
-bash ./scripts/setup/setup_ext.sh
+bash scripts/setup/setup_ext.sh
 ```
 
-This installs the `genesislab` Python package in **editable mode**.
+This installs the `genesislab` package in **editable mode** for development.
 
----
 
-# Quick Start
+# Training Example
 
-### Engine Smoke Test
-
-Verify Genesis backend and Python bindings:
-
-```bash
-python scripts/test/test_engine.py --backend cpu --num-envs 4
-```
-
-### RL Environment Tests
-
-```bash
-# single environment
-python scripts/test/test_env.py
-
-# vectorized environments
-python scripts/test/test_env_vectorized.py
-
-# random rollout stress test
-python scripts/test/test_random_rollout.py
-```
-
-These scripts validate:
-
-- Genesis bindings
-- RL environment stepping
-- reward and observation pipelines
-- vectorized rollouts
-
-### Train with RSL-RL (Go2 flat velocity)
-
-Use the integrated RSL-RL pipeline to train a Unitree Go2 flat velocity-tracking policy:
+Train a **Go2 flat velocity tracking policy** using the integrated RSL-RL pipeline.
 
 ```bash
 python scripts/reinforcement_learning/rsl_rl/train.py \
@@ -111,36 +111,74 @@ python scripts/reinforcement_learning/rsl_rl/train.py \
   --num-iters 3000
 ```
 
-### Play / visualize a trained policy
+## Policy Visualization
 
-Load a checkpoint and render a single environment in a window:
+Render a trained policy and visualize the behavior in a simulation window.
 
 ```bash
 python scripts/reinforcement_learning/rsl_rl/play.py \
   --env-id Genesis-Velocity-Flat-Go2-v0 \
   --window \
   --num-envs 1 \
-  --checkpoint <PATH TO CKPT>
+  --checkpoint <PATH_TO_CHECKPOINT>
+```
 
----
+<detail>
+<summary>Engine smoke test</summary>
+Verify that the Genesis backend and Python bindings work correctly.
 
-# Repository Structure
+```bash
+python scripts/test/test_engine.py --backend cpu --num-envs 4
+```
+</detail>
 
-<details>
-<summary>Click to expand</summary>
+<detail>
+<summary>Environment validation</summary>
+Run sanity checks to verify stepping logic and vectorized rollouts.
+
+```bash
+python scripts/test/test_env.py
+python scripts/test/test_env_vectorized.py
+python scripts/test/test_random_rollout.py
+```
+</detail>
+
+# Citation
+
+If GenesisLab is used in academic research or open-source projects, please consider citing or referencing this repository.
 
 ```
-genesislab/
-├── source/genesislab/
-│   ├── cli/                  # CLI utilities
-│   ├── engine/               # Genesis bindings
-│   ├── tasks/                # RL task definitions
-│   └── envs/                 # environment wrappers
+@software{zheng2026@genesislab,
+  author = {Ziang Zheng},
+  title = {GenesisLab: Fast and simple to train a robot..},
+  url = {https://github.com/Renforce-Dynamics/genesislab},
+  year = {2026}
+}
+```
+
+# License
+
+This project is released under the **BSD-3-Clause License**.
+See the `LICENSE` file for details.
+
+
+# Appendix
+
+<details>
+<summary>Project directory overview</summary>
+
+```
+genesislab
+├── source/genesislab
+│   ├── cli/                 # command line utilities
+│   ├── engine/              # Genesis physics bindings
+│   ├── envs/                # RL environment wrappers
+│   └── tasks/               # task definitions
 │
-├── scripts/
-│   ├── setup/
-│   │   └── setup_ext.sh      # installation script
-│   └── test/
+├── scripts
+│   ├── setup
+│   │   └── setup_ext.sh
+│   └── test
 │       ├── test_engine.py
 │       ├── test_env.py
 │       ├── test_env_vectorized.py
@@ -152,23 +190,18 @@ genesislab/
 
 </details>
 
----
-
-# Development
-
 <details>
-<summary>Development notes</summary>
+<summary>Adding new RL tasks</summary>
 
-GenesisLab is designed to be easy to extend.
+GenesisLab is designed to make task development straightforward.
+A typical workflow for implementing a new RL environment is:
 
-Typical workflow for adding a new RL task:
+1. Duplicate an existing task as a template.
+2. Implement observation and reward logic.
+3. Add a validation script in `scripts/test`.
+4. Run sanity checks before launching large-scale training.
 
-1. Duplicate an existing task as a template
-2. Implement observation / reward logic
-3. Add a minimal test script in `scripts/test`
-4. Run sanity checks before training
-
-Recommended tests:
+Recommended validation scripts:
 
 ```
 test_env.py
@@ -176,13 +209,16 @@ test_env_vectorized.py
 test_random_rollout.py
 ```
 
+These scripts help ensure environment reset logic, observation generation, and rollout stability behave correctly.
+
 </details>
 
----
+<details>
+<summary>Planned extensions</summary>
 
-# License
+* additional locomotion environments
+* manipulation tasks based on Genesis
+* improved debugging and visualization utilities
+* additional reinforcement learning algorithm integrations
 
-See the `LICENSE` file for details.
-
-If you use GenesisLab in research or open-source projects,  
-please consider citing or linking this repository.
+</details>

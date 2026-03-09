@@ -20,81 +20,6 @@ if TYPE_CHECKING:
     from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
 
 
-@configclass
-class UniformVelocityCommandCfg(CommandTermCfg):
-    """Configuration for the uniform velocity command generator.
-
-    This command generator samples velocity commands uniformly from specified ranges.
-    """
-
-    asset_name: str = MISSING
-    """Name of the asset in the environment for which the commands are generated."""
-
-    heading_command: bool = False
-    """Whether to use heading command or angular velocity command. Defaults to False."""
-
-    heading_control_stiffness: float = 1.0
-    """Scale factor to convert the heading error to angular velocity command. Defaults to 1.0."""
-
-    rel_standing_envs: float = 0.0
-    """The sampled probability of environments that should be standing still. Defaults to 0.0."""
-
-    rel_heading_envs: float = 1.0
-    """The sampled probability of environments where the robots follow the heading-based angular velocity command.
-    Defaults to 1.0. Only used if heading_command is True.
-    """
-
-    init_velocity_prob: float = 0.0
-    """Probability of initializing environments with the sampled velocity command. Defaults to 0.0."""
-
-    @configclass
-    class Ranges:
-        """Uniform distribution ranges for the velocity commands."""
-
-        lin_vel_x: tuple[float, float] = MISSING
-        """Range for the linear-x velocity command (in m/s)."""
-
-        lin_vel_y: tuple[float, float] = MISSING
-        """Range for the linear-y velocity command (in m/s)."""
-
-        ang_vel_z: tuple[float, float] = MISSING
-        """Range for the angular-z velocity command (in rad/s)."""
-
-        heading: tuple[float, float] = None
-        """Range for the heading command (in rad). Defaults to None.
-        Only used if heading_command is True.
-        """
-
-    ranges: Ranges = MISSING
-    """Distribution ranges for the velocity commands."""
-
-    @configclass
-    class VizCfg:
-        """Visualization configuration for debug arrows."""
-
-        z_offset: float = 0.2
-        """Z-offset above the robot base for drawing arrows. Defaults to 0.2."""
-
-        scale: float = 0.5
-        """Scale factor for arrow lengths. Defaults to 0.5."""
-
-    viz: VizCfg = VizCfg()
-    """Visualization configuration for debug arrows."""
-
-    def build(self, env: "ManagerBasedRlEnv") -> "UniformVelocityCommand":
-        """Build the uniform velocity command term from this config."""
-        return UniformVelocityCommand(cfg=self, env=env)
-
-    def __post_init__(self):
-        """Validate configuration."""
-        if self.heading_command and self.ranges.heading is None:
-            raise ValueError(
-                "The velocity command has heading commands active (heading_command=True) but "
-                "the `ranges.heading` parameter is set to None."
-            )
-        if self.ranges.heading is not None and not self.heading_command:
-            raise ValueError("ranges.heading is set but heading_command=False.")
-
 
 class UniformVelocityCommand(CommandTerm):
     """Command generator that generates a velocity command in SE(2) from uniform distribution.
@@ -103,9 +28,9 @@ class UniformVelocityCommand(CommandTerm):
     the z-axis. It is given in the robot's base frame.
     """
 
-    cfg: UniformVelocityCommandCfg
+    cfg: "UniformVelocityCommandCfg"
 
-    def __init__(self, cfg: UniformVelocityCommandCfg, env: "ManagerBasedRlEnv"):
+    def __init__(self, cfg: "UniformVelocityCommandCfg", env: "ManagerBasedRlEnv"):
         """Initialize the command generator.
 
         Args:
@@ -338,3 +263,76 @@ class UniformVelocityCommand(CommandTerm):
             directions=act_vec_np,
             mask=valid_mask,
         )
+
+@configclass
+class UniformVelocityCommandCfg(CommandTermCfg):
+    """Configuration for the uniform velocity command generator.
+
+    This command generator samples velocity commands uniformly from specified ranges.
+    """
+
+    class_type: type[UniformVelocityCommand] = UniformVelocityCommand
+
+    asset_name: str = MISSING
+    """Name of the asset in the environment for which the commands are generated."""
+
+    heading_command: bool = False
+    """Whether to use heading command or angular velocity command. Defaults to False."""
+
+    heading_control_stiffness: float = 1.0
+    """Scale factor to convert the heading error to angular velocity command. Defaults to 1.0."""
+
+    rel_standing_envs: float = 0.0
+    """The sampled probability of environments that should be standing still. Defaults to 0.0."""
+
+    rel_heading_envs: float = 1.0
+    """The sampled probability of environments where the robots follow the heading-based angular velocity command.
+    Defaults to 1.0. Only used if heading_command is True.
+    """
+
+    init_velocity_prob: float = 0.0
+    """Probability of initializing environments with the sampled velocity command. Defaults to 0.0."""
+
+    @configclass
+    class Ranges:
+        """Uniform distribution ranges for the velocity commands."""
+
+        lin_vel_x: tuple[float, float] = MISSING
+        """Range for the linear-x velocity command (in m/s)."""
+
+        lin_vel_y: tuple[float, float] = MISSING
+        """Range for the linear-y velocity command (in m/s)."""
+
+        ang_vel_z: tuple[float, float] = MISSING
+        """Range for the angular-z velocity command (in rad/s)."""
+
+        heading: tuple[float, float] = None
+        """Range for the heading command (in rad). Defaults to None.
+        Only used if heading_command is True.
+        """
+
+    ranges: Ranges = MISSING
+    """Distribution ranges for the velocity commands."""
+
+    @configclass
+    class VizCfg:
+        """Visualization configuration for debug arrows."""
+
+        z_offset: float = 0.2
+        """Z-offset above the robot base for drawing arrows. Defaults to 0.2."""
+
+        scale: float = 0.5
+        """Scale factor for arrow lengths. Defaults to 0.5."""
+
+    viz: VizCfg = VizCfg()
+    """Visualization configuration for debug arrows."""
+
+    def __post_init__(self):
+        """Validate configuration."""
+        if self.heading_command and self.ranges.heading is None:
+            raise ValueError(
+                "The velocity command has heading commands active (heading_command=True) but "
+                "the `ranges.heading` parameter is set to None."
+            )
+        if self.ranges.heading is not None and not self.heading_command:
+            raise ValueError("ranges.heading is set but heading_command=False.")

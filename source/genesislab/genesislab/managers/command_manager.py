@@ -217,10 +217,13 @@ class CommandManager(ManagerBase):
 					f"Configuration for the term '{term_name}' is not of type 'CommandTermCfg'."
 					f" Received: '{type(term_cfg)}'."
 				)
-			term = term_cfg.build(self._env)
+			# Create the command term using class_type
+			term = term_cfg.class_type(term_cfg, self._env)
+			# Sanity check if term is valid type
 			if not isinstance(term, CommandTerm):
 				raise TypeError(
-					f"Returned object for the term {term_name} is not of type CommandType."
+					f"Returned object for the term '{term_name}' is not of type 'CommandTerm'."
+					f" Received: '{type(term)}'."
 				)
 			self._terms[term_name] = term
 

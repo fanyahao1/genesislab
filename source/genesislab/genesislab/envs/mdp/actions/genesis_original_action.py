@@ -13,12 +13,11 @@ from typing import TYPE_CHECKING
 import torch
 
 from genesislab.components.actuators import ActuatorBase
-from genesislab.managers.action_manager import ActionTerm
+from genesislab.managers.action_manager import ActionTerm, ActionTermCfg
+from genesislab.utils.configclass import configclass
 
 if TYPE_CHECKING:
     from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
-    from .actions_cfg import GenesisOriginalActionCfg
-
 
 def _ensure_dof_pattern(value: float | dict[str, float] | None) -> dict[str, float] | None:
     """Convert a value to a DOF pattern dict if needed.
@@ -36,24 +35,6 @@ def _ensure_dof_pattern(value: float | dict[str, float] | None) -> dict[str, flo
     if isinstance(value, dict):
         return {k: float(v) for k, v in value.items()}
     raise TypeError(f"Expected float or dict, got {type(value)}")
-
-
-def _ensure_clip_pattern(value: tuple[float, float] | dict[str, tuple[float, float]] | None) -> dict[str, tuple[float, float]] | None:
-    """Convert a clip value to a DOF pattern dict if needed.
-    
-    Args:
-        value: A tuple (min, max) or dict mapping joint name patterns to (min, max) tuples.
-        
-    Returns:
-        A dict mapping patterns to (min, max) tuples, or None if value is None.
-    """
-    if value is None:
-        return None
-    if isinstance(value, tuple) and len(value) == 2:
-        return {".*": (float(value[0]), float(value[1]))}
-    if isinstance(value, dict):
-        return {k: (float(v[0]), float(v[1])) for k, v in value.items()}
-    raise TypeError(f"Expected tuple[float, float] or dict, got {type(value)}")
 
 
 class GenesisOriginalAction(ActionTerm):
@@ -95,7 +76,12 @@ class GenesisOriginalAction(ActionTerm):
         # Convert config values to pattern dicts
         self._offset_cfg = _ensure_dof_pattern(cfg.offset)
         self._scale_cfg = _ensure_dof_pattern(cfg.scale)
-        self._clip_cfg = _ensure_clip_pattern(cfg.clip)
+        # For GenesisOriginalAction, clip must be a tuple (uniform clipping for entire action)
+        # Validate clip type
+        if cfg.clip is not None and not isinstance(cfg.clip, tuple):
+            raise TypeError(
+                f"GenesisOriginalAction clip must be tuple[float, float] or None, got {type(cfg.clip)}"
+            )
         self._use_default_offset = cfg.use_default_offset
 
         # Validate: cannot use both use_default_offset and explicit offset
@@ -105,7 +91,6 @@ class GenesisOriginalAction(ActionTerm):
         # Initialize scale and offset tensors (will be set in _build_values)
         self._scale_values: torch.Tensor = None
         self._offset_values: torch.Tensor = None
-        self._clip_values: torch.Tensor = None
 
         # Get joint names for pattern matching
         self._joint_names: list[str] = []
@@ -113,8 +98,11 @@ class GenesisOriginalAction(ActionTerm):
         self._dofs_idx: list[int] = []
         self._build_joint_mapping()
 
-        # Build scale, offset, and clip values
+        # Build scale and offset values
         self._build_values()
+        
+        # Build clip bounds (cached in base class, tuple clip for uniform clipping)
+        self._build_clip_bounds(self._action_dim, cfg.clip, joint_names=None)
 
     def _build_joint_mapping(self) -> None:
         """Build mapping from joint names to action indices and DOF indices."""
@@ -172,44 +160,7 @@ class GenesisOriginalAction(ActionTerm):
         # Apply offset config (if not using default offset)
         if not self._use_default_offset and self._offset_cfg is not None:
             self._apply_pattern_to_tensor(self._offset_cfg, self._offset_values, default_value=0.0)
-        
-        # Build clip values from joint limits or config
-        self._build_clip_values()
 
-    def _build_clip_values(self) -> None:
-        """Build clip values from joint limits or config."""
-        num_actions = self._action_dim
-        
-        # Initialize with infinite limits (no clipping by default)
-        lower_limits = torch.full((num_actions,), -float('inf'), device=self.device)
-        upper_limits = torch.full((num_actions,), float('inf'), device=self.device)
-        
-        # Try to get joint limits from entity if clip config is not provided
-        if self._clip_cfg is None:
-            # Try to get limits from entity joints (if available)
-            entity_obj = self._env.scene.entities[self._entity_name]
-            idx = 0
-            for joint in entity_obj.joints:
-                if hasattr(joint, "name") and joint.name.lower() == "base":
-                    continue
-                if hasattr(joint, "dof_start") and joint.dof_start is not None:
-                    # Try to get limits from joint (if Genesis exposes them)
-                    if hasattr(joint, "lower_limit") and hasattr(joint, "upper_limit"):
-                        try:
-                            lower_limits[idx] = float(joint.lower_limit)
-                            upper_limits[idx] = float(joint.upper_limit)
-                        except (ValueError, TypeError):
-                            pass  # Keep infinite limits if conversion fails
-                    idx += 1
-                    if idx >= num_actions:
-                        break
-        
-        # Apply clip config if provided (overrides any model limits)
-        if self._clip_cfg is not None:
-            self._apply_clip_pattern_to_tensors(self._clip_cfg, lower_limits, upper_limits)
-        
-        # Stack into (num_actions, 2) tensor: [lower, upper]
-        self._clip_values = torch.stack([lower_limits, upper_limits], dim=1)
 
     def _apply_pattern_to_tensor(
         self,
@@ -242,36 +193,6 @@ class GenesisOriginalAction(ActionTerm):
                     f"Available joints: {self._joint_names}"
                 )
 
-    def _apply_clip_pattern_to_tensors(
-        self,
-        pattern_dict: dict[str, tuple[float, float]],
-        lower_limits: torch.Tensor,
-        upper_limits: torch.Tensor,
-    ) -> None:
-        """Apply clip pattern dict to limit tensors.
-        
-        Args:
-            pattern_dict: Dict mapping joint name patterns to (min, max) tuples.
-            lower_limits: Tensor of lower limits to modify.
-            upper_limits: Tensor of upper limits to modify.
-        """
-        is_set = [False] * len(self._joint_names)
-        
-        for pattern, (min_val, max_val) in pattern_dict.items():
-            found = False
-            for i, joint_name in enumerate(self._joint_names):
-                if not is_set[i] and re.match(f"^{pattern}$", joint_name):
-                    idx = self._joint_name_to_index[joint_name]
-                    lower_limits[idx] = float(min_val)
-                    upper_limits[idx] = float(max_val)
-                    is_set[i] = True
-                    found = True
-            if not found and pattern != ".*":
-                import warnings
-                warnings.warn(
-                    f"GenesisOriginalAction: No joints matched clip pattern '{pattern}'. "
-                    f"Available joints: {self._joint_names}"
-                )
 
     @property
     def action_dim(self) -> int:
@@ -309,12 +230,23 @@ class GenesisOriginalAction(ActionTerm):
         # Apply affine transformation: target = offset + scale * action
         self._targets[:] = self._offset_values.unsqueeze(0) + self._scale_values.unsqueeze(0) * actions
         
-        # Clip to limits
-        if self._clip_values is not None:
-            lower = self._clip_values[:, 0].unsqueeze(0)  # (1, num_actions)
-            upper = self._clip_values[:, 1].unsqueeze(0)  # (1, num_actions)
-            self._targets[:] = torch.clamp(self._targets, min=lower, max=upper)
+        # Apply clipping using cached bounds from base class
+        self._targets[:] = self._apply_clip(self._targets)
 
     def apply_actions(self) -> None:
         entity = self._env.scene.entities[self._entity_name]
         entity.control_dofs_position(self._targets, self._dofs_idx if self._dofs_idx else None)
+
+
+@configclass
+class GenesisOriginalActionCfg(ActionTermCfg):
+    class_type: type = GenesisOriginalAction  # Will be set to GenesisOriginalAction below
+    scale: float | dict[str, float] = 1.0
+    offset: float | dict[str, float] = 0.0
+    use_default_offset: bool = True
+    clip: tuple[float, float] = None
+    """Clip range for the entire action tensor (uniform clipping).
+    
+    Only tuple is allowed for GenesisOriginalAction. For per-joint clipping,
+    use JointPositionAction with dict clip.
+    """

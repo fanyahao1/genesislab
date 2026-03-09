@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import MISSING
-from typing import TYPE_CHECKING, Any, Literal, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Literal, Tuple, Union
 
 import torch
 
@@ -16,13 +16,10 @@ if TYPE_CHECKING:
 	from genesislab.managers.command_manager import CommandTerm
 	from genesislab.managers.manager_base import ManagerTermBase
 	from genesislab.managers.recorder_manager import RecorderTerm
+	from genesislab.envs import ManagerBasedRlEnv
 
-try:
-	from genesislab.components.additional.noise.noise_cfg import NoiseCfg, NoiseModelCfg
-except ImportError:
-	# Fallback if noise_cfg is not available
-	NoiseCfg = None
-	NoiseModelCfg = None
+from genesislab.components.additional.noise.noise_cfg import NoiseCfg, NoiseModelCfg
+
 
 
 @configclass
@@ -66,11 +63,11 @@ class ManagerTermBaseCfg:
 
 	# Required callable: annotated and given a member value using MISSING to
 	# indicate "no default" for configclass' mutable-type processing.
-	func: Any = MISSING
+	func: Callable = MISSING
 	"""The callable that computes this term's value. Can be a function or a class.
 	Classes are auto-instantiated with ``(cfg=term_cfg, env=env)``."""
 
-	params: dict[str, Any | SceneEntityCfg] = {}
+	params: dict[str, object | SceneEntityCfg] = {}
 	"""Additional keyword arguments passed to func when called."""
 
 
@@ -111,8 +108,17 @@ class ActionTermCfg:
 	This is the name defined in the scene configuration file.
 	"""
 
-	clip: dict[str, tuple] = None
-	"""Clip range for the action (dict of regex expressions). Defaults to None."""
+	clip: tuple[float, float] | dict[str, tuple[float, float]] = (-100, 100)
+	"""Clip range for the action.
+	
+	All action terms support tuple clip (scalar clip) for uniform clipping of the
+	entire action tensor.
+	
+	Joint action terms (e.g., JointPositionAction) also support dict clip for
+	per-joint clipping using regex pattern matching.
+	
+	Defaults to None (no clipping).
+	"""
 
 	debug_vis: bool = False
 	"""Whether to visualize debug information. Defaults to False."""
@@ -127,18 +133,17 @@ class ActionTermCfg:
 class CommandTermCfg:
 	"""Configuration for a command generator term."""
 
+	class_type: type[CommandTerm] = MISSING
+	"""The associated command term class.
+	
+	The class should inherit from :class:`genesislab.managers.command_manager.CommandTerm`.
+	"""
+
 	resampling_time_range: tuple[float, float] = MISSING
 	"""Time before commands are changed [s]."""
 
 	debug_vis: bool = False
 	"""Whether to visualize debug information. Defaults to False."""
-
-	def build(self, env: Any) -> CommandTerm:
-		"""Build the command term from this config.
-		
-		This method must be implemented by subclasses.
-		"""
-		raise NotImplementedError("Subclasses must implement build()")
 
 
 ##

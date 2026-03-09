@@ -6,18 +6,18 @@ actions, but drive Genesis through the existing actuator / scene layer.
 
 from __future__ import annotations
 
+from dataclasses import MISSING
 from typing import TYPE_CHECKING
 
 import torch
 
 from genesislab.components.actuators import ActuatorBase, ArticulationActions, ImplicitActuator
-from genesislab.managers.action_manager import ActionTerm
+from genesislab.managers.action_manager import ActionTerm, ActionTermCfg
+from genesislab.utils.configclass import configclass
 from genesislab.utils.configclass.string import resolve_matching_names_values
 
 if TYPE_CHECKING:
     from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
-    from .actions_cfg import JointPositionActionCfg
-
 
 class JointPositionAction(ActionTerm):
     """Action term that maps normalized actions to joint position targets.
@@ -86,6 +86,9 @@ class JointPositionAction(ActionTerm):
             self._scale = torch.tensor(scale_values, dtype=torch.float32, device=self.device).unsqueeze(0)
         else:
             self._scale = float(cfg.scale)
+        
+        # Build clip bounds (cached in base class)
+        self._build_clip_bounds(self._action_dim, cfg.clip, actuator_joint_names)
 
     @property
     def action_dim(self) -> int:
@@ -113,6 +116,9 @@ class JointPositionAction(ActionTerm):
             self._targets[:] = self._offset + self._scale * actions
         else:
             self._targets[:] = self._offset + self._scale * actions
+        
+        # Apply clipping using cached bounds from base class
+        self._targets[:] = self._apply_clip(self._targets)
 
     def apply_actions(self) -> None:
         """Apply position targets or torques to Genesis."""
@@ -120,37 +126,44 @@ class JointPositionAction(ActionTerm):
         raw_entity = entity.raw_entity
         joint_pos = entity.data.joint_pos
         
-        if self._has_explicit_actuator:
-            # Explicit actuator: compute torques and apply directly.
-            joint_vel = entity.data.joint_vel
-            
-            # Get joint state for this actuator's DOFs (in robot DOF order)
-            act_joint_pos = joint_pos[:, self._actuator.dof_indices]
-            act_joint_vel = joint_vel[:, self._actuator.dof_indices]
+        # Explicit actuator: compute torques and apply directly.
+        joint_vel = entity.data.joint_vel
+        
+        # Get joint state for this actuator's DOFs (in robot DOF order)
+        act_joint_pos = joint_pos[:, self._actuator.dof_indices]
+        act_joint_vel = joint_vel[:, self._actuator.dof_indices]
 
-            # Create control action with position targets (in actuator's joint order)
-            control_action = ArticulationActions(
-                joint_positions=self._targets,
-                joint_velocities=None,
-                joint_efforts=None,
-                joint_indices=None,
-            )
+        # Create control action with position targets (in actuator's joint order)
+        control_action = ArticulationActions(
+            joint_positions=self._targets,
+            joint_velocities=None,
+            joint_efforts=None,
+            joint_indices=None,
+        )
+        # Compute torques (in actuator's joint order)
+        control_action = self._actuator.compute(
+            control_action,
+            joint_pos=act_joint_pos,
+            joint_vel=act_joint_vel,
+        )
+        # Apply torques directly using actuator's apply_torques method
+        # This allows multiple actuators to apply independently
+        if control_action.joint_efforts is not None:
+            self._actuator.apply_torques(raw_entity, control_action.joint_efforts)
 
-            # Compute torques (in actuator's joint order)
-            control_action = self._actuator.compute(
-                control_action,
-                joint_pos=act_joint_pos,
-                joint_vel=act_joint_vel,
-            )
+@configclass
+class JointActionCfg(ActionTermCfg):
+    joint_names: list[str] = MISSING
+    scale: float = 1.0
+    offset: float = 0.0
+    preserve_order: bool = False
 
-            # Apply torques directly using actuator's apply_torques method
-            # This allows multiple actuators to apply independently
-            if control_action.joint_efforts is not None:
-                self._actuator.apply_torques(raw_entity, control_action.joint_efforts)
-        else:
-            # Implicit actuator / PD: set desired positions directly.
-            # Map action-space targets to robot DOF order using actuator's mapping method
-            num_dofs = joint_pos.shape[-1]
-            dof_targets = self._actuator.map_action_to_dof_targets(self._targets, num_dofs)
-            self._env.scene.controller.set_joint_targets(self._entity_name, dof_targets, control_type="position")
 
+@configclass
+class JointPositionActionCfg(JointActionCfg):
+    """Configuration for joint position action term."""
+    class_type: type = JointPositionAction  # Will be set to JointPositionAction below
+    """The action term class type. Set automatically."""
+    actuator_name: str = MISSING
+    """Name of the actuator to use for this action term."""
+    use_default_offset: bool = True

@@ -32,6 +32,8 @@ class UnitreeGo2RoughEnvCfg(BaseVelocityEnvCfg):
         # Actions: Align with genesis-forge example
         # - scale: 0.25 (same as genesis-forge)
         # - use_default_offset: True (use default joint positions as offset)
+        # - actuator_name: "GO2HV" (from robot configuration)
+        self.actions.joint_pos.actuator_name = "GO2HV"
         self.actions.joint_pos.scale = 0.25
         self.actions.joint_pos.use_default_offset = True
 

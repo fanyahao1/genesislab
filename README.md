@@ -100,6 +100,28 @@ These scripts validate:
 - reward and observation pipelines
 - vectorized rollouts
 
+### Train with RSL-RL (Go2 flat velocity)
+
+Use the integrated RSL-RL pipeline to train a Unitree Go2 flat velocity-tracking policy:
+
+```bash
+python scripts/reinforcement_learning/rsl_rl/train.py \
+  --env-id Genesis-Velocity-Flat-Go2-v0 \
+  --num-envs 4096 \
+  --num-iters 3000
+```
+
+### Play / visualize a trained policy
+
+Load a checkpoint and render a single environment in a window:
+
+```bash
+python scripts/reinforcement_learning/rsl_rl/play.py \
+  --env-id Genesis-Velocity-Flat-Go2-v0 \
+  --window \
+  --num-envs 1 \
+  --checkpoint <PATH TO CKPT>
+
 ---
 
 # Repository Structure

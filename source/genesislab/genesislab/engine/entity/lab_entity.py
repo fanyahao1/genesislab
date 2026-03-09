@@ -14,7 +14,7 @@ import torch
 if TYPE_CHECKING:
     from genesislab.envs.manager_based_genesis_env import ManagerBasedGenesisEnv
     from genesislab.engine.gstype import KinematicEntity
-    from genesislab.engine.assets.robot import ArticulationRobot
+    from genesislab.engine.assets.robot import Robot
     from genesislab.components.actuators import ActuatorBase
 
 from .lab_entity_data import LabEntityData
@@ -28,11 +28,11 @@ class LabEntity:
     """
 
     _raw_entity: "KinematicEntity"
-    _robot_asset: "ArticulationRobot"
+    _robot_asset: "Robot"
     _data: "LabEntityData" = None
     _actuators: Dict[str, "ActuatorBase"] = None
 
-    def __init__(self, env: "ManagerBasedGenesisEnv", entity_name: str, raw_entity: "KinematicEntity", robot_asset: "ArticulationRobot" = None):
+    def __init__(self, env: "ManagerBasedGenesisEnv", entity_name: str, raw_entity: "KinematicEntity", robot_asset: "Robot" = None):
         """Initialize the entity wrapper.
 
         Args:
@@ -65,7 +65,7 @@ class LabEntity:
         return self._raw_entity
 
     @property
-    def robot_asset(self) -> ArticulationRobot:
+    def robot_asset(self) -> Robot:
         """Access to the Robot asset wrapper (for name resolution, if available)."""
         return self._robot_asset
 

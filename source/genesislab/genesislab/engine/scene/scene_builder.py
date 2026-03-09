@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from genesislab.components.sensors import SensorBaseCfg
 
 from genesislab.engine.assets.articulation import ArticulationCfg
-from genesislab.engine.assets.robot import ArticulationRobot
+from genesislab.engine.assets.robot import Robot
 from genesislab.engine.entity import LabEntity
 
 
@@ -119,7 +119,7 @@ class SceneBuilder:
         # Create a copy of the config with the entity name set
         asset_cfg = robot_cfg.replace(name=entity_name)
         # Use Robot class which provides name resolution support
-        asset = ArticulationRobot(asset_cfg, device=self._scene.device)
+        asset = Robot(asset_cfg, device=self._scene.device)
         raw_entity = asset.build_into_scene(scene)
         
         # Construct and return LabEntity directly

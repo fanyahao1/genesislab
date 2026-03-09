@@ -8,7 +8,7 @@ from typing import Any, Literal
 import genesis as gs
 
 from genesislab.utils.configclass import configclass
-from .robot_cfg import RobotCfg
+from genesislab.engine.assets.robot_cfg import RobotCfg
 from .terrain_cfg import TerrainCfg
 
 @configclass

@@ -8,57 +8,11 @@ dependency on Omniverse or Isaac Sim.
 
 from __future__ import annotations
 
-from dataclasses import MISSING
-from typing import Any, Literal, Sequence
-
 import torch
-
 import genesis as gs
-
-from genesislab.utils.configclass import configclass
-
+from typing import Any, Literal, Sequence
 from genesislab.engine.assets.lab_asset_base import LabAssetBase
-
-@configclass
-class InitialPoseCfg:
-    """Initial pose configuration for a robot."""
-
-    pos: list[float] = [0.0, 0.0, 0.0]
-    """Initial position (x, y, z)."""
-
-    quat: list[float] = [0.0, 0.0, 0.0, 1.0]
-    """Initial orientation quaternion (x, y, z, w)."""
-
-@configclass
-class ArticulationCfg:
-    """Configuration for a Genesis articulation asset.
-
-    This is intentionally lightweight and aligned with :class:`RobotCfg` so
-    that environments can easily construct either scene-level robots or
-    explicit asset wrappers.
-    """
-
-    name: str = MISSING
-    """Logical name of the articulation asset."""
-
-    morph_type: Literal["URDF", "MJCF", "USD"] = MISSING
-    """Type of Genesis morph to construct."""
-
-    morph_path: str = ""
-    """File path to the robot description (URDF/MJCF/USD)."""
-
-    initial_pose: InitialPoseCfg = InitialPoseCfg()
-    """Initial pose of the articulation root."""
-
-    fixed_base: bool = False
-    """Whether the base of the articulation is fixed."""
-
-    control_dofs: list[str] = None
-    """List of joint names to control. If None, all actuated joints are controlled."""
-
-    morph_options: dict = {}
-    """Additional keyword arguments forwarded to the Genesis morph constructor."""
-
+from genesislab.engine.assets.articulation_cfg import ArticulationCfg
 
 class Articulation(LabAssetBase):
     """Genesis-native articulation asset.
@@ -74,7 +28,7 @@ class Articulation(LabAssetBase):
     # at import time. To keep this class usable with the current `genesis`
     # distribution, we provide a safe default ("cuda:0" if available, else "cpu")
     # and still allow callers to pass an explicit device.
-    def __init__(self, cfg: ArticulationCfg, device: str | torch.device = None):
+    def __init__(self, cfg: "ArticulationCfg", device: str | torch.device = None):
         super().__init__(name=cfg.name)
         self.cfg = cfg
         if device is None:

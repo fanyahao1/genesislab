@@ -25,7 +25,7 @@ class UnitreeGo2FlatEnvCfg(UnitreeGo2RoughEnvCfg):
             self.rewards.feet_air_time.weight = 0.25
 
         # Change terrain to flat
-        self.scene.terrain = TerrainCfg(type="plane")
+        self.scene.terrain = TerrainCfg(terrain_type="plane")
         # No terrain curriculum
         if self.curriculum is not None:
             self.curriculum.terrain_levels = None

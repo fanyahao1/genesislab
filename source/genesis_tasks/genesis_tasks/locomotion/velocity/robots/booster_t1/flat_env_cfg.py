@@ -23,7 +23,7 @@ class BoosterT1FlatEnvCfg(BoosterT1RoughEnvCfg):
             self.rewards.feet_air_time.weight = 0.25
 
         # Change terrain to flat
-        self.scene.terrain = TerrainCfg(type="plane")
+        self.scene.terrain = TerrainCfg(terrain_type="plane")
         if self.curriculum is not None:
             self.curriculum.terrain_levels = None
 

@@ -22,6 +22,10 @@ from genesislab.utils.configclass import configclass
 import genesis_tasks.locomotion.velocity.mdp as mdp
 
 from genesislab.components.sensors import ContactSensorCfg
+from genesislab.components.entities.terrain_cfg.terrain_cfg import (
+    GenesisTerrainMorphCfg,
+    TerrainSurfaceCfg,
+)
 
 ##
 # MDP settings (configclass-based, for direct use in task configs)
@@ -36,9 +40,23 @@ class VelocitySceneCfg(SceneCfg):
     backend     : str = "cuda"
     viewer      : bool = False
 
-    terrain     : TerrainCfg =TerrainCfg(type="rough")
+    # Terrain: Genesis native rough heightfield based on genesis-forge example
+    terrain     : TerrainCfg = TerrainCfg(
+        terrain_type="genesisbase",
+        terrain_details_cfg=GenesisTerrainMorphCfg(
+            pos=(-12.0, -12.0, 0.0),
+            n_subterrains=(1, 1),
+            subterrain_size=(24.0, 24.0),
+            vertical_scale=0.001,
+            subterrain_types=[["random_uniform_terrain"]],
+        ),
+        surface_cfg=TerrainSurfaceCfg(
+            # Default surface; users can override color/texture in task-specific cfgs
+            diffuse_color=None,
+        ),
+    )
     robots      : dict = {"robot": None}
-    sensors: dict = {
+    sensors     : dict = {
         "contact_forces": ContactSensorCfg(
             entity_name="robot",
             history_length=3,

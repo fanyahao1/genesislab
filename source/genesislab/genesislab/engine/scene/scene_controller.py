@@ -34,9 +34,7 @@ class SceneController:
         if env_ids is None:
             self._scene.gs_scene.reset()
         else:
-            # Convert to list if tensor
-            if isinstance(env_ids, torch.Tensor):
-                env_ids = env_ids.cpu().tolist()
+            # if isinstance(env_ids, torch.Tensor): env_ids = env_ids.cpu().tolist()
             self._scene.gs_scene.reset(envs_idx=env_ids)
     
     def step(self) -> None:

@@ -17,6 +17,8 @@ from .articulation_actions import ArticulationActions
 
 if TYPE_CHECKING:
     from .actuator_base_cfg import ActuatorBaseCfg
+    from genesis.engine.entities import RigidEntity
+    from genesislab.engine.entity.lab_entity import LabEntity
 
 
 class ActuatorBase(ABC):
@@ -270,7 +272,7 @@ class ActuatorBase(ABC):
             raise RuntimeError("DOF indices not set for this actuator. This should be set by ActuatorManager.")
         return self._dof_indices
     
-    def apply_torques(self, entity: Any, torques: torch.Tensor) -> None:
+    def apply_torques(self, entity: "RigidEntity", torques: torch.Tensor) -> None:
         """Apply torques directly to the entity for this actuator's DOFs.
         
         This method applies torques directly using control_dofs_force(), which allows
@@ -280,12 +282,8 @@ class ActuatorBase(ABC):
             entity: The Genesis entity to apply torques to.
             torques: Torques tensor of shape (num_envs, num_joints) in actuator's joint order.
         """
-        if len(self.dof_indices) == torques.shape[-1]:
-            entity.control_dofs_force(torques, self.dof_indices)
-        else:
-            # Handle shape mismatch
-            num_mapped = min(len(self.dof_indices), torques.shape[-1])
-            entity.control_dofs_force(torques[:, :num_mapped], self.dof_indices[:num_mapped])
+        assert len(self.dof_indices) == torques.shape[-1], "Should have same shape"
+        entity.control_dofs_force(torques, self.dof_indices)
     
     def map_action_to_dof_targets(self, action_targets: torch.Tensor, num_robot_dofs: int) -> torch.Tensor:
         """Map action-space targets to robot DOF-space targets.

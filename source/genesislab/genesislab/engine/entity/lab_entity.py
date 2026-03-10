@@ -56,7 +56,8 @@ class LabEntity:
     def data(self) -> LabEntityData:
         """Data view for accessing entity state."""
         if self._data is None:
-            self._data = LabEntityData(self._env, self._entity_name)
+            # Pass self so that LabEntityData can access the raw entity directly
+            self._data = LabEntityData(self._env, self)
         return self._data
 
     @property
@@ -105,6 +106,4 @@ class LabEntity:
         Returns:
             Tensor of DOF indices from the robot asset, or None if not available.
         """
-        if self._robot_asset is not None:
-            return self._robot_asset.dof_indices
-        return None
+        return self._robot_asset.dof_indices

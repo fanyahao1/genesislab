@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
 
 from genesislab.engine.scene.scene_builder import SceneBuilder
-from genesislab.engine.scene.scene_querier import SceneQuerier
 from genesislab.engine.scene.scene_controller import SceneController
 from genesislab.engine.scene.actuator_manager import ActuatorManager
 
@@ -50,7 +49,6 @@ class LabScene:
         # Initialize helper components
         self._scene_builder = SceneBuilder(self)
         self._actuator_manager = ActuatorManager(self)
-        self._querier = SceneQuerier(self)
         self._controller = SceneController(self)
     
     def build(self, env: "ManagerBasedRlEnv" = None) -> None:
@@ -154,11 +152,6 @@ class LabScene:
     def num_envs(self) -> int:
         """Number of parallel environments."""
         return self._num_envs
-    
-    @property
-    def querier(self) -> "SceneQuerier":
-        """Scene querier for state queries."""
-        return self._querier
     
     @property
     def controller(self) -> "SceneController":

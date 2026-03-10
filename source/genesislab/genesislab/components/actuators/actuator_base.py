@@ -267,7 +267,12 @@ class ActuatorBase(ABC):
     
     @property
     def dof_indices(self) -> torch.Tensor:
-        """DOF indices in the robot's DOF space that this actuator controls."""
+        """DOF indices in the joint DOF space (excluding base) that this actuator controls.
+
+        These indices are intended for indexing joint-space tensors obtained from ``entity.data``,
+        which already drop the base DOFs (i.e. correspond to DOFs starting from index 6 in the
+        underlying Genesis entity for floating-base robots).
+        """
         if self._dof_indices is None:
             raise RuntimeError("DOF indices not set for this actuator. This should be set by ActuatorManager.")
         return self._dof_indices
@@ -283,7 +288,11 @@ class ActuatorBase(ABC):
             torques: Torques tensor of shape (num_envs, num_joints) in actuator's joint order.
         """
         assert len(self.dof_indices) == torques.shape[-1], "Should have same shape"
-        entity.control_dofs_force(torques, self.dof_indices)
+        # Map joint-space torques (excluding base) to entity DOF indices by offsetting by 6.
+        # For floating-base robots, the first 6 DOFs correspond to base motion.
+        base_offset = 6 if entity.n_dofs > 6 else 0
+        dofs_idx_local = (self.dof_indices + base_offset).to(device=torques.device)
+        entity.control_dofs_force(torques, dofs_idx_local)
     
     def map_action_to_dof_targets(self, action_targets: torch.Tensor, num_robot_dofs: int) -> torch.Tensor:
         """Map action-space targets to robot DOF-space targets.

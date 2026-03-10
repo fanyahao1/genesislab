@@ -3,6 +3,7 @@ import torch
 
 if TYPE_CHECKING:
     from genesislab.envs.manager_based_genesis_env import ManagerBasedGenesisEnv
+    from .lab_entity import LabEntity
 
 
 class LabEntityData:
@@ -18,16 +19,18 @@ class LabEntityData:
     - Link positions: world frame positions of all links/bodies
     """
 
-    def __init__(self, env: "ManagerBasedGenesisEnv", entity_name: str):
+    def __init__(self, env: "ManagerBasedGenesisEnv", entity: "LabEntity"):
         """Initialize the entity data view.
 
         Args:
             env: The environment instance.
-            entity_name: Name of the entity.
+            entity: LabEntity wrapper for the underlying Genesis entity.
         """
         self._env = env
         self._scene = env.scene
-        self._entity_name = entity_name
+        self._lab_entity = entity
+        self._entity_name = entity.name
+        self._raw_entity = entity.raw_entity
         # Track previous joint velocity for acceleration computation
         self._prev_joint_vel: torch.Tensor = None
         # Track last step when acceleration was computed (to avoid multiple updates per step)
@@ -35,6 +38,37 @@ class LabEntityData:
 
     _default_joint_pos: torch.Tensor = None
     _default_joint_vel: torch.Tensor = None
+    _default_root_pos: torch.Tensor = None
+    _default_root_quat: torch.Tensor = None
+    _default_root_lin_vel: torch.Tensor = None
+    _default_root_ang_vel: torch.Tensor = None
+
+    # ------------------------------------------------------------------
+    # Name accessors
+    # ------------------------------------------------------------------
+
+    @property
+    def joint_names(self) -> list[str]:
+        """Joint names (excluding base joint)."""
+        names = self._lab_entity.joint_names
+        return names[1:] if names else names
+
+    @property
+    def raw_joint_names(self) -> list[str]:
+        """Raw joint names (excluding base joint)."""
+        names = self._lab_entity.raw_joint_names
+        return names[1:] if names else names
+
+    @property
+    def link_names(self) -> list[str]:
+        """Link/body names (all)."""
+        return self._lab_entity.link_names
+
+    @property
+    def raw_link_names(self) -> list[str]:
+        """Raw link/body names (all)."""
+        return self._lab_entity.raw_link_names
+
 
     @property
     def default_joint_pos(self) -> torch.Tensor:
@@ -45,12 +79,14 @@ class LabEntityData:
         """
         if self._default_joint_pos is None:
             # Initialize default joint positions
-            # Get current joint positions to infer shape
-            joint_pos, _ = self._scene.querier.get_joint_state(self._entity_name)
-            num_envs, num_dofs = joint_pos.shape
-            
-            # Initialize with zeros
-            self._default_joint_pos = torch.zeros(num_envs, num_dofs, device=self._env.device)
+            # Get current joint positions to infer full DOF shape, then drop base DOFs
+            joint_pos_full = self._raw_entity.get_dofs_position()
+            num_envs, num_dofs_full = joint_pos_full.shape
+            base_offset = 6 if num_dofs_full > 6 else 0
+            num_joints = num_dofs_full - base_offset
+
+            # Initialize with zeros for joint DOFs only (exclude base)
+            self._default_joint_pos = torch.zeros(num_envs, num_joints, device=self._env.device)
             
             robot_cfg = self._env.scene.cfg.robots.get(self._entity_name)
             if robot_cfg is not None and hasattr(robot_cfg, "default_joint_pos") and robot_cfg.default_joint_pos is not None:
@@ -67,14 +103,15 @@ class LabEntityData:
                 joint_values = robot_asset.resolve_joint_values(robot_cfg.default_joint_pos)
                 joint_dof_indices = robot_asset.get_all_joint_dof_indices()
                 
-                # Set default joint positions for matched joints
+                # Set default joint positions for matched joints (map global DOF -> joint-subspace index)
                 for raw_joint_name, value in joint_values.items():
                     if raw_joint_name in joint_dof_indices:
-                        dof_indices = joint_dof_indices[raw_joint_name]
-                        # Set value for all DOFs of this joint
-                        for dof_idx in dof_indices:
-                            if dof_idx < num_dofs:
-                                self._default_joint_pos[:, dof_idx] = value
+                        dof_indices_full = joint_dof_indices[raw_joint_name]
+                        for dof_idx_full in dof_indices_full:
+                            if base_offset <= dof_idx_full < num_dofs_full:
+                                dof_idx_joint = dof_idx_full - base_offset
+                                if dof_idx_joint < num_joints:
+                                    self._default_joint_pos[:, dof_idx_joint] = value
 
         return self._default_joint_pos
 
@@ -87,12 +124,14 @@ class LabEntityData:
         """
         if self._default_joint_vel is None:
             # Initialize default joint velocities
-            # Get current joint velocities to infer shape
-            _, joint_vel = self._scene.querier.get_joint_state(self._entity_name)
-            num_envs, num_dofs = joint_vel.shape
-            
-            # Initialize with zeros (default velocity is zero)
-            self._default_joint_vel = torch.zeros(num_envs, num_dofs, device=self._env.device)
+            # Get current joint velocities to infer full DOF shape, then drop base DOFs
+            joint_vel_full = self._raw_entity.get_dofs_velocity()
+            num_envs, num_dofs_full = joint_vel_full.shape
+            base_offset = 6 if num_dofs_full > 6 else 0
+            num_joints = num_dofs_full - base_offset
+
+            # Initialize with zeros (default velocity is zero) for joint DOFs only
+            self._default_joint_vel = torch.zeros(num_envs, num_joints, device=self._env.device)
             
             robot_cfg = self._env.scene.cfg.robots.get(self._entity_name)
             if robot_cfg is not None and hasattr(robot_cfg, "default_joint_vel") and robot_cfg.default_joint_vel is not None:
@@ -109,28 +148,33 @@ class LabEntityData:
                 joint_values = robot_asset.resolve_joint_values(robot_cfg.default_joint_vel)
                 joint_dof_indices = robot_asset.get_all_joint_dof_indices()
                 
-                # Set default joint velocities for matched joints
+                # Set default joint velocities for matched joints (map global DOF -> joint-subspace index)
                 for raw_joint_name, value in joint_values.items():
                     if raw_joint_name in joint_dof_indices:
-                        dof_indices = joint_dof_indices[raw_joint_name]
-                        # Set value for all DOFs of this joint
-                        for dof_idx in dof_indices:
-                            if dof_idx < num_dofs:
-                                self._default_joint_vel[:, dof_idx] = value
+                        dof_indices_full = joint_dof_indices[raw_joint_name]
+                        for dof_idx_full in dof_indices_full:
+                            if base_offset <= dof_idx_full < num_dofs_full:
+                                dof_idx_joint = dof_idx_full - base_offset
+                                if dof_idx_joint < num_joints:
+                                    self._default_joint_vel[:, dof_idx_joint] = value
 
         return self._default_joint_vel
 
     @property
     def joint_pos(self) -> torch.Tensor:
         """Joint positions. Shape: (num_envs, num_dofs)."""
-        pos, _ = self._scene.querier.get_joint_state(self._entity_name)
-        return pos
+        pos_full = self._raw_entity.get_dofs_position()
+        num_envs, num_dofs_full = pos_full.shape
+        base_offset = 6 if num_dofs_full > 6 else 0
+        return pos_full[:, base_offset:]
 
     @property
     def joint_vel(self) -> torch.Tensor:
         """Joint velocities. Shape: (num_envs, num_dofs)."""
-        _, vel = self._scene.querier.get_joint_state(self._entity_name)
-        return vel
+        vel_full = self._raw_entity.get_dofs_velocity()
+        num_envs, num_dofs_full = vel_full.shape
+        base_offset = 6 if num_dofs_full > 6 else 0
+        return vel_full[:, base_offset:]
 
     @property
     def joint_acc(self) -> torch.Tensor:
@@ -143,9 +187,12 @@ class LabEntityData:
         On the first call or after reset, returns zeros (no previous velocity available).
         The previous velocity is updated once per environment step to ensure consistency.
         """
-        # Get current joint velocity
-        _, vel_current = self._scene.querier.get_joint_state(self._entity_name)
-        num_envs, num_dofs = vel_current.shape
+        # Get current joint velocity (joint DOFs only, exclude base)
+        vel_full = self._raw_entity.get_dofs_velocity()
+        num_envs, num_dofs_full = vel_full.shape
+        base_offset = 6 if num_dofs_full > 6 else 0
+        vel_current = vel_full[:, base_offset:]
+        num_dofs = vel_current.shape[-1]
         
         # Get current step count to track when to update
         current_step = getattr(self._env, "common_step_counter", 0)
@@ -182,9 +229,11 @@ class LabEntityData:
         This property collects applied efforts from all actuators configured for this entity.
         If no actuators are configured, returns zeros.
         """
-        # Get joint state to infer shape
-        joint_pos, _ = self._scene.querier.get_joint_state(self._entity_name)
-        num_envs, num_dofs = joint_pos.shape
+        # Get joint state to infer shape (joint DOFs only, exclude base)
+        joint_pos_full = self._raw_entity.get_dofs_position()
+        num_envs, num_dofs_full = joint_pos_full.shape
+        base_offset = 6 if num_dofs_full > 6 else 0
+        num_dofs = num_dofs_full - base_offset
         
         # Initialize with zeros
         applied_torques = torch.zeros(num_envs, num_dofs, device=self._env.device)
@@ -240,8 +289,7 @@ class LabEntityData:
     @property
     def root_pos_w(self) -> torch.Tensor:
         """Root position in world frame. Shape: (num_envs, 3)."""
-        pos, _, _, _ = self._scene.querier.get_root_state(self._entity_name)
-        return pos
+        return self._raw_entity.get_pos()
 
     @property
     def link_pos_w(self) -> torch.Tensor:
@@ -249,25 +297,55 @@ class LabEntityData:
         
         Returns the translation (position) of all links/bodies in the entity.
         """
-        return self._scene.querier.get_body_positions(self._entity_name)
+        return self._raw_entity.get_links_pos()
 
     @property
     def root_quat_w(self) -> torch.Tensor:
         """Root quaternion in world frame. Shape: (num_envs, 4)."""
-        _, quat, _, _ = self._scene.querier.get_root_state(self._entity_name)
-        return quat
+        return self._raw_entity.get_quat()
 
     @property
     def root_lin_vel_w(self) -> torch.Tensor:
         """Root linear velocity in world frame. Shape: (num_envs, 3)."""
-        _, _, lin_vel, _ = self._scene.querier.get_root_state(self._entity_name)
-        return lin_vel
+        return self._raw_entity.get_vel()
 
     @property
     def root_ang_vel_w(self) -> torch.Tensor:
         """Root angular velocity in world frame. Shape: (num_envs, 3)."""
-        _, _, _, ang_vel = self._scene.querier.get_root_state(self._entity_name)
-        return ang_vel
+        return self._raw_entity.get_ang()
+
+    # ------------------------------------------------------------------
+    # Default root state (capture once, used as reset reference)
+    # ------------------------------------------------------------------
+
+    @property
+    def default_root_pos_w(self) -> torch.Tensor:
+        """Default root position used for resets. Shape: (num_envs, 3)."""
+        if self._default_root_pos is None:
+            self._default_root_pos = self.root_pos_w.clone()
+        return self._default_root_pos
+
+    @property
+    def default_root_quat_w(self) -> torch.Tensor:
+        """Default root orientation used for resets. Shape: (num_envs, 4)."""
+        if self._default_root_quat is None:
+            self._default_root_quat = self.root_quat_w.clone()
+        return self._default_root_quat
+
+    @property
+    def default_root_lin_vel_w(self) -> torch.Tensor:
+        """Default root linear velocity used for resets. Shape: (num_envs, 3)."""
+        if self._default_root_lin_vel is None:
+            # Typically zero, but capture whatever the initial state is.
+            self._default_root_lin_vel = self.root_lin_vel_w.clone()
+        return self._default_root_lin_vel
+
+    @property
+    def default_root_ang_vel_w(self) -> torch.Tensor:
+        """Default root angular velocity used for resets. Shape: (num_envs, 3)."""
+        if self._default_root_ang_vel is None:
+            self._default_root_ang_vel = self.root_ang_vel_w.clone()
+        return self._default_root_ang_vel
 
     # For compatibility with IsaacLab-style observations that use body frame
     @property

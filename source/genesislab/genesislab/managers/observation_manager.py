@@ -381,7 +381,7 @@ class ObservationManager(ManagerBase):
 				if hasattr(term_cfg.func, "reset") and callable(term_cfg.func.reset):
 					self._group_obs_class_term_cfgs[group_name].append(term_cfg)
 
-				obs_dims = tuple(term_cfg.func(self._env, **term_cfg.params).shape)
+				obs_dims = tuple[int, ...](term_cfg.func(self._env, **term_cfg.params).shape)
 
 				if term_cfg.scale is not None:
 					term_cfg.scale = torch.tensor(

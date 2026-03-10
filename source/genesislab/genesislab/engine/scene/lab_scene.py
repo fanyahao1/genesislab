@@ -12,7 +12,7 @@ import genesis as gs
 import torch
 
 if TYPE_CHECKING:
-    from genesislab.components.entities.scene_cfg import SceneCfg
+    from .lab_scene_cfg import SceneCfg
     from genesislab.components.sensors import SensorBase
     from genesislab.engine.entity import LabEntity
     from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv

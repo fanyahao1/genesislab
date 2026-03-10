@@ -1,6 +1,6 @@
 """Configuration for Booster T1 velocity tracking task on flat terrain."""
 
-from genesislab.components.entities.scene_cfg import TerrainCfg
+from genesislab.components.terrains import TerrainCfg
 from genesislab.utils.configclass import configclass
 
 from .rough_env_cfg import BoosterT1RoughEnvCfg

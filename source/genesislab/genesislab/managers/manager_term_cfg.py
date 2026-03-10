@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Dict, Literal, Tuple, Union
 
 import torch
 
-from genesislab.components.entities.scene_entity_cfg import SceneEntityCfg
+from genesislab.components.scene_entity_cfg import SceneEntityCfg
 from genesislab.utils.configclass import configclass
 
 if TYPE_CHECKING:

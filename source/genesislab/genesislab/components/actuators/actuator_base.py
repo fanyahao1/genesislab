@@ -106,8 +106,8 @@ class ActuatorBase(ABC):
     viscous_friction: torch.Tensor
     """The joint viscous friction of the actuator joints. Shape is (num_envs, num_joints)."""
 
-    _DEFAULT_MAX_EFFORT_SIM: ClassVar[float] = 1.0e9
-    """The default maximum effort for the actuator joints in the simulation. Defaults to 1.0e9.
+    _DEFAULT_MAX_EFFORT_SIM: ClassVar[float] = 1.0e3
+    """The default maximum effort for the actuator joints in the simulation. Defaults to 1.0e3.
 
     If the :attr:`ActuatorBaseCfg.effort_limit_sim` is not specified and the actuator is an explicit
     actuator, then this value is used.
@@ -288,6 +288,13 @@ class ActuatorBase(ABC):
             torques: Torques tensor of shape (num_envs, num_joints) in actuator's joint order.
         """
         assert len(self.dof_indices) == torques.shape[-1], "Should have same shape"
+
+        # Safety clip at execution time using simulation effort limits.
+        # eff_limit_sim is (num_envs, num_joints) and broadcasts over torques.
+        if isinstance(self.effort_limit_sim, torch.Tensor):
+            max_eff = self.effort_limit_sim.to(device=torques.device)
+            torques = torch.clamp(torques, min=-max_eff, max=max_eff)
+
         # Map joint-space torques (excluding base) to entity DOF indices by offsetting by 6.
         # For floating-base robots, the first 6 DOFs correspond to base motion.
         base_offset = 6 if entity.n_dofs > 6 else 0

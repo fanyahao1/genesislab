@@ -1,6 +1,6 @@
 """Configuration for G1 BeyondMimic velocity tracking task on flat terrain."""
 
-from genesislab.components.entities.scene_cfg import TerrainCfg
+from genesislab.components.terrains import TerrainCfg
 from genesislab.utils.configclass import configclass
 
 from .rough_env_cfg import G1RoughEnvCfg

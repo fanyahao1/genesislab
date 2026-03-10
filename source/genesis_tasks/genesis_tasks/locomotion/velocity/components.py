@@ -8,7 +8,7 @@ environments.
 import math
 from dataclasses import MISSING
 
-from genesislab.components.entities.scene_cfg import SceneCfg, TerrainCfg
+from genesislab.engine.scene import SceneCfg, TerrainCfg
 from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnvCfg
 from genesislab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from genesislab.managers.action_manager import ActionTermCfg
@@ -22,7 +22,7 @@ from genesislab.utils.configclass import configclass
 import genesis_tasks.locomotion.velocity.mdp as mdp
 
 from genesislab.components.sensors import ContactSensorCfg
-from genesislab.components.entities.terrain_cfg.terrain_cfg import (
+from genesislab.components.terrains import (
     GenesisTerrainMorphCfg,
     TerrainSurfaceCfg,
 )

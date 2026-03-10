@@ -8,7 +8,7 @@ import genesis as gs
 
 if TYPE_CHECKING:
     from .lab_scene import LabScene
-    from genesislab.components.entities.scene_cfg import SceneCfg
+    from genesislab.engine.scene import SceneCfg
     from genesislab.components.sensors import SensorBaseCfg
 
 from genesislab.components.sensors import SensorBase

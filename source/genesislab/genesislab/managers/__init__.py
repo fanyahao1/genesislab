@@ -26,4 +26,4 @@ from .recorder_manager import (
 )
 from .reward_manager import RewardManager
 from .termination_manager import TerminationManager
-from genesislab.components.entities.scene_entity_cfg import SceneEntityCfg
+from genesislab.components.scene_entity_cfg import SceneEntityCfg

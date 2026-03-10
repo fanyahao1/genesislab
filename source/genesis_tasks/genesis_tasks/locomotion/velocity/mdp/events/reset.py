@@ -31,17 +31,14 @@ def reset_root_state_uniform(
     env_ids = resolve_env_ids(env, env_ids)
     if env_ids.numel() == 0:
         return
-
-    entity_name = asset_cfg.entity_name
-    pos_w, quat_w, lin_vel_w, ang_vel_w = env.scene.querier.get_root_state(entity_name)
-    pos_w = pos_w[env_ids].clone()
-    quat_w = quat_w[env_ids].clone()
-    lin_vel_w = lin_vel_w[env_ids].clone()
-    ang_vel_w = ang_vel_w[env_ids].clone()
-
+    robot = env.scene.entities[asset_cfg.entity_name]
+    # Use default root state as the baseline, so repeated resets do not drift.
+    pos_w = robot.data.default_root_pos_w[env_ids].clone()
+    quat_w = robot.data.default_root_quat_w[env_ids].clone()
+    lin_vel_w = robot.data.default_root_lin_vel_w[env_ids].clone()
+    ang_vel_w = robot.data.default_root_ang_vel_w[env_ids].clone()
     device = env.device
     num_envs = env_ids.numel()
-
     pose_offsets = sample_range_dict(
         pose_range,
         keys=("x", "y", "z", "roll", "pitch", "yaw"),
@@ -50,15 +47,7 @@ def reset_root_state_uniform(
     )
     pos_offsets = pose_offsets[:, :3]
     rot_offsets = pose_offsets[:, 3:]
-
     pos_w = pos_w + pos_offsets
-
-    if not torch.allclose(rot_offsets, torch.zeros_like(rot_offsets)):
-        roll, pitch, yaw = rot_offsets.unbind(dim=-1)
-        delta_quat = euler_xyz_to_quat(roll, pitch, yaw)
-        quat_w = quat_w / torch.norm(quat_w, dim=-1, keepdim=True)
-        delta_quat = delta_quat / torch.norm(delta_quat, dim=-1, keepdim=True)
-        quat_w = quat_mul(quat_w, delta_quat)
 
     vel_offsets = sample_range_dict(
         velocity_range,
@@ -73,7 +62,7 @@ def reset_root_state_uniform(
     ang_vel_w = ang_vel_w + ang_offsets
 
     env.scene.controller.set_root_state(
-        entity_name=entity_name,
+        entity_name=asset_cfg.entity_name,
         position=pos_w,
         quaternion=quat_w,
         linear_velocity=lin_vel_w,
@@ -94,8 +83,9 @@ def reset_joints_by_scale(
     if env_ids.numel() == 0:
         return
 
-    entity = env.entities[asset_cfg.entity_name]
-    data = entity.data
+    # Entity wrapper and data view
+    lab_entity = env.entities[asset_cfg.entity_name]
+    data = lab_entity.data
 
     default_pos = data.default_joint_pos[env_ids].clone()
     default_vel = data.default_joint_vel[env_ids].clone()

@@ -7,7 +7,8 @@ configurations, following IsaacLab's design pattern.
 import math
 from dataclasses import MISSING
 
-from genesislab.components.entities.scene_cfg import SceneCfg, TerrainCfg
+from genesislab.engine.scene import SceneCfg
+from genesislab.components.terrains import TerrainCfg
 from genesislab.components.sensors import ContactSensorCfg
 from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnvCfg
 from genesislab.managers import SceneEntityCfg

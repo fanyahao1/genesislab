@@ -8,7 +8,7 @@ from typing import ClassVar, TYPE_CHECKING, Dict
 
 import torch
 
-from genesislab.components.entities.scene_cfg import SceneCfg
+from genesislab.engine.scene import SceneCfg
 from genesislab.utils.configclass import configclass
 
 from genesislab.engine.scene import LabScene
@@ -276,8 +276,8 @@ class ManagerBasedGenesisEnv:
             # Step physics
             self._scene.controller.step()
 
-            # Update sensors (if any) at physics rate.
-            self._update_sensors()
+        # Update sensors (if any) at physics rate.
+        self._update_sensors()
 
         # Update episode counters
         self.episode_length_buf += 1

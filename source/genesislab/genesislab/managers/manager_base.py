@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
-from genesislab.components.entities.scene_entity_cfg import SceneEntityCfg
+from genesislab.components.scene_entity_cfg import SceneEntityCfg
 from genesislab.managers.manager_term_cfg import ManagerTermBaseCfg
 from genesislab.utils.imports import resolve_callable
 

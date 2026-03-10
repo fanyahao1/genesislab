@@ -8,7 +8,7 @@ environments.
 import math
 from dataclasses import MISSING
 
-from genesislab.components.entities.scene_cfg import SceneCfg, TerrainCfg
+from genesislab.engine.scene import SceneCfg, TerrainCfg
 from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnvCfg
 from genesislab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from genesislab.managers.action_manager import ActionTermCfg
@@ -22,6 +22,10 @@ from genesislab.utils.configclass import configclass
 import genesis_tasks.locomotion.velocity.mdp as mdp
 
 from genesislab.components.sensors import ContactSensorCfg
+from genesislab.components.terrains import (
+    GenesisTerrainMorphCfg,
+    TerrainSurfaceCfg,
+)
 
 ##
 # MDP settings (configclass-based, for direct use in task configs)
@@ -36,9 +40,23 @@ class VelocitySceneCfg(SceneCfg):
     backend     : str = "cuda"
     viewer      : bool = False
 
-    terrain     : TerrainCfg =TerrainCfg(type="rough")
+    # Terrain: Genesis native rough heightfield based on genesis-forge example
+    terrain     : TerrainCfg = TerrainCfg(
+        terrain_type="genesisbase",
+        terrain_details_cfg=GenesisTerrainMorphCfg(
+            pos=(-12.0, -12.0, 0.0),
+            n_subterrains=(1, 1),
+            subterrain_size=(24.0, 24.0),
+            vertical_scale=0.001,
+            subterrain_types=[["random_uniform_terrain"]],
+        ),
+        surface_cfg=TerrainSurfaceCfg(
+            # Default surface; users can override color/texture in task-specific cfgs
+            diffuse_color=None,
+        ),
+    )
     robots      : dict = {"robot": None}
-    sensors: dict = {
+    sensors     : dict = {
         "contact_forces": ContactSensorCfg(
             entity_name="robot",
             history_length=3,
@@ -197,7 +215,7 @@ class EventsCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg(entity_name="robot", body_names="base"),
-            "mass_distribution_params": (-1.0, 3.0),
+            "mass_distribution_params": (-0.0, 0.0),
             "operation": "add",
         },
     )
@@ -207,7 +225,7 @@ class EventsCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg(entity_name="robot", body_names="base"),
-            "com_range": {"x": (-0.05, 0.05), "y": (-0.05, 0.05), "z": (-0.01, 0.01)},
+            "com_range": {"x": (-0.0, 0.0), "y": (-0.0, 0.0), "z": (-0.0, 0.0)},
         },
     )
 

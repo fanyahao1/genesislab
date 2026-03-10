@@ -62,8 +62,8 @@ class ActuatorManager:
 
             normalized_joint_names = robot_asset.get_normalized_joint_names()
 
-            # Get joint state to infer number of DOFs
-            dof_pos, _ = self._scene.querier.get_joint_state(entity_name)
+            # Get joint state to infer number of DOFs directly from entity
+            dof_pos = entity.get_dofs_position()
             num_dofs = dof_pos.shape[-1]
             num_envs = dof_pos.shape[0]
 
@@ -98,12 +98,12 @@ class ActuatorManager:
                         f"Available normalized joint names: {normalized_joint_names}"
                     )
 
-                # Resolve DOF indices for matched joints (using raw names)
-                matched_dof_indices = []
+                # Resolve DOF indices for matched joints (using raw names, full DOF space)
+                matched_dof_indices_full = []
                 for raw_joint_name in matched_raw_names:
                     if raw_joint_name in joint_name_to_dof_indices:
-                        matched_dof_indices.extend(joint_name_to_dof_indices[raw_joint_name])
-                num_actuator_joints = len(matched_dof_indices)
+                        matched_dof_indices_full.extend(joint_name_to_dof_indices[raw_joint_name])
+                num_actuator_joints = len(matched_dof_indices_full)
 
                 # Convert to tensor or slice for efficiency
                 if len(matched_raw_names) == len(raw_joint_names):
@@ -142,20 +142,32 @@ class ActuatorManager:
                 # Store actuator instance in the entity
                 lab_entity._actuators[actuator_name] = actuator
                 
-                # Store DOF indices in actuator for later use by action terms
-                dof_indices_tensor = torch.tensor(matched_dof_indices, dtype=torch.long, device=self._scene.device)
-                actuator._dof_indices = dof_indices_tensor
+                # Store joint-space DOF indices (excluding base DOFs) in actuator for later use by action terms.
+                # We assume the first 6 DOFs correspond to the floating-base motion; joint DOFs start from index 6.
+                base_offset = 6 if num_dofs > 6 else 0
+                joint_space_indices = [idx - base_offset for idx in matched_dof_indices_full if idx >= base_offset]
+                actuator._dof_indices = torch.tensor(
+                    joint_space_indices,
+                    dtype=torch.long,
+                    device=self._scene.device,
+                )
 
-                # Set engine kp/kv to 0 for all actuators
-                # All actuators compute torques explicitly and apply them via control_dofs_force()
-                zero_kp = torch.zeros(len(matched_dof_indices), device=self._scene.device)
-                zero_kd = torch.zeros(len(matched_dof_indices), device=self._scene.device)
-                entity.set_dofs_kp(zero_kp, dof_indices_tensor)
-                entity.set_dofs_kv(zero_kd, dof_indices_tensor)
+                # Set engine kp/kv to 0 for all matched DOFs (full DOF space).
+                # All actuators compute torques explicitly and apply them via control_dofs_force().
+                zero_kp = torch.zeros(len(matched_dof_indices_full), device=self._scene.device)
+                zero_kd = torch.zeros(len(matched_dof_indices_full), device=self._scene.device)
+                full_dof_tensor = torch.tensor(
+                    matched_dof_indices_full,
+                    dtype=torch.long,
+                    device=self._scene.device,
+                )
+                entity.set_dofs_kp(zero_kp, full_dof_tensor)
+                entity.set_dofs_kv(zero_kd, full_dof_tensor)
                 
                 logger.info(
                     f"Robot '{entity_name}': Actuator '{actuator_name}': "
-                    f"DOF indices {matched_dof_indices}, "
+                    f"Full DOF indices {matched_dof_indices_full}, "
+                    f"Joint-space indices {joint_space_indices}, "
                     f"Joints {matched_normalized_names}. "
                     f"Set engine kp/kv to 0. Actuator will compute torques explicitly."
                 )

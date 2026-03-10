@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Tuple
 
 import genesis as gs
 
 if TYPE_CHECKING:
     from .lab_scene import LabScene
-    from genesislab.components.entities.scene_cfg import SceneCfg
+    from genesislab.engine.scene import SceneCfg
     from genesislab.components.sensors import SensorBaseCfg
 
+from genesislab.components.sensors import SensorBase
 from genesislab.engine.assets.articulation import ArticulationCfg
 from genesislab.engine.assets.robot import Robot
 from genesislab.engine.entity import LabEntity
-
 
 class SceneBuilder:
     """Helper class for building Genesis scenes and adding entities."""
@@ -79,30 +79,40 @@ class SceneBuilder:
             center_envs_at_origin=self._scene.cfg.center_envs_at_origin,
         )
 
-    def add_terrain(self, scene: gs.Scene) -> None:
+    def add_terrain(self, scene: gs.Scene) -> Tuple["gs.morphs.Morph", "gs.surfaces.Surface"]:
         """Add terrain entity to the scene.
+
+        Supports terrain_type 'plane', 'genesisbase'. 'generator' is not implemented.
 
         Args:
             scene: The Genesis Scene instance.
         """
-        terrain_cfg = self._scene.cfg.terrain
-        if terrain_cfg is None:
-            return
 
-        # Support both dict-based and configclass-based terrain configs.
-        if isinstance(terrain_cfg, dict):
-            terrain_type = terrain_cfg.get("type", "plane")
-        else:
-            terrain_type = getattr(terrain_cfg, "type", "plane")
+        terrain_cfg = self._scene.cfg.terrain
+        terrain_type = terrain_cfg.terrain_type
+
+        # Build surface from config (abstracted)
+        surface = terrain_cfg.surface_cfg.build_surface()
+
         if terrain_type == "plane":
-            # Use Genesis' built-in infinite plane primitive so that the ground
-            # is visually more obvious in renderings (with proper shading and
-            # reflections) while still acting as a flat contact surface.
-            plane = gs.morphs.Plane()
-            scene.add_entity(plane, name="terrain")
+            morph = gs.morphs.Plane()
+        elif terrain_type == "genesisbase":
+            if terrain_cfg.terrain_details_cfg is None:
+                raise ValueError(
+                    "terrain_type 'genesisbase' requires terrain_details_cfg to be set."
+                )
+            morph = gs.morphs.Terrain(
+                **terrain_cfg.terrain_details_cfg.to_genesis_dict()
+            )
+        elif terrain_type == "generator":
+            raise NotImplementedError(
+                "terrain_type 'generator' is not implemented. Use 'plane' or 'genesisbase'."
+            )
         else:
-            # Handle other terrain types (e.g., heightfield, mesh)
-            raise NotImplementedError(f"Terrain type '{terrain_type}' not yet implemented")
+            raise ValueError(f"Unsupported terrain_type: {terrain_type}")
+
+        scene.add_entity(surface=surface, morph=morph, name="terrain")
+        return morph, surface
 
     def add_robot(self, scene: gs.Scene, entity_name: str, robot_cfg: ArticulationCfg, env: Any = None) -> LabEntity:
         """Add a robot entity to the scene using the Genesis-native asset layer.
@@ -126,7 +136,7 @@ class SceneBuilder:
         lab_entity = LabEntity(env, entity_name, raw_entity, robot_asset=asset)
         return lab_entity
 
-    def add_sensor(self, scene: "LabScene", sensor_name: str, sensor_cfg: "SensorBaseCfg") -> None:
+    def add_sensor(self, scene: "LabScene", sensor_name: str, sensor_cfg: "SensorBaseCfg") -> "SensorBase":
         """Add a sensor to the scene.
 
         Sensors are created using their configuration's class_type. The sensor
@@ -176,3 +186,4 @@ class SceneBuilder:
         
         # Add sensor to the scene (framework-managed)
         scene.add_sensor(sensor_name, sensor)
+        return sensor

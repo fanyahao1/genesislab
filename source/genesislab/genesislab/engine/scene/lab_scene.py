@@ -6,18 +6,18 @@ including entities, sensors, scene construction, and coordination of query and c
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Dict
 
 import genesis as gs
 import torch
 
 if TYPE_CHECKING:
-    from genesislab.components.entities.scene_cfg import SceneCfg
+    from .lab_scene_cfg import SceneCfg
     from genesislab.components.sensors import SensorBase
     from genesislab.engine.entity import LabEntity
+    from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
 
 from genesislab.engine.scene.scene_builder import SceneBuilder
-from genesislab.engine.scene.scene_querier import SceneQuerier
 from genesislab.engine.scene.scene_controller import SceneController
 from genesislab.engine.scene.actuator_manager import ActuatorManager
 
@@ -49,42 +49,9 @@ class LabScene:
         # Initialize helper components
         self._scene_builder = SceneBuilder(self)
         self._actuator_manager = ActuatorManager(self)
-        self._querier = SceneQuerier(self)
         self._controller = SceneController(self)
     
-    @property
-    def gs_scene(self) -> gs.Scene:
-        """The underlying Genesis Scene instance."""
-        if self._gs_scene is None:
-            raise RuntimeError("Scene not built. Call build() first.")
-        return self._gs_scene
-    
-    @property
-    def entities(self) -> Dict[str, "LabEntity"]:
-        """Dictionary of entities keyed by name."""
-        return self._entities
-    
-    @property
-    def sensors(self) -> Dict[str, "SensorBase"]:
-        """Dictionary of sensors keyed by name."""
-        return self._sensors
-    
-    @property
-    def num_envs(self) -> int:
-        """Number of parallel environments."""
-        return self._num_envs
-    
-    @property
-    def querier(self) -> "SceneQuerier":
-        """Scene querier for state queries."""
-        return self._querier
-    
-    @property
-    def controller(self) -> "SceneController":
-        """Scene controller for control and state setting."""
-        return self._controller
-    
-    def build(self, env: Any = None) -> None:
+    def build(self, env: "ManagerBasedRlEnv" = None) -> None:
         """Build the Genesis scene and entities.
         
         This method:
@@ -103,7 +70,7 @@ class LabScene:
         
         # Add terrain if specified
         if self.cfg.terrain is not None:
-            self._scene_builder.add_terrain(self._gs_scene)
+            terrain, surface = self._scene_builder.add_terrain(self._gs_scene)
         
         # Add robots
         for entity_name, robot_cfg in self.cfg.robots.items():
@@ -164,7 +131,34 @@ class LabScene:
             )
         return self._sensors[name]
     
-    def __getattr__(self, name: str) -> Any:
+    @property
+    def gs_scene(self) -> gs.Scene:
+        """The underlying Genesis Scene instance."""
+        if self._gs_scene is None:
+            raise RuntimeError("Scene not built. Call build() first.")
+        return self._gs_scene
+    
+    @property
+    def entities(self) -> Dict[str, "LabEntity"]:
+        """Dictionary of entities keyed by name."""
+        return self._entities
+    
+    @property
+    def sensors(self) -> Dict[str, "SensorBase"]:
+        """Dictionary of sensors keyed by name."""
+        return self._sensors
+    
+    @property
+    def num_envs(self) -> int:
+        """Number of parallel environments."""
+        return self._num_envs
+    
+    @property
+    def controller(self) -> "SceneController":
+        """Scene controller for control and state setting."""
+        return self._controller
+    
+    def __getattr__(self, name: str) -> object:
         """Delegate attribute access to the underlying Genesis Scene.
         
         This allows LabScene to be used as a drop-in replacement for

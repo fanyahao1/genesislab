@@ -1,6 +1,6 @@
 """Configuration for Go2 velocity tracking task on flat terrain."""
 
-from genesislab.components.entities.scene_cfg import SceneCfg, TerrainCfg
+from genesislab.engine.scene import SceneCfg, TerrainCfg
 from genesislab.managers import SceneEntityCfg
 from genesislab.utils.configclass import configclass
 
@@ -25,7 +25,7 @@ class UnitreeGo2FlatEnvCfg(UnitreeGo2RoughEnvCfg):
             self.rewards.feet_air_time.weight = 0.25
 
         # Change terrain to flat
-        self.scene.terrain = TerrainCfg(type="plane")
+        self.scene.terrain = TerrainCfg(terrain_type="plane")
         # No terrain curriculum
         if self.curriculum is not None:
             self.curriculum.terrain_levels = None

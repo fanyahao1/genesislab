@@ -120,8 +120,7 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
         del options  # Currently unused, kept for Gymnasium compatibility.
 
         # Re-seed if provided
-        if seed is not None:
-            self.seed(seed)
+        if seed is not None: self.seed(seed)
 
         # Determine which environments to reset
         if env_ids is None:
@@ -151,7 +150,7 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
         self.curriculum_manager.compute(env_ids=env_ids)
 
         # Reset scene
-        self._scene.controller.reset(env_ids=env_ids)
+        # self._scene.controller.reset(env_ids=env_ids)
 
         # Reset episode counters
         self.episode_length_buf[env_ids] = 0

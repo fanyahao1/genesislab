@@ -1,6 +1,6 @@
 """Configuration for Go2 velocity tracking task on rough terrain."""
 
-from genesislab.components.entities.scene_cfg import SceneCfg, TerrainCfg
+from genesislab.engine.scene import SceneCfg, TerrainCfg
 from genesislab.managers import SceneEntityCfg
 from genesislab.utils.configclass import configclass
 

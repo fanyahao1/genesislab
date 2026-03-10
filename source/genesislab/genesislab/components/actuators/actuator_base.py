@@ -17,6 +17,8 @@ from .articulation_actions import ArticulationActions
 
 if TYPE_CHECKING:
     from .actuator_base_cfg import ActuatorBaseCfg
+    from genesis.engine.entities import RigidEntity
+    from genesislab.engine.entity.lab_entity import LabEntity
 
 
 class ActuatorBase(ABC):
@@ -104,8 +106,8 @@ class ActuatorBase(ABC):
     viscous_friction: torch.Tensor
     """The joint viscous friction of the actuator joints. Shape is (num_envs, num_joints)."""
 
-    _DEFAULT_MAX_EFFORT_SIM: ClassVar[float] = 1.0e9
-    """The default maximum effort for the actuator joints in the simulation. Defaults to 1.0e9.
+    _DEFAULT_MAX_EFFORT_SIM: ClassVar[float] = 1.0e3
+    """The default maximum effort for the actuator joints in the simulation. Defaults to 1.0e3.
 
     If the :attr:`ActuatorBaseCfg.effort_limit_sim` is not specified and the actuator is an explicit
     actuator, then this value is used.
@@ -265,12 +267,17 @@ class ActuatorBase(ABC):
     
     @property
     def dof_indices(self) -> torch.Tensor:
-        """DOF indices in the robot's DOF space that this actuator controls."""
+        """DOF indices in the joint DOF space (excluding base) that this actuator controls.
+
+        These indices are intended for indexing joint-space tensors obtained from ``entity.data``,
+        which already drop the base DOFs (i.e. correspond to DOFs starting from index 6 in the
+        underlying Genesis entity for floating-base robots).
+        """
         if self._dof_indices is None:
             raise RuntimeError("DOF indices not set for this actuator. This should be set by ActuatorManager.")
         return self._dof_indices
     
-    def apply_torques(self, entity: Any, torques: torch.Tensor) -> None:
+    def apply_torques(self, entity: "RigidEntity", torques: torch.Tensor) -> None:
         """Apply torques directly to the entity for this actuator's DOFs.
         
         This method applies torques directly using control_dofs_force(), which allows
@@ -280,12 +287,19 @@ class ActuatorBase(ABC):
             entity: The Genesis entity to apply torques to.
             torques: Torques tensor of shape (num_envs, num_joints) in actuator's joint order.
         """
-        if len(self.dof_indices) == torques.shape[-1]:
-            entity.control_dofs_force(torques, self.dof_indices)
-        else:
-            # Handle shape mismatch
-            num_mapped = min(len(self.dof_indices), torques.shape[-1])
-            entity.control_dofs_force(torques[:, :num_mapped], self.dof_indices[:num_mapped])
+        assert len(self.dof_indices) == torques.shape[-1], "Should have same shape"
+
+        # Safety clip at execution time using simulation effort limits.
+        # eff_limit_sim is (num_envs, num_joints) and broadcasts over torques.
+        if isinstance(self.effort_limit_sim, torch.Tensor):
+            max_eff = self.effort_limit_sim.to(device=torques.device)
+            torques = torch.clamp(torques, min=-max_eff, max=max_eff)
+
+        # Map joint-space torques (excluding base) to entity DOF indices by offsetting by 6.
+        # For floating-base robots, the first 6 DOFs correspond to base motion.
+        base_offset = 6 if entity.n_dofs > 6 else 0
+        dofs_idx_local = (self.dof_indices + base_offset).to(device=torques.device)
+        entity.control_dofs_force(torques, dofs_idx_local)
     
     def map_action_to_dof_targets(self, action_targets: torch.Tensor, num_robot_dofs: int) -> torch.Tensor:
         """Map action-space targets to robot DOF-space targets.

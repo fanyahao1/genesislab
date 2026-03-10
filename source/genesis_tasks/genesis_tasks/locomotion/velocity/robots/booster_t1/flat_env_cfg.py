@@ -1,6 +1,6 @@
 """Configuration for Booster T1 velocity tracking task on flat terrain."""
 
-from genesislab.components.entities.scene_cfg import TerrainCfg
+from genesislab.components.terrains import TerrainCfg
 from genesislab.utils.configclass import configclass
 
 from .rough_env_cfg import BoosterT1RoughEnvCfg
@@ -23,7 +23,7 @@ class BoosterT1FlatEnvCfg(BoosterT1RoughEnvCfg):
             self.rewards.feet_air_time.weight = 0.25
 
         # Change terrain to flat
-        self.scene.terrain = TerrainCfg(type="plane")
+        self.scene.terrain = TerrainCfg(terrain_type="plane")
         if self.curriculum is not None:
             self.curriculum.terrain_levels = None
 

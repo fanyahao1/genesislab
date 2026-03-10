@@ -299,7 +299,6 @@ class ActionManager(ManagerBase):
 			# Skip private fields
 			if term_name.startswith("_"):
 				continue
-			term_cfg: ActionTermCfg
 			if term_cfg is None or term_cfg is MISSING:
 				print(f"term: {term_name} set to None/MISSING, skipping...")
 				continue

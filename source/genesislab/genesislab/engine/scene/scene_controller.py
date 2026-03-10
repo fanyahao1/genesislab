@@ -34,9 +34,7 @@ class SceneController:
         if env_ids is None:
             self._scene.gs_scene.reset()
         else:
-            # Convert to list if tensor
-            if isinstance(env_ids, torch.Tensor):
-                env_ids = env_ids.cpu().tolist()
+            # if isinstance(env_ids, torch.Tensor): env_ids = env_ids.cpu().tolist()
             self._scene.gs_scene.reset(envs_idx=env_ids)
     
     def step(self) -> None:
@@ -80,7 +78,16 @@ class SceneController:
         lab_entity = self._scene.entities[entity_name]
         entity = lab_entity.raw_entity
         dof_indices = lab_entity.dof_indices
-        entity.set_dofs_position(positions, dof_indices, envs_idx=env_ids)
+
+        if dof_indices is not None:
+            entity.set_dofs_position(positions, dof_indices + 6, envs_idx=env_ids)
+        else:
+            num_joint_dofs = positions.shape[-1]
+            entity.set_dofs_position(
+                positions,
+                dofs_idx_local=slice(6, 6 + num_joint_dofs),
+                envs_idx=env_ids,
+            )
 
     def set_joint_velocities(self, entity_name: str, velocities: torch.Tensor, env_ids: torch.Tensor = None) -> None:
         """Set joint velocities for an entity (for reset/initialization).
@@ -93,7 +100,16 @@ class SceneController:
         lab_entity = self._scene.entities[entity_name]
         entity = lab_entity.raw_entity
         dof_indices = lab_entity.dof_indices
-        entity.set_dofs_velocity(velocities, dof_indices, envs_idx=env_ids)
+
+        if dof_indices is not None:
+            entity.set_dofs_velocity(velocities, dof_indices, envs_idx=env_ids)
+        else:
+            num_joint_dofs = velocities.shape[-1]
+            entity.set_dofs_velocity(
+                velocities,
+                dofs_idx_local=slice(6, 6 + num_joint_dofs),
+                envs_idx=env_ids,
+            )
     
     def set_root_state(
         self,
@@ -116,16 +132,33 @@ class SceneController:
         """
         lab_entity = self._scene.entities[entity_name]
         entity = lab_entity.raw_entity
-        # Set position
-        if position is not None:
-            entity.set_pos(position, envs_idx=env_ids)
-        # Set quaternion
-        if quaternion is not None:
-            entity.set_quat(quaternion, envs_idx=env_ids)
-        # Set base velocity: Genesis RigidEntity has no set_vel/set_ang; the first 6 DOFs
-        # are (lin_vel_xyz, ang_vel_xyz) for floating base. Use set_dofs_velocity.
+
+        # Base pose: prefer setting through DOFs (first 7 generalized coordinates: pos_xyz + quat_wxyz)
+        # when both position and quaternion are provided. This keeps reset logic consistent
+        # with joint-level operations and avoids mixing root-state and DOF APIs.
+        if position is not None and quaternion is not None:
+            # Ensure batched shapes (num_envs, *)
+            if position.dim() == 1:
+                position = position.unsqueeze(0)
+            if quaternion.dim() == 1:
+                quaternion = quaternion.unsqueeze(0)
+            base_q = torch.cat([position, quaternion], dim=-1)
+            # First 7 DOFs correspond to floating-base generalized coordinates.
+            entity.set_dofs_position(base_q, dofs_idx_local=slice(0, 7), envs_idx=env_ids, zero_velocity=False)
+        else:
+            # Fallback: use explicit root pose setters if only pos or quat is given.
+            if position is not None:
+                entity.set_pos(position, envs_idx=env_ids)
+            if quaternion is not None:
+                entity.set_quat(quaternion, envs_idx=env_ids)
+
+        # Base velocities: use first 6 DOFs (lin_vel_xyz, ang_vel_xyz).
         if linear_velocity is not None or angular_velocity is not None:
             if linear_velocity is not None and angular_velocity is not None:
+                if linear_velocity.dim() == 1:
+                    linear_velocity = linear_velocity.unsqueeze(0)
+                if angular_velocity.dim() == 1:
+                    angular_velocity = angular_velocity.unsqueeze(0)
                 vel_6d = torch.cat([linear_velocity, angular_velocity], dim=-1)
                 entity.set_dofs_velocity(vel_6d, dofs_idx_local=slice(0, 6), envs_idx=env_ids)
             elif linear_velocity is not None:

@@ -1,3 +1,4 @@
+#YAML config for external dependencies
 repos:
   - name: assetslib
     url: git@github.com:Renforce-Dynamics/assetslib.git
@@ -7,4 +8,5 @@ repos:
 editable_modules:
   - ./source/genesislab
   - ./source/genesis_tasks
-
+  - ./source/genesis_assets
+  - ./source/genesis_rl

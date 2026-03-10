@@ -5,7 +5,7 @@ set -e
 # Config
 # ============================================================
 
-YAML_FILE="${THIRD_PARTY_YAML:-$(dirname "$0")/third_party_repos.yaml"
+YAML_FILE="${THIRD_PARTY_YAML:-$(dirname "$0")/third_party_repos.yaml}"
 
 # ============================================================
 # Utility functions

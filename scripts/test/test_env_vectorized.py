@@ -91,7 +91,8 @@ def test_vectorized(
         traceback.print_exc()
         return False
 
-    scene = env._binding.scene
+    # Access scene for potential video recording
+    scene = env._scene
     # Test reset
     print("\nTesting reset...")
     try:

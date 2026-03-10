@@ -164,4 +164,8 @@ done < <(EXT_YAML_FILE="$EXT_YAML_FILE" parse_ext_yaml)
 
 install_modules "${editable_modules[@]}"
 
+echo "🧩 Installing additional Python dependencies..."
+pip install pyyaml tensorboard prettytable gymnasium --quiet
+echo "✅ Dependencies installed."
+
 echo "✅ External setup completed."

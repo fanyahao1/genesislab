@@ -14,10 +14,10 @@ from typing import TYPE_CHECKING
 import genesis as gs
 import torch
 
-from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnvCfg
-from genesislab.components.entities.robot_cfg import RobotCfg
+from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv, ManagerBasedRlEnvCfg
+from genesislab.engine.assets.robot_cfg import RobotCfg
 from genesislab.components.entities.scene_cfg import SceneCfg
-from genesislab.envs import ManagerBasedGenesisEnv
+from genesislab.components.entities.terrain_cfg import TerrainCfg
 from genesislab.managers.action_manager import ActionTerm, ActionTermCfg
 from genesislab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from genesislab.managers.reward_manager import RewardTermCfg
@@ -39,9 +39,9 @@ class DemoActionTermCfg(ActionTermCfg):
 class DemoActionTerm(ActionTerm):
     """Minimal action term that directly maps actions to joint position targets."""
 
-    def __init__(self, cfg: DemoActionTermCfg, env: "_MBEnv"):
+    def __init__(self, cfg: ActionTermCfg, env: "_MBEnv"):
         super().__init__(cfg, env)
-        dof_pos, _ = env._binding.get_joint_state(cfg.entity_name)
+        dof_pos, _ = env.scene.querier.get_joint_state(cfg.entity_name)
         self._action_dim = dof_pos.shape[-1]
         self._raw_action = torch.zeros((self.num_envs, self._action_dim), device=self.device)
         self._targets = torch.zeros_like(self._raw_action)
@@ -67,7 +67,7 @@ class DemoActionTerm(ActionTerm):
         self._targets[:] = actions
 
     def apply_actions(self) -> None:
-        self._env._binding.set_joint_targets(
+        self._env.scene.controller.set_joint_targets(
             self.cfg.entity_name,
             self._targets,
             control_type="position",
@@ -85,8 +85,10 @@ def test_random_rollout():
     # Create a minimal environment config using the Go2 asset
     scene_cfg = SceneCfg(
         num_envs=4,
-        dt=0.002,
-        substeps=1,
+        sim_options=SceneCfg.SimOptionsCfg(
+            dt=0.002,
+            substeps=1,
+        ),
         backend=backend_str,
         robots={
             "go2": RobotCfg(
@@ -97,24 +99,22 @@ def test_random_rollout():
                 control_dofs=None,  # Control all DOFs
             )
         },
-        terrain={"type": "plane"},
+        terrain=TerrainCfg(type="plane"),
     )
+
+    @configclass
+    class PolicyCfg(ObservationGroupCfg):
+        dof_pos: ObservationTermCfg = ObservationTermCfg(
+            func=lambda env: env.entities["go2"].data.joint_pos,
+        )
 
     env_cfg = ManagerBasedRlEnvCfg(
         decimation=10,
         scene=scene_cfg,
-        observations={
-            "policy": ObservationGroupCfg(
-                terms={
-                    "dof_pos": ObservationTermCfg(
-                        func=lambda env: env._binding.get_joint_state("go2")[0],
-                    ),
-                },
-                concatenate_terms=True,
-            )
-        },
+        observations={"policy": PolicyCfg(concatenate_terms=True)},
         actions={
-            "go2": DemoActionTermCfg(
+            "go2": ActionTermCfg(
+                class_type=DemoActionTerm,
                 entity_name="go2",
             )
         },
@@ -126,7 +126,7 @@ def test_random_rollout():
         },
         terminations={
             "fall": TerminationTermCfg(
-                func=lambda env: env._binding.get_root_state("go2")[0][:, 2] < 0.1,
+                func=lambda env: env.entities["go2"].data.root_pos_w[:, 2] < 0.1,
                 time_out=False,
             )
         },
@@ -136,7 +136,7 @@ def test_random_rollout():
 
     # Create environment
     print("Creating environment...")
-    env = ManagerBasedGenesisEnv(cfg=env_cfg, device=backend_str)
+    env = ManagerBasedRlEnv(cfg=env_cfg, device=backend_str)
     print(f"✓ Environment created with {env.num_envs} environments")
 
     # Reset

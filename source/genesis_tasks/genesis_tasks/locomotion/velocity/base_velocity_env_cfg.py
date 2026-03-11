@@ -9,7 +9,6 @@ from dataclasses import MISSING
 
 from genesislab.engine.scene import SceneCfg
 from genesislab.components.terrains import TerrainCfg
-from genesislab.components.sensors import ContactSensorCfg
 from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnvCfg
 from genesislab.managers import SceneEntityCfg
 from genesislab.utils.configclass import configclass

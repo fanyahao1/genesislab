@@ -67,9 +67,8 @@ class MotionCommand(CommandTerm):
         self.robot: "LabEntity" = env.entities[cfg.asset_name]
         self.robot_anchor_body_index = self.robot.data.link_names.index(self.cfg.anchor_body_name)
         self.motion_anchor_body_index = self.cfg.body_names.index(self.cfg.anchor_body_name)
-        self.body_indexes = torch.tensor(
-            self.robot.find_bodies(self.cfg.body_names, preserve_order=True)[0], dtype=torch.long, device=self.device
-        )
+        body_indices, _ = self.robot.robot_asset.match_bodies(self.cfg.body_names)
+        self.body_indexes = torch.tensor(body_indices, dtype=torch.long, device=self.device)
 
         self.motion = MotionLoader(self.cfg.motion_file, self.body_indexes, device=self.device)
         self.time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
@@ -77,7 +76,8 @@ class MotionCommand(CommandTerm):
         self.body_quat_relative_w = torch.zeros(self.num_envs, len(cfg.body_names), 4, device=self.device)
         self.body_quat_relative_w[:, :, 0] = 1.0
 
-        self.bin_count = int(self.motion.time_step_total // (1 / (env.cfg.decimation * env.cfg.sim.dt))) + 1
+        dt = getattr(env.cfg.scene.sim_options, "dt", 0.005)
+        self.bin_count = int(self.motion.time_step_total // (1 / (env.cfg.decimation * dt))) + 1
         self.bin_failed_count = torch.zeros(self.bin_count, dtype=torch.float, device=self.device)
         self._current_bin_failed = torch.zeros(self.bin_count, dtype=torch.float, device=self.device)
         self.kernel = torch.tensor(

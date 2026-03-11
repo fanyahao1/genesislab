@@ -69,6 +69,12 @@ class LabEntityData:
         """Raw link/body names (all)."""
         return self._lab_entity.raw_link_names
 
+    @property
+    def GRAVITY_VEC_W(self) -> torch.Tensor:
+        """World-frame gravity vector (0, 0, -1), shape (num_envs, 3). Used e.g. for orientation error in tracking."""
+        return torch.tensor([0.0, 0.0, -1.0], device=self._env.device, dtype=torch.float32).unsqueeze(0).expand(
+            self._env.num_envs, 3
+        )
 
     @property
     def default_joint_pos(self) -> torch.Tensor:

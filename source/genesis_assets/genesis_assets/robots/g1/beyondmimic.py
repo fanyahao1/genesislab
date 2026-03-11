@@ -46,8 +46,8 @@ DAMPING_4010 = 2.0 * DAMPING_RATIO * ARMATURE_4010 * NATURAL_FREQ
 ##
 
 G1_BEYONDMIMIC_CFG = RobotCfg(
-    morph_type="URDF",
-    morph_path=f"{ASSET_DIR}/unitree/unitree_g1/urdf/g1_29dof.urdf",
+    morph_type="USD",
+    morph_path=f"{ASSET_DIR}/third_party/beyondMimic/usd/g1.usd",
     initial_pose=InitialPoseCfg(
         pos=[0.0, 0.0, 0.76],
         quat=[0.0, 0.0, 0.0, 1.0],
@@ -174,8 +174,8 @@ G1_BEYONDMIMIC_CFG = RobotCfg(
             },
         ),
     },
-    morph_options={
-        "replace_cylinders_with_capsules": True,
-    },
+    # morph_options={
+    #     "replace_cylinders_with_capsules": True,
+    # },
 )
 

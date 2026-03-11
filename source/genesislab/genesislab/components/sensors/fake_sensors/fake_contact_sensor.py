@@ -13,10 +13,9 @@ import torch
 
 from genesislab.utils.configclass import configclass
 from genesislab.engine.entity import LabEntity
-from .sensor_base import SensorBase
-from .sensor_base_cfg import SensorBaseCfg
+from .fake_sensor_base import FakeSensorBase, FakeSensorBaseCfg
 
-class ContactSensor(SensorBase):
+class FakeContactSensor(FakeSensorBase):
     """Contact sensor for GenesisLab that reads real contact forces from Genesis engine.
 
     The sensor reads contact forces from the Genesis entity using
@@ -26,7 +25,7 @@ class ContactSensor(SensorBase):
 
     def __init__(
         self,
-        cfg: "ContactSensorCfg",
+        cfg: "FakeContactSensorCfg",
         num_envs: int,
         device: str = "cuda",
         entity: "LabEntity" = None,
@@ -234,7 +233,7 @@ class ContactSensor(SensorBase):
 
 
 @configclass
-class ContactSensorCfg(SensorBaseCfg):
+class FakeContactSensorCfg(FakeSensorBaseCfg):
     """Configuration for a contact sensor.
 
     Attributes:
@@ -247,7 +246,7 @@ class ContactSensorCfg(SensorBaseCfg):
             Currently this is a no-op placeholder kept for API compatibility.
     """
 
-    class_type: type = ContactSensor  # Will be set after ContactSensor is defined
+    class_type: type = FakeContactSensor  # Will be set after ContactSensor is defined
     name: str = None
     entity_name: str = "robot"
     history_length: int = 3

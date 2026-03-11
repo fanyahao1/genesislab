@@ -12,9 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
-if TYPE_CHECKING:
-    from .sensor_base_cfg import SensorBaseCfg
-
+from genesislab.utils.configclass import configclass
 
 class SensorBase(ABC):
     """The base class for implementing a sensor in GenesisLab.
@@ -219,3 +217,29 @@ class SensorBase(ABC):
                 self._timestamp_last_update[outdated_env_ids] = self._timestamp[outdated_env_ids]
                 # Set outdated flag to false for the updated sensors
                 self._is_outdated[outdated_env_ids] = False
+
+@configclass
+class SensorBaseCfg:
+    """Base configuration parameters for a sensor.
+
+    All sensor configuration classes should inherit from this base class.
+    """
+
+    class_type: type["SensorBase"] = SensorBase
+    """The associated sensor class.
+
+    The class should inherit from :class:`SensorBase`.
+    """
+
+    name: str = None
+    """Logical name of the sensor. If None, the key in SceneCfg.sensors is used."""
+
+    update_period: float = 0.0
+    """Update period of the sensor buffers (in seconds). Defaults to 0.0 (update every step)."""
+
+    history_length: int = 0
+    """Number of past frames to store in the sensor buffers. Defaults to 0, which means that only
+    the current data is stored (no history)."""
+
+    debug_vis: bool = False
+    """Whether to visualize the sensor. Defaults to False."""

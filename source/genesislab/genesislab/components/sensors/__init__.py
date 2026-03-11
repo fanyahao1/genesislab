@@ -30,9 +30,30 @@ interpretation of the prim paths for different sensor types:
 
 """
 
-from .sensor_base import SensorBase
-from .sensor_base_cfg import SensorBaseCfg
-from .contact_sensor import ContactSensor as ContactSensor
-from .contact_sensor import ContactSensorCfg as ContactSensorCfg
+from .sensor_base import SensorBase, SensorBaseCfg
+from .contact_sensor import ContactSensor, ContactSensorCfg
+from .genesis_contact_bool_sensor import GenesisContactBoolSensor, GenesisContactBoolSensorCfg
+from .genesis_imu_sensor import GenesisImuSensor, GenesisImuSensorCfg
+from .genesis_camera_sensor import GenesisCameraSensor, GenesisCameraSensorCfg
+from .genesis_lidar_sensor import GenesisLidarSensor, GenesisLidarSensorCfg
+from .genesis_depth_camera_sensor import (
+    GenesisDepthCameraSensor,
+    GenesisDepthCameraSensorCfg,
+)
 
-__all__ = ["SensorBase", "SensorBaseCfg", "ContactSensor", "ContactSensorCfg"]
+__all__ = [
+    "SensorBase",
+    "SensorBaseCfg",
+    "ContactSensor",
+    "ContactSensorCfg",
+    "GenesisContactBoolSensor",
+    "GenesisContactBoolSensorCfg",
+    "GenesisImuSensor",
+    "GenesisImuSensorCfg",
+    "GenesisCameraSensor",
+    "GenesisCameraSensorCfg",
+    "GenesisLidarSensor",
+    "GenesisLidarSensorCfg",
+    "GenesisDepthCameraSensor",
+    "GenesisDepthCameraSensorCfg",
+]

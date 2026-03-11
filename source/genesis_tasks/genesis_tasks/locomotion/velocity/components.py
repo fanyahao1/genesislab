@@ -21,7 +21,7 @@ from genesislab.utils.configclass import configclass
 
 import genesis_tasks.locomotion.velocity.mdp as mdp
 
-from genesislab.components.sensors import ContactSensorCfg
+from genesislab.components.sensors.fake_sensors import FakeContactSensorCfg
 from genesislab.components.terrains import (
     GenesisTerrainMorphCfg,
     TerrainSurfaceCfg,
@@ -57,7 +57,7 @@ class VelocitySceneCfg(SceneCfg):
     )
     robots      : dict = {"robot": None}
     sensors     : dict = {
-        "contact_forces": ContactSensorCfg(
+        "contact_forces": FakeContactSensorCfg(
             entity_name="robot",
             history_length=3,
             track_air_time=True,

@@ -53,7 +53,7 @@ def main() -> None:
     log_dir = os.path.abspath(args.log_dir)
     os.makedirs(log_dir, exist_ok=True)
 
-    video_path: Path | None = None
+    video_path: Path = None
     if args.video:
         video_dir = Path(log_dir) / "videos"
         video_dir.mkdir(parents=True, exist_ok=True)

@@ -20,7 +20,7 @@ from .genesis_sub_terrain_cfg import SubTerrainBaseCfg, FlatSubTerrainCfg
 class TerrainSurfaceCfg:
     """Configuration for the terrain surface (gs.surfaces.Default)."""
 
-    diffuse_color: Tuple[float, float, float] | None = None
+    diffuse_color: Tuple[float, float, float] = None
     """Optional RGB diffuse color for the ground."""
 
     def build_surface(self):

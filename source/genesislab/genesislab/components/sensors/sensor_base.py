@@ -114,7 +114,7 @@ class SensorBase(ABC):
     Operations.
     """
 
-    def reset(self, env_ids: Sequence[int] | None = None) -> None:
+    def reset(self, env_ids: Sequence[int] = None) -> None:
         """Resets the sensor internals.
 
         Args:

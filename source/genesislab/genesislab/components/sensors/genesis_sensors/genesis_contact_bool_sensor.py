@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 import torch
 
 from genesislab.utils.configclass import configclass
 from .sensor_base import GenesisSensorBase, GenesisSensorBaseCfg
-from .genesis_sensor_utils import to_tensor
+from .genesis_sensor_utils import to_tensor, resolve_entity_idx
+from .genesis_sensor_types import GenesisContactSensorHandle
+
+if TYPE_CHECKING:
+    import genesis as gs
+    from genesislab.engine.scene.lab_scene import LabScene
 
 
 class GenesisContactBoolSensor(GenesisSensorBase):
@@ -36,9 +41,9 @@ class GenesisContactBoolSensor(GenesisSensorBase):
         cfg: "GenesisContactBoolSensorCfg",
         num_envs: int,
         device: str = "cuda",
-        genesis_sensor: Any | None = None,
+        genesis_sensor: GenesisContactSensorHandle = None,
     ) -> None:
-        self._gs_sensor = genesis_sensor
+        self._gs_sensor: GenesisContactSensorHandle = genesis_sensor
         history_len = max(int(cfg.history_length), 1)
 
         # Allocate with a conservative shape; will be resized on first update.
@@ -51,7 +56,7 @@ class GenesisContactBoolSensor(GenesisSensorBase):
         )
         super().__init__(cfg=cfg, num_envs=num_envs, device=device)
 
-    def set_genesis_sensor(self, genesis_sensor: Any) -> None:
+    def set_genesis_sensor(self, genesis_sensor: GenesisContactSensorHandle) -> None:
         """Attach the underlying Genesis ``Contact`` sensor."""
         self._gs_sensor = genesis_sensor
 
@@ -144,4 +149,18 @@ class GenesisContactBoolSensorCfg(GenesisSensorBaseCfg):
     class_type: type = GenesisContactBoolSensor
     name: str = None
     history_length: int = 3
+    entity_name: str = "robot"
+
+    def build_genesis_sensor(
+        self, gs_scene: "gs.Scene", lab_scene: "LabScene"
+    ) -> GenesisContactSensorHandle:
+        import genesis as gs
+
+        entity_idx = resolve_entity_idx(lab_scene, self.entity_name)
+        return gs_scene.add_sensor(
+            gs.sensors.Contact(
+                entity_idx=entity_idx,
+                draw_debug=getattr(self, "debug_vis", False),
+            )
+        )
 

@@ -49,8 +49,8 @@ class ActionTerm(ManagerTermBase):
 		self._entity = self._env.scene.entities[self.cfg.entity_name]
 		
 		# Clip bounds cache (will be initialized by _build_clip_bounds)
-		self._clip_lower: torch.Tensor | float | None = None
-		self._clip_upper: torch.Tensor | float | None = None
+		self._clip_lower: torch.Tensor | float = None
+		self._clip_upper: torch.Tensor | float = None
 
 	@property
 	@abc.abstractmethod
@@ -74,7 +74,7 @@ class ActionTerm(ManagerTermBase):
 		self,
 		action_dim: int,
 		clip: tuple[float, float] | dict[str, tuple[float, float]] | None,
-		joint_names: list[str] | None = None,
+		joint_names: list[str] = None,
 	) -> None:
 		"""Build and cache clip bounds for efficient clipping.
 		

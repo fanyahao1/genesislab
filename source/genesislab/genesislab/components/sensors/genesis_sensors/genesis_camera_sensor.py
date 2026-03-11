@@ -8,13 +8,18 @@ exposes the data through :class:`SensorBase`.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 import torch
 
 from genesislab.utils.configclass import configclass
 from .sensor_base import GenesisSensorBase, GenesisSensorBaseCfg
-from .genesis_sensor_utils import to_tensor
+from .genesis_sensor_utils import to_tensor, resolve_entity_idx, resolve_link_idx_local
+from .genesis_sensor_types import GenesisCameraSensorHandle
+
+if TYPE_CHECKING:
+    import genesis as gs
+    from genesislab.engine.scene.lab_scene import LabScene
 
 
 class GenesisCameraSensor(GenesisSensorBase):
@@ -40,13 +45,13 @@ class GenesisCameraSensor(GenesisSensorBase):
         cfg: "GenesisCameraSensorCfg",
         num_envs: int,
         device: str = "cuda",
-        genesis_sensor: Any | None = None,
+        genesis_sensor: GenesisCameraSensorHandle = None,
     ) -> None:
-        self._gs_sensor = genesis_sensor
-        self._rgb: torch.Tensor | None = None
+        self._gs_sensor: GenesisCameraSensorHandle = genesis_sensor
+        self._rgb: torch.Tensor = None
         super().__init__(cfg=cfg, num_envs=num_envs, device=device)
 
-    def set_genesis_sensor(self, genesis_sensor: Any) -> None:
+    def set_genesis_sensor(self, genesis_sensor: GenesisCameraSensorHandle) -> None:
         """Attach the underlying Genesis camera sensor."""
         self._gs_sensor = genesis_sensor
 
@@ -105,4 +110,33 @@ class GenesisCameraSensorCfg(GenesisSensorBaseCfg):
 
     class_type: type = GenesisCameraSensor
     name: str = None
+    res: tuple[int, int] = (512, 512)
+    pos: tuple[float, float, float] = (3.0, 0.0, 2.0)
+    lookat: tuple[float, float, float] = (0.0, 0.0, 0.5)
+    fov: float = 60.0
+    entity_name: str = None  # None -> static camera (entity_idx=-1)
+    link_name: str = None
+    draw_debug: bool = False
+
+    def build_genesis_sensor(
+        self, gs_scene: "gs.Scene", lab_scene: "LabScene"
+    ) -> GenesisCameraSensorHandle:
+        import genesis as gs
+
+        if self.entity_name:
+            entity_idx = resolve_entity_idx(lab_scene, self.entity_name)
+            link_idx_local = resolve_link_idx_local(lab_scene, self.entity_name, self.link_name)
+        else:
+            entity_idx = -1
+            link_idx_local = 0
+        return gs_scene.add_sensor(
+            gs.sensors.RasterizerCameraOptions(
+                res=self.res,
+                pos=self.pos,
+                lookat=self.lookat,
+                fov=self.fov,
+                entity_idx=entity_idx,
+                link_idx_local=link_idx_local,
+            )
+        )
 

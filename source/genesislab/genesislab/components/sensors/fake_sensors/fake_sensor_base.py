@@ -1,25 +1,37 @@
-"""Base class for sensors in GenesisLab.
+"""Base class for fake sensors in GenesisLab.
 
-This class defines an interface for sensors similar to how the AssetBase class works.
-Each sensor class should inherit from this class and implement the abstract methods.
+Fake sensors are built from privileged information within our framework (e.g.
+entity state, contact forces from the engine) and do not require a Genesis
+sensor object. They share common config such as entity_name for attachment.
 """
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
-
-import torch
+from typing import TYPE_CHECKING
 
 from genesislab.utils.configclass import configclass
 
 from ..sensor_base import SensorBase, SensorBaseCfg
 
+
 class FakeSensorBase(SensorBase):
+    """Base for sensors that use only framework/privileged data (no gs.sensors.*).
+
+    Subclasses typically read from a LabEntity or raw entity (e.g. contact
+    forces) and expose a SensorBase-compatible :attr:`data` interface.
+    """
+
     cfg: "FakeSensorBaseCfg"
-    pass
+
 
 @configclass
 class FakeSensorBaseCfg(SensorBaseCfg):
-    pass
+    """Base configuration for fake sensors.
+
+    Common options:
+        entity_name: Name of the scene entity this sensor is attached to
+            (e.g. "robot"). Used by SceneBuilder to inject the entity.
+    """
+
+    class_type: type["FakeSensorBase"] = FakeSensorBase
+    entity_name: str = None

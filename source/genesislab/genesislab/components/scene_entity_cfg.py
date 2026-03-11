@@ -38,7 +38,7 @@ class SceneEntityCfg:
     name: str = None
     """Alias for entity_name (IsaacLab compatibility). If set, takes precedence over entity_name."""
 
-    body_names: str | list[str] | None = None
+    body_names: str | list[str] = None
     """The names of the bodies from the entity required by the term. Defaults to None.
 
     The names can be either body names or a regular expression matching the body names.
@@ -53,7 +53,7 @@ class SceneEntityCfg:
     If :attr:`body_names` is specified, this is filled in automatically on resolution.
     """
 
-    joint_names: str | list[str] | None = None
+    joint_names: str | list[str] = None
     """The names of the joints from the entity required by the term. Defaults to None.
 
     The names can be either joint names or a regular expression matching the joint names.

@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 import torch
 
 from genesislab.utils.configclass import configclass
 from .sensor_base import GenesisSensorBase, GenesisSensorBaseCfg
-from .genesis_sensor_utils import to_tensor
+from .genesis_sensor_utils import to_tensor, resolve_entity_idx, resolve_link_idx_local
+from .genesis_sensor_types import GenesisImuSensorHandle
+
+if TYPE_CHECKING:
+    import genesis as gs
+    from genesislab.engine.scene.lab_scene import LabScene
 
 
 class GenesisImuSensor(GenesisSensorBase):
@@ -35,9 +40,9 @@ class GenesisImuSensor(GenesisSensorBase):
         cfg: "GenesisImuSensorCfg",
         num_envs: int,
         device: str = "cuda",
-        genesis_sensor: Any | None = None,
+        genesis_sensor: GenesisImuSensorHandle = None,
     ) -> None:
-        self._gs_sensor = genesis_sensor
+        self._gs_sensor: GenesisImuSensorHandle = genesis_sensor
         history_len = max(int(cfg.history_length), 1)
 
         # Allocate buffers; resized only if batch size changes.
@@ -45,7 +50,7 @@ class GenesisImuSensor(GenesisSensorBase):
         self._ang_vel = torch.zeros(history_len, num_envs, 3, device=device, dtype=torch.float32)
         super().__init__(cfg=cfg, num_envs=num_envs, device=device)
 
-    def set_genesis_sensor(self, genesis_sensor: Any) -> None:
+    def set_genesis_sensor(self, genesis_sensor: GenesisImuSensorHandle) -> None:
         """Attach the underlying Genesis ``IMU`` sensor."""
         self._gs_sensor = genesis_sensor
 
@@ -120,4 +125,24 @@ class GenesisImuSensorCfg(GenesisSensorBaseCfg):
     class_type: type = GenesisImuSensor
     name: str = None
     history_length: int = 1
+    entity_name: str = "robot"
+    link_name: str = None  # e.g. "base" or "trunk"; None -> link_idx_local=0
+    pos_offset: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    draw_debug: bool = False
+
+    def build_genesis_sensor(
+        self, gs_scene: "gs.Scene", lab_scene: "LabScene"
+    ) -> GenesisImuSensorHandle:
+        import genesis as gs
+
+        entity_idx = resolve_entity_idx(lab_scene, self.entity_name)
+        link_idx_local = resolve_link_idx_local(lab_scene, self.entity_name, self.link_name)
+        return gs_scene.add_sensor(
+            gs.sensors.IMU(
+                entity_idx=entity_idx,
+                link_idx_local=link_idx_local,
+                pos_offset=self.pos_offset,
+                draw_debug=self.draw_debug,
+            )
+        )
 

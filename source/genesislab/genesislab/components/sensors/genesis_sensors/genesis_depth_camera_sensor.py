@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 import torch
 
 from genesislab.utils.configclass import configclass
 from .sensor_base import GenesisSensorBase, GenesisSensorBaseCfg
-from .genesis_sensor_utils import to_tensor
+from .genesis_sensor_utils import to_tensor, resolve_entity_idx
+from .genesis_sensor_types import GenesisDepthCameraSensorHandle
+
+if TYPE_CHECKING:
+    import genesis as gs
+    from genesislab.engine.scene.lab_scene import LabScene
 
 
 class GenesisDepthCameraSensor(GenesisSensorBase):
@@ -33,12 +38,12 @@ class GenesisDepthCameraSensor(GenesisSensorBase):
         cfg: "GenesisDepthCameraSensorCfg",
         num_envs: int,
         device: str = "cuda",
-        genesis_sensor: Any | None = None,
+        genesis_sensor: GenesisDepthCameraSensorHandle = None,
     ) -> None:
-        self._gs_sensor = genesis_sensor
+        self._gs_sensor: GenesisDepthCameraSensorHandle = genesis_sensor
         super().__init__(cfg=cfg, num_envs=num_envs, device=device)
 
-    def set_genesis_sensor(self, genesis_sensor: Any) -> None:
+    def set_genesis_sensor(self, genesis_sensor: GenesisDepthCameraSensorHandle) -> None:
         """Attach the underlying Genesis ``DepthCamera`` sensor."""
         self._gs_sensor = genesis_sensor
 
@@ -94,4 +99,30 @@ class GenesisDepthCameraSensorCfg(GenesisSensorBaseCfg):
 
     class_type: type = GenesisDepthCameraSensor
     name: str = None
+    entity_name: str = "robot"
+    pos_offset: tuple[float, float, float] = (0.0, 0.0, 0.05)
+    res: tuple[int, int] = (640, 480)
+    fov_horizontal: float = 87.0
+    max_range: float = 5.0
+    draw_debug: bool = False
+
+    def build_genesis_sensor(
+        self, gs_scene: "gs.Scene", lab_scene: "LabScene"
+    ) -> GenesisDepthCameraSensorHandle:
+        import genesis as gs
+
+        entity_idx = resolve_entity_idx(lab_scene, self.entity_name)
+        pattern = gs.sensors.DepthCameraPattern(
+            res=self.res,
+            fov_horizontal=self.fov_horizontal,
+        )
+        return gs_scene.add_sensor(
+            gs.sensors.DepthCamera(
+                pattern=pattern,
+                entity_idx=entity_idx,
+                pos_offset=self.pos_offset,
+                max_range=self.max_range,
+                draw_debug=self.draw_debug,
+            )
+        )
 

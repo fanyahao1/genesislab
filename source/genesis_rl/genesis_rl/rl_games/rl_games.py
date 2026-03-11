@@ -49,7 +49,7 @@ class RlGamesVecEnvWrapper(IVecEnv):
         rl_device: str,
         clip_obs: float,
         clip_actions: float,
-        obs_groups: dict[str, list[str]] | None = None,
+        obs_groups: dict[str, list[str]] = None,
         concate_obs_group: bool = True,
     ):
         if not isinstance(env.unwrapped, ManagerBasedRlEnv) and not isinstance(env, ManagerBasedRlEnv):

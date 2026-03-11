@@ -137,7 +137,7 @@ class Sb3VecEnvWrapper(VecEnv):
     # VecEnv API
     # --------------------------------------------------------------------- #
 
-    def seed(self, seed: int | None = None) -> list[int | None]:
+    def seed(self, seed: int = None) -> list[int | None]:
         return [self.unwrapped.seed(seed)] * self.unwrapped.num_envs
 
     def reset(self) -> VecEnvObs:

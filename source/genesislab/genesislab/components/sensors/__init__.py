@@ -1,42 +1,32 @@
-"""Sub-package containing various sensor classes implementations.
+"""Sensor implementations for GenesisLab.
 
-This subpackage contains the sensor classes that are compatible with Isaac Sim. We include both
-USD-based and custom sensors:
+Two groups:
 
-* **USD-prim sensors**: Available in Omniverse and require creating a USD prim for them.
-  For instance, RTX ray tracing camera and lidar sensors.
-* **USD-schema sensors**: Available in Omniverse and require creating a USD schema on an existing prim.
-  For instance, contact sensors and frame transformers.
-* **Custom sensors**: Implemented in Python and do not require creating any USD prim or schema.
-  For instance, warp-based ray-casters.
-
-Due to the above categorization, the prim paths passed to the sensor's configuration class
-are interpreted differently based on the sensor type. The following table summarizes the
-interpretation of the prim paths for different sensor types:
-
-+---------------------+---------------------------+---------------------------------------------------------------+
-| Sensor Type         | Example Prim Path         | Pre-check                                                     |
-+=====================+===========================+===============================================================+
-| Camera              | /World/robot/base/camera  | Leaf is available, and it will spawn a USD camera             |
-+---------------------+---------------------------+---------------------------------------------------------------+
-| Contact Sensor      | /World/robot/feet_*       | Leaf is available and checks if the schema exists             |
-+---------------------+---------------------------+---------------------------------------------------------------+
-| Ray Caster          | /World/robot/base         | Leaf exists and is a physics body (Articulation / Rigid Body) |
-+---------------------+---------------------------+---------------------------------------------------------------+
-| Frame Transformer   | /World/robot/base         | Leaf exists and is a physics body (Articulation / Rigid Body) |
-+---------------------+---------------------------+---------------------------------------------------------------+
-| Imu                 | /World/robot/base         | Leaf exists and is a physics body (Rigid Body)                |
-+---------------------+---------------------------+---------------------------------------------------------------+
-
+* **Fake sensors** (``fake_sensors``): Use only privileged/framework data (e.g.
+  entity state, contact forces from the engine). No Genesis gs.sensors.* object.
+* **Genesis sensors** (``genesis_sensors``): Wrap a gs.sensors.* instance that is
+  added to the Genesis scene. SceneBuilder creates the underlying sensor and
+  injects it into the wrapper.
 """
 
 from .sensor_base import SensorBase, SensorBaseCfg
-from .contact_sensor import ContactSensor, ContactSensorCfg
-from .genesis_contact_bool_sensor import GenesisContactBoolSensor, GenesisContactBoolSensorCfg
-from .genesis_imu_sensor import GenesisImuSensor, GenesisImuSensorCfg
-from .genesis_camera_sensor import GenesisCameraSensor, GenesisCameraSensorCfg
-from .genesis_lidar_sensor import GenesisLidarSensor, GenesisLidarSensorCfg
-from .genesis_depth_camera_sensor import (
+from .fake_sensors import (
+    FakeSensorBase,
+    FakeSensorBaseCfg,
+    FakeContactSensor,
+    FakeContactSensorCfg,
+)
+from .genesis_sensors import (
+    GenesisSensorBase,
+    GenesisSensorBaseCfg,
+    GenesisContactBoolSensor,
+    GenesisContactBoolSensorCfg,
+    GenesisImuSensor,
+    GenesisImuSensorCfg,
+    GenesisCameraSensor,
+    GenesisCameraSensorCfg,
+    GenesisLidarSensor,
+    GenesisLidarSensorCfg,
     GenesisDepthCameraSensor,
     GenesisDepthCameraSensorCfg,
 )
@@ -44,8 +34,12 @@ from .genesis_depth_camera_sensor import (
 __all__ = [
     "SensorBase",
     "SensorBaseCfg",
-    "ContactSensor",
-    "ContactSensorCfg",
+    "FakeSensorBase",
+    "FakeSensorBaseCfg",
+    "FakeContactSensor",
+    "FakeContactSensorCfg",
+    "GenesisSensorBase",
+    "GenesisSensorBaseCfg",
     "GenesisContactBoolSensor",
     "GenesisContactBoolSensorCfg",
     "GenesisImuSensor",

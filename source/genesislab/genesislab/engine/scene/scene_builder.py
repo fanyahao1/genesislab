@@ -10,11 +10,17 @@ if TYPE_CHECKING:
     from .lab_scene import LabScene
     from genesislab.engine.scene import SceneCfg
     from genesislab.components.sensors import SensorBaseCfg
+    from genesislab.components.sensors.fake_sensors import FakeSensorBaseCfg
+    from genesislab.components.sensors.genesis_sensors import GenesisSensorBaseCfg
 
 from genesislab.components.sensors import SensorBase
 from genesislab.engine.assets.articulation import ArticulationCfg
 from genesislab.engine.assets.robot import Robot
 from genesislab.engine.entity import LabEntity
+
+from genesislab.components.sensors.fake_sensors import FakeSensorBaseCfg
+from genesislab.components.sensors.genesis_sensors import GenesisSensorBaseCfg
+
 
 class SceneBuilder:
     """Helper class for building Genesis scenes and adding entities."""
@@ -139,16 +145,14 @@ class SceneBuilder:
     def add_sensor(self, scene: "LabScene", sensor_name: str, sensor_cfg: "SensorBaseCfg") -> "SensorBase":
         """Add a sensor to the scene.
 
-        Sensors are created using their configuration's class_type. The sensor
-        configuration must inherit from SensorBaseCfg and specify a class_type
-        that inherits from SensorBase.
-
-        Args:
-            scene: The LabScene instance (manages framework-internal objects).
-            sensor_name: Name to assign to the sensor.
-            sensor_cfg: Sensor configuration (configclass or dict). Must have
-                a class_type attribute pointing to the sensor class.
+        Dispatches by config type:
+        - **GenesisSensorBaseCfg**: Builds the underlying gs.sensors.* on gs_scene via
+          build_genesis_sensor(), then creates the wrapper with genesis_sensor= and
+          registers it on the lab scene.
+        - **FakeSensorBaseCfg** (or other): Creates the sensor with optional entity
+          from entity_name and registers it. No Genesis sensor is added.
         """
+
         # Set name if not set
         if sensor_cfg.name is None:
             sensor_cfg.name = sensor_name
@@ -160,30 +164,42 @@ class SceneBuilder:
                 f"This should be set automatically when the sensor class is defined."
             )
 
-        # Create sensor instance using the class_type
         sensor_class = sensor_cfg.class_type
-        
-        # Get additional arguments that the sensor might need
-        # For contact sensors, we need to provide the entity
         sensor_kwargs = {}
-        if hasattr(sensor_cfg, "entity_name") and sensor_cfg.entity_name:
-            if sensor_cfg.entity_name not in scene.entities:
-                raise KeyError(
-                    f"Entity '{sensor_cfg.entity_name}' not found in scene.entities. "
-                    f"Sensor '{sensor_name}' requires the entity to exist. "
-                    f"Available entities: {list(scene.entities.keys())}"
-                )
-            lab_entity = scene.entities[sensor_cfg.entity_name]
-            sensor_kwargs["entity"] = lab_entity.raw_entity
 
-        # Create the sensor instance
+        if isinstance(sensor_cfg, GenesisSensorBaseCfg):
+            # Create the Genesis sensor on gs_scene and inject into wrapper
+            gs_sensor = sensor_cfg.build_genesis_sensor(scene.gs_scene, scene)
+            sensor_kwargs["genesis_sensor"] = gs_sensor
+        elif isinstance(sensor_cfg, FakeSensorBaseCfg):
+            # Fake sensors: inject entity when entity_name is set
+            if getattr(sensor_cfg, "entity_name", None):
+                entity_name = sensor_cfg.entity_name
+                if entity_name not in scene.entities:
+                    raise KeyError(
+                        f"Entity '{entity_name}' not found in scene.entities. "
+                        f"Sensor '{sensor_name}' requires the entity to exist. "
+                        f"Available entities: {list(scene.entities.keys())}"
+                    )
+                sensor_kwargs["entity"] = scene.entities[entity_name].raw_entity
+        else:
+            # Legacy / other configs: same as before (e.g. entity_name -> entity)
+            if hasattr(sensor_cfg, "entity_name") and sensor_cfg.entity_name:
+                if sensor_cfg.entity_name not in scene.entities:
+                    raise KeyError(
+                        f"Entity '{sensor_cfg.entity_name}' not found in scene.entities. "
+                        f"Sensor '{sensor_name}' requires the entity to exist. "
+                        f"Available entities: {list(scene.entities.keys())}"
+                    )
+                lab_entity = scene.entities[sensor_cfg.entity_name]
+                sensor_kwargs["entity"] = lab_entity.raw_entity
+
         sensor = sensor_class(
             cfg=sensor_cfg,
             num_envs=scene.num_envs,
             device=scene.device,
             **sensor_kwargs
         )
-        
-        # Add sensor to the scene (framework-managed)
+
         scene.add_sensor(sensor_name, sensor)
         return sensor

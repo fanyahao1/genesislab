@@ -17,7 +17,7 @@ def randomize_rigid_body_material(
     env_ids: torch.Tensor | None,
     scale_range: tuple[float, float] | Dict[str, Tuple[float, float]],
     asset_cfg: SceneEntityCfg,
-    relative_child_path: str | None = None,
+    relative_child_path: str = None,
 ) -> None:
     """Placeholder for material randomization (no-op on Genesis backend)."""
     _ = (env, env_ids, scale_range, asset_cfg, relative_child_path)

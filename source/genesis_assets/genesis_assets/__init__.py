@@ -19,7 +19,7 @@ GENESIS_ASSETS_ASSETS_DIR = os.path.join(GENESIS_ASSETS_DATA_DIR, "assets", "ass
 GENESIS_ASSETS_USD_DIR = os.path.join(GENESIS_ASSETS_ASSETS_DIR, "usd")
 """Path to the USD assets directory."""
 
-GENESIS_ASSETS_ASSETLIB_DIR = os.path.join(GENESIS_ASSETS_ASSETS_DIR, "assetslib")
+GENESIS_ASSETS_ASSETLIB_DIR = os.path.join(GENESIS_ASSETS_ASSETS_DIR)
 """Path to the assetslib directory (for third-party assets)."""
 
 GENESIS_ASSETS_UNITREE_MODEL_DIR = os.path.join(GENESIS_ASSETS_ASSETS_DIR, "unitree")

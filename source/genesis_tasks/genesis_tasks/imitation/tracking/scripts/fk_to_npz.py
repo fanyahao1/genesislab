@@ -72,6 +72,12 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         default="cuda",
         help="Genesis backend ('cuda' or 'cpu').",
     )
+    parser.add_argument(
+        "--window",
+        action="store_true",
+        default=False,
+        help="If set, open a Genesis viewer window while replaying FK.",
+    )
     return parser
 
 
@@ -234,12 +240,12 @@ class MotionLoader:
         return state, reset_flag
 
 
-def _build_scene_cfg(output_fps: int) -> SceneCfg:
+def _build_scene_cfg(output_fps: int, window: bool) -> SceneCfg:
     """Create a minimal SceneCfg with a single G1 BeyondMimic robot and plane terrain."""
     scene_cfg = SceneCfg()
     scene_cfg.num_envs = 1
     scene_cfg.env_spacing = (2.0, 2.0)
-    scene_cfg.viewer = False
+    scene_cfg.viewer = bool(window)
     scene_cfg.sim_options.dt = 1.0 / float(output_fps)
     # Use default plane terrain
     # Attach robot
@@ -350,12 +356,12 @@ def main() -> None:
     args = parser.parse_args()
 
     # Initialize Genesis once (no viewer needed here).
-    gs.init(backend=args.backend)
+    gs.init()
 
     device = torch.device(args.device)
 
     # Build GenesisLab scene with single G1 BeyondMimic robot.
-    scene_cfg = _build_scene_cfg(output_fps=args.output_fps)
+    scene_cfg = _build_scene_cfg(output_fps=args.output_fps, window=args.window)
     scene = LabScene(scene_cfg, device=args.device)
     # We don't need a full ManagerBasedEnv here, so env=None is fine – we only
     # use raw_entity for FK and logging.

@@ -59,6 +59,13 @@ def robot_body_ori_b(env: "ManagerBasedRlEnv", command_name: str) -> torch.Tenso
 def motion_anchor_pos_b(env: "ManagerBasedRlEnv", command_name: str) -> torch.Tensor:
     command: MotionCommand = env.command_manager.get_term(command_name)
 
+    a = (
+        # command.robot_anchor_pos_w,
+        command.robot_anchor_quat_w,
+        # command.anchor_pos_w,
+        # command.anchor_quat_w,
+        )
+
     pos, _ = subtract_frame_transforms(
         command.robot_anchor_pos_w,
         command.robot_anchor_quat_w,

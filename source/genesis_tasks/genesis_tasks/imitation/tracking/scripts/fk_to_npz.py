@@ -18,11 +18,11 @@ import tqdm
 
 import genesis as gs
 
-# Only use genesis_assets for the G1 asset paths
-from genesis_assets import GENESIS_ASSETS_ASSETLIB_DIR as ASSET_DIR
+# Use the same G1 asset as the training env (BeyondMimic USD) so that
+# link ordering and joint names match MotionCommand expectations.
+from genesis_assets.robots import G1_BEYONDMIMIC_CFG
 
-# We currently load the MJCF for kinematic FK and logging.
-G1_MJCF_PATH = f"{ASSET_DIR}/unitree/unitree_g1/mjcf/g1_29dof_rev_1_0.xml"
+G1_USD_PATH = G1_BEYONDMIMIC_CFG.morph_path
 
 # Joint order in the original BeyondMimic csv_to_npz pipeline (IsaacLab version).
 # The motion DOFs in the CSV are in this order and must be mapped to the robot's
@@ -97,7 +97,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output-dir",
         type=str,
-        default="./data/datasets/temp",
+        default="./data/datasets",
         help="Directory to write NPZ motion files.",
     )
     parser.add_argument(
@@ -299,7 +299,7 @@ def build_gs_scene(
     output_fps: int,
     show_viewer: bool,
 ) -> tuple[gs.Scene, any]:
-    """Create a Genesis scene with plane + G1 MJCF, build it, return (scene, robot_entity)."""
+    """Create a Genesis scene with plane + G1 USD, build it, return (scene, robot_entity)."""
     dt = 1.0 / float(output_fps)
     scene = gs.Scene(
         rigid_options=gs.options.RigidOptions(dt=dt),
@@ -307,11 +307,18 @@ def build_gs_scene(
     )
     scene.add_entity(morph=gs.morphs.Plane())
     robot_entity = scene.add_entity(
-        gs.morphs.MJCF(
-            file=G1_MJCF_PATH,
+        gs.morphs.USD(
+            file=G1_USD_PATH,
             pos=(0.0, 0.0, 0.76),
+            quat=(0.0, 0.0, 0.0, 1.0),
+        ),
+        material=gs.materials.Kinematic(),
+        surface=gs.surfaces.Copper(
+            color=(0.4, 0.7, 1.0),
+            opacity=0.5,
         ),
         name="robot",
+        vis_mode="visual"
     )
     scene.build(n_envs=1, env_spacing=(2.0, 2.0))
     return scene, robot_entity
@@ -338,7 +345,7 @@ def run_fk_for_motion(
 
     # Map dataset DOF order (G1_JOINT_NAMES) to the robot's internal DOF indices.
     # This is critical so that FK uses the correct joint for each motion DOF.
-    joint_dof_indices = [robot_entity.get_joint(name).dofs_idx_local[0] for name in G1_JOINT_NAMES]
+    joint_dof_indices = [robot_entity.get_joint("/g1/joints/"+name).dofs_idx_local[0] for name in G1_JOINT_NAMES]
     num_mapped_joints = len(joint_dof_indices)
 
     log = {

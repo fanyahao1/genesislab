@@ -20,9 +20,9 @@ import genesis as gs
 
 # Use the same G1 asset as the training env (BeyondMimic USD) so that
 # link ordering and joint names match MotionCommand expectations.
-from genesis_assets.robots import G1_BEYONDMIMIC_CFG
+from genesis_assets.robots.g1.official import G1_FULL_ACT_CFG
 
-G1_USD_PATH = G1_BEYONDMIMIC_CFG.morph_path
+# G1_USD_PATH = G1_BEYONDMIMIC_CFG.morph_path
 
 # Joint order in the original BeyondMimic csv_to_npz pipeline (IsaacLab version).
 # The motion DOFs in the CSV are in this order and must be mapped to the robot's
@@ -307,8 +307,8 @@ def build_gs_scene(
     )
     scene.add_entity(morph=gs.morphs.Plane())
     robot_entity = scene.add_entity(
-        gs.morphs.USD(
-            file=G1_USD_PATH,
+        gs.morphs.MJCF(
+            file=G1_FULL_ACT_CFG.morph_path,
             pos=(0.0, 0.0, 0.76),
             quat=(0.0, 0.0, 0.0, 1.0),
         ),
@@ -345,7 +345,7 @@ def run_fk_for_motion(
 
     # Map dataset DOF order (G1_JOINT_NAMES) to the robot's internal DOF indices.
     # This is critical so that FK uses the correct joint for each motion DOF.
-    joint_dof_indices = [robot_entity.get_joint("/g1/joints/"+name).dofs_idx_local[0] for name in G1_JOINT_NAMES]
+    joint_dof_indices = [robot_entity.get_joint(name).dofs_idx_local[0] for name in G1_JOINT_NAMES]
     num_mapped_joints = len(joint_dof_indices)
 
     log = {

@@ -26,7 +26,8 @@ def push_by_setting_velocity(
         return
 
     entity_name = asset_cfg.entity_name
-    _, _, lin_vel_w, ang_vel_w = env.scene.querier.get_root_state(entity_name)
+    robot = env.scene.entities[entity_name]
+    lin_vel_w, ang_vel_w = robot.data.root_lin_vel_w, robot.data.root_ang_vel_w
     lin_vel_w = lin_vel_w[env_ids].clone()
     ang_vel_w = ang_vel_w[env_ids].clone()
 

@@ -2,7 +2,7 @@
 
 from genesislab.utils.configclass import configclass
 
-from genesis_assets.robots import G1_FULL_ACT_CFG
+from genesis_assets.robots.g1.official import G1_FULL_ACT_CFG
 
 from genesis_tasks.imitation.tracking.tracking_env_cfg import TrackingEnvCfg
 

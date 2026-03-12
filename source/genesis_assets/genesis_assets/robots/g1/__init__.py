@@ -4,8 +4,9 @@ This package provides configurations for the Unitree G1 humanoid robot:
 - BeyondMimic: URDF variant with PD parameters
 """
 
-from .beyondmimic import G1_BEYONDMIMIC_CFG
+from .beyondmimic import G1_BEYONDMIMIC_CFG, G1_FULL_ACT_CFG
 
 __all__ = [
     "G1_BEYONDMIMIC_CFG",
+    "G1_FULL_ACT_CFG",
 ]

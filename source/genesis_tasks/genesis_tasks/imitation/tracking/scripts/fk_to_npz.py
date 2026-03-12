@@ -1,30 +1,92 @@
-"""Replay motion CSVs through Genesis-based FK and export NPZ for imitation tracking.
+"""Replay motion CSVs through Genesis FK and export NPZ for imitation tracking.
 
-This script is a Genesis/GenesisLab implementation inspired by
-``.references/beyondMimic/scripts/data_replay/csv_to_npz.py``:
-
+Uses Genesis (gs) native scene and entities only (no LabScene). Inspired by
+``.references/Genesis/examples/rendering/follow_entity.py`` and
+``.references/beyondMimic/scripts/data_replay/csv_to_npz.py``.
 """
 
 from __future__ import annotations
 
 import argparse
 import os
+import time
 from typing import Iterable
 
 import numpy as np
 import torch
+import tqdm
 
 import genesis as gs
 
-from genesis_assets.robots.g1.beyondmimic import G1_BEYONDMIMIC_CFG
+# Only use genesis_assets for the G1 asset paths
+from genesis_assets import GENESIS_ASSETS_ASSETLIB_DIR as ASSET_DIR
 
-from genesislab.engine.scene.lab_scene_cfg import SceneCfg
-from genesislab.engine.scene import LabScene
+# We currently load the MJCF for kinematic FK and logging.
+G1_MJCF_PATH = f"{ASSET_DIR}/unitree/unitree_g1/mjcf/g1_29dof_rev_1_0.xml"
+
+# Joint order in the original BeyondMimic csv_to_npz pipeline (IsaacLab version).
+# The motion DOFs in the CSV are in this order and must be mapped to the robot's
+# internal DOF ordering manually.
+G1_JOINT_NAMES: list[str] = [
+    "left_hip_pitch_joint",
+    "left_hip_roll_joint",
+    "left_hip_yaw_joint",
+    "left_knee_joint",
+    "left_ankle_pitch_joint",
+    "left_ankle_roll_joint",
+    "right_hip_pitch_joint",
+    "right_hip_roll_joint",
+    "right_hip_yaw_joint",
+    "right_knee_joint",
+    "right_ankle_pitch_joint",
+    "right_ankle_roll_joint",
+    "waist_yaw_joint",
+    "waist_roll_joint",
+    "waist_pitch_joint",
+    "left_shoulder_pitch_joint",
+    "left_shoulder_roll_joint",
+    "left_shoulder_yaw_joint",
+    "left_elbow_joint",
+    "left_wrist_roll_joint",
+    "left_wrist_pitch_joint",
+    "left_wrist_yaw_joint",
+    "right_shoulder_pitch_joint",
+    "right_shoulder_roll_joint",
+    "right_shoulder_yaw_joint",
+    "right_elbow_joint",
+    "right_wrist_roll_joint",
+    "right_wrist_pitch_joint",
+    "right_wrist_yaw_joint",
+]
+
+
+def _quat_to_euler_xyz(quat: torch.Tensor) -> torch.Tensor:
+    """Convert quaternion [x, y, z, w] to XYZ Euler angles (roll, pitch, yaw) in radians.
+
+    Returns tensor of shape (..., 3) with (roll, pitch, yaw).
+    Used to convert dataset quat to engine euler before writing dofs_pos[:, 3:6].
+    """
+    quat = quat / torch.norm(quat, dim=-1, keepdim=True).clamp_min(1e-8)
+    x, y, z, w = quat.unbind(-1)
+
+    sinp = 2.0 * (w * y - z * x)
+    sinp = sinp.clamp(-1.0, 1.0)
+    pitch = torch.asin(sinp)
+
+    sinr_cosr = 2.0 * (w * x + y * z)
+    cosr = 1.0 - 2.0 * (x * x + y * y)
+    roll = torch.atan2(sinr_cosr, cosr)
+
+    siny_cosy = 2.0 * (w * z + x * y)
+    cosy = 1.0 - 2.0 * (y * y + z * z)
+    yaw = torch.atan2(siny_cosy, cosy)
+
+    return torch.stack([roll, pitch, yaw], dim=-1)
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Replay motion from CSV files through Genesis FK and export NPZ (GenesisLab imitation tracking)."
+        description="Replay motion from CSV files through Genesis FK and export NPZ (imitation tracking)."
     )
     parser.add_argument(
         "--input-dir",
@@ -35,7 +97,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output-dir",
         type=str,
-        default="./datasets/temp",
+        default="./data/datasets/temp",
         help="Directory to write NPZ motion files.",
     )
     parser.add_argument(
@@ -64,7 +126,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--device",
         type=str,
         default="cuda:0",
-        help="Device string for Genesis tensors (e.g. 'cuda:0' or 'cpu').",
+        help="Device string for tensors (e.g. 'cuda:0' or 'cpu').",
     )
     parser.add_argument(
         "--backend",
@@ -130,7 +192,7 @@ class MotionLoader:
         motion = motion.to(torch.float32).to(self.device)
         # Layout: [base_pos(3), base_quat(x,y,z,w), joint_pos(...)]
         self.motion_base_poss_input = motion[:, :3]
-        self.motion_base_rots_input = motion[:, 3:7]  # [x, y, z, w] – matches our math utils convention
+        self.motion_base_rots_input = motion[:, 3:7]
         self.motion_dof_poss_input = motion[:, 7:]
 
         self.input_frames = motion.shape[0]
@@ -153,11 +215,9 @@ class MotionLoader:
 
     def _slerp(self, a: torch.Tensor, b: torch.Tensor, blend: torch.Tensor) -> torch.Tensor:
         """Simple quaternion slerp for [x, y, z, w] quaternions."""
-        # Normalize
         a = a / a.norm(dim=-1, keepdim=True).clamp_min(1e-8)
         b = b / b.norm(dim=-1, keepdim=True).clamp_min(1e-8)
         dot = (a * b).sum(dim=-1, keepdim=True).clamp(-1.0, 1.0)
-        # If quats are nearly opposite, flip one to avoid long path
         b = torch.where(dot < 0.0, -b, b)
         dot = (a * b).sum(dim=-1, keepdim=True).clamp(-1.0, 1.0)
         theta = torch.acos(dot)
@@ -199,22 +259,17 @@ class MotionLoader:
         self.motion_base_lin_vels = torch.gradient(self.motion_base_poss, spacing=self.output_dt, dim=0)[0]
         self.motion_dof_vels = torch.gradient(self.motion_dof_poss, spacing=self.output_dt, dim=0)[0]
 
-        # Angular velocity from quaternion finite differences.
-        # quat format: [x, y, z, w]. Approximate using numerical derivative in axis-angle.
         q = self.motion_base_rots
         q_prev, q_next = q[:-2], q[2:]
-        # Relative rotation q_rel = q_next * conj(q_prev)
         q_prev_conj = torch.stack([-q_prev[:, 0], -q_prev[:, 1], -q_prev[:, 2], q_prev[:, 3]], dim=-1)
         x1, y1, z1, w1 = q_next.unbind(-1)
         x2, y2, z2, w2 = q_prev_conj.unbind(-1)
-        # (x, y, z, w) multiplication
         w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
         x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
         y = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2
         z = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
         q_rel = torch.stack([x, y, z, w], dim=-1)
         q_rel = q_rel / q_rel.norm(dim=-1, keepdim=True).clamp_min(1e-8)
-        # Axis-angle: axis * angle, here directly via log-map approximation
         angle = 2.0 * torch.acos(q_rel[..., 3].clamp(-1.0, 1.0))
         sin_half = torch.sin(angle / 2.0).clamp_min(1e-8)
         axis = q_rel[..., :3] / sin_half.unsqueeze(-1)
@@ -240,36 +295,51 @@ class MotionLoader:
         return state, reset_flag
 
 
-def _build_scene_cfg(output_fps: int, window: bool) -> SceneCfg:
-    """Create a minimal SceneCfg with a single G1 BeyondMimic robot and plane terrain."""
-    scene_cfg = SceneCfg()
-    scene_cfg.num_envs = 1
-    scene_cfg.env_spacing = (2.0, 2.0)
-    scene_cfg.viewer = bool(window)
-    scene_cfg.sim_options.dt = 1.0 / float(output_fps)
-    # Use default plane terrain
-    # Attach robot
-    scene_cfg.robots = {"robot": G1_BEYONDMIMIC_CFG}
-    # No sensors required for offline FK
-    scene_cfg.sensors = {}
-    return scene_cfg
+def build_gs_scene(
+    output_fps: int,
+    show_viewer: bool,
+) -> tuple[gs.Scene, any]:
+    """Create a Genesis scene with plane + G1 MJCF, build it, return (scene, robot_entity)."""
+    dt = 1.0 / float(output_fps)
+    scene = gs.Scene(
+        rigid_options=gs.options.RigidOptions(dt=dt),
+        show_viewer=show_viewer,
+    )
+    scene.add_entity(morph=gs.morphs.Plane())
+    robot_entity = scene.add_entity(
+        gs.morphs.MJCF(
+            file=G1_MJCF_PATH,
+            pos=(0.0, 0.0, 0.76),
+        ),
+        name="robot",
+    )
+    scene.build(n_envs=1, env_spacing=(2.0, 2.0))
+    return scene, robot_entity
 
 
 def run_fk_for_motion(
-    scene: LabScene,
+    scene: gs.Scene,
+    robot_entity: any,
     motion: MotionLoader,
     device: torch.device,
+    show_window: bool = False,
 ) -> dict[str, np.ndarray]:
-    """Run FK for a single motion sequence in the given LabScene and return logged arrays."""
-    # We assume a single env (num_envs=1)
-    robot = scene.entities["robot"]
-    raw_entity = robot.raw_entity
+    """Run FK for a single motion sequence; return logged arrays.
 
-    # Infer DOF layout: first 7 DOFs = floating base, remaining = joints.
-    dofs0 = raw_entity.get_dofs_position()  # (1, n_dofs)
+    Dataset provides base orientation as quat; engine uses Euler (XYZ) for base orientation.
+    Base position DOFs = 6 (pos 3 + euler 3), base velocity DOFs = 6 (lin 3 + ang 3).
+    When show_window is True, calls scene.step() each frame so the viewer updates
+    (throttled by output_fps).
+    """
+    dofs0 = robot_entity.get_dofs_position()
     n_envs, n_dofs = dofs0.shape
-    base_dofs = 7
-    joint_dofs = n_dofs - base_dofs
+    base_pos_dofs = 6   # pos(3) + euler_xyz(3)
+    base_vel_dofs = 6   # lin_vel(3) + ang_vel(3)
+
+    # Map dataset DOF order (G1_JOINT_NAMES) to the robot's internal DOF indices.
+    # This is critical so that FK uses the correct joint for each motion DOF.
+    joint_dof_indices = [robot_entity.get_joint(name).dofs_idx_local[0] for name in G1_JOINT_NAMES]
+    num_mapped_joints = len(joint_dof_indices)
 
     log = {
         "fps": [motion.output_fps],
@@ -281,8 +351,12 @@ def run_fk_for_motion(
         "body_ang_vel_w": [],
     }
 
-    # We don't need to step physics; Genesis updates kinematics when DOFs are set.
-    for _ in range(motion.output_frames):
+    for _ in tqdm.tqdm(
+        range(motion.output_frames),
+        desc="FK frames",
+        unit="frame",
+        leave=False,
+    ):
         (
             motion_base_pos,
             motion_base_rot,
@@ -290,46 +364,33 @@ def run_fk_for_motion(
             motion_base_ang_vel,
             motion_dof_pos,
             motion_dof_vel,
-        ), _reset_flag = motion.get_next_state()
+        ), _ = motion.get_next_state()
 
-        # Build full DOF position/velocity vectors:
-        # DOF layout: [base_pos(3), base_quat(4), joint_pos(...)]
-        dofs_pos = raw_entity.get_dofs_position()
-        dofs_vel = raw_entity.get_dofs_velocity()
+        # Dataset provides quat; engine uses euler — convert to XYZ euler before writing
+        motion_base_euler = _quat_to_euler_xyz(motion_base_rot)
+
+        dofs_pos = robot_entity.get_dofs_position()
+        dofs_vel = robot_entity.get_dofs_velocity()
         dofs_pos[:, 0:3] = motion_base_pos
-        dofs_pos[:, 3:7] = motion_base_rot
-        dofs_pos[:, 7:] = motion_dof_pos[:, :joint_dofs]
+        dofs_pos[:, 3:6] = motion_base_euler
+        dofs_pos[:, joint_dof_indices] = motion_dof_pos[:, :num_mapped_joints]
         dofs_vel[:, 0:3] = motion_base_lin_vel
         dofs_vel[:, 3:6] = motion_base_ang_vel
-        dofs_vel[:, 7:] = motion_dof_vel[:, :joint_dofs]
+        dofs_vel[:, joint_dof_indices] = motion_dof_vel[:, :num_mapped_joints]
 
-        raw_entity.set_dofs_position(dofs_pos)
-        raw_entity.set_dofs_velocity(dofs_vel)
+        robot_entity.set_dofs_position(dofs_pos)
+        robot_entity.set_dofs_velocity(dofs_vel)
 
-        # Query states from Genesis:
-        joint_pos_full = raw_entity.get_dofs_position()[:, base_dofs:]
-        joint_vel_full = raw_entity.get_dofs_velocity()[:, base_dofs:]
+        if show_window:
+            scene.step()
+            time.sleep(1.0 / motion.output_fps)
 
-        # Root-level link data (all links including root)
-        link_pos = raw_entity.get_links_pos()  # (1, n_links, 3)
-        # For orientations and velocities per-link, we rely on Genesis API if available.
-        # If not available, we approximate with zeros (can be refined later).
-        if hasattr(raw_entity, "get_links_quat"):
-            link_quat = raw_entity.get_links_quat()  # type: ignore[attr-defined]
-        else:
-            n_links = link_pos.shape[1]
-            link_quat = torch.zeros((1, n_links, 4), device=device, dtype=torch.float32)
-            link_quat[..., 3] = 1.0
-
-        if hasattr(raw_entity, "get_links_vel"):
-            link_lin_vel = raw_entity.get_links_vel()  # type: ignore[attr-defined]
-        else:
-            link_lin_vel = torch.zeros_like(link_pos)
-
-        if hasattr(raw_entity, "get_links_ang"):
-            link_ang_vel = raw_entity.get_links_ang()  # type: ignore[attr-defined]
-        else:
-            link_ang_vel = torch.zeros_like(link_pos)
+        joint_pos_full = robot_entity.get_dofs_position()[:, joint_dof_indices]
+        joint_vel_full = robot_entity.get_dofs_velocity()[:, joint_dof_indices]
+        link_pos = robot_entity.get_links_pos()
+        link_quat = robot_entity.get_links_quat()
+        link_lin_vel = robot_entity.get_links_vel()
+        link_ang_vel = robot_entity.get_links_ang()
 
         log["joint_pos"].append(joint_pos_full[0].cpu().numpy().copy())
         log["joint_vel"].append(joint_vel_full[0].cpu().numpy().copy())
@@ -355,24 +416,22 @@ def main() -> None:
     parser = _build_arg_parser()
     args = parser.parse_args()
 
-    # Initialize Genesis once (no viewer needed here).
     gs.init()
 
     device = torch.device(args.device)
 
-    # Build GenesisLab scene with single G1 BeyondMimic robot.
-    scene_cfg = _build_scene_cfg(output_fps=args.output_fps, window=args.window)
-    scene = LabScene(scene_cfg, device=args.device)
-    # We don't need a full ManagerBasedEnv here, so env=None is fine – we only
-    # use raw_entity for FK and logging.
-    scene.build(env=None)
+    scene, robot_entity = build_gs_scene(
+        output_fps=args.output_fps,
+        show_viewer=args.window,
+    )
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    for basename in _iter_motion_files(args.input_dir):
+    motion_basenames = list(_iter_motion_files(args.input_dir))
+    for basename in tqdm.tqdm(motion_basenames, desc="Motions", unit="file"):
         csv_path = os.path.join(args.input_dir, f"{basename}.csv")
         npz_path = os.path.join(args.output_dir, f"{basename}.npz")
-        print(f"[csv_to_npz] Processing '{csv_path}' -> '{npz_path}'")
+        tqdm.tqdm.write(f"[csv_to_npz] {basename}.csv -> {npz_path}")
 
         frame_range = None
         if args.frame_range is not None:
@@ -386,11 +445,11 @@ def main() -> None:
             frame_range=frame_range,
         )
 
-        log = run_fk_for_motion(scene, motion, device=device)
+        log = run_fk_for_motion(
+            scene, robot_entity, motion, device=device, show_window=args.window
+        )
         np.savez(npz_path, **log)
-        print(f"[csv_to_npz] Saved NPZ to: {npz_path}")
 
 
 if __name__ == "__main__":
     main()
-

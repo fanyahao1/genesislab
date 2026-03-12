@@ -12,10 +12,6 @@ The package is organized by robot manufacturer/brand:
 
 # Import from subpackages
 from .booster import BOOSTER_K1_CFG, BOOSTER_T1_CFG
-from .g1 import G1_BEYONDMIMIC_CFG
+from .g1 import G1_BEYONDMIMIC_CFG, G1_FULL_ACT_CFG
 from .smpl import SMPL_HUMANOID_CFG, SMPLX_HUMANOID_CFG
-from .unitree import (
-    UNITREE_B2_CFG,
-    UNITREE_GO2_CFG,
-    UNITREE_H1_CFG,
-)
+from .unitree import UNITREE_B2_CFG, UNITREE_GO2_CFG, UNITREE_H1_CFG

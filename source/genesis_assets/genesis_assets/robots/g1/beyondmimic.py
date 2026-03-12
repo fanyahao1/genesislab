@@ -174,8 +174,169 @@ G1_BEYONDMIMIC_CFG = RobotCfg(
             },
         ),
     },
-    # morph_options={
-    #     "replace_cylinders_with_capsules": True,
-    # },
+)
+
+
+# --------------------------------------------------------------------------- #
+# Single-actuator variant for joint-position actions
+# --------------------------------------------------------------------------- #
+#
+# Some environments (e.g., imitation tracking) use JointPositionAction which
+# expects a single actuator name controlling all joints. For G1 BeyondMimic we
+# provide a convenience configuration that merges all actuator groups into a
+# single ImplicitActuator.
+#
+
+G1_FULL_ACT_CFG = RobotCfg(
+    morph_type="USD",
+    morph_path=f"{ASSET_DIR}/third_party/beyondMimic/usd/g1.usd",
+    initial_pose=InitialPoseCfg(
+        pos=[0.0, 0.0, 0.76],
+        quat=[0.0, 0.0, 0.0, 1.0],
+    ),
+    fixed_base=False,
+    control_dofs=None,
+    actuators={
+        "full": ImplicitActuatorCfg(
+            # Union of all joint patterns from legs, feet, waist, waist_yaw, arms.
+            joint_names_expr=[
+                # Legs
+                ".*_hip_yaw_joint",
+                ".*_hip_roll_joint",
+                ".*_hip_pitch_joint",
+                ".*_knee_joint",
+                # Feet
+                ".*_ankle_pitch_joint",
+                ".*_ankle_roll_joint",
+                # Waist
+                "waist_roll_joint",
+                "waist_pitch_joint",
+                "waist_yaw_joint",
+                # Arms
+                ".*_shoulder_pitch_joint",
+                ".*_shoulder_roll_joint",
+                ".*_shoulder_yaw_joint",
+                ".*_elbow_joint",
+                ".*_wrist_roll_joint",
+                ".*_wrist_pitch_joint",
+                ".*_wrist_yaw_joint",
+            ],
+            # Effort limits: merge all groups.
+            effort_limit_sim={
+                # Legs
+                ".*_hip_yaw_joint": 88.0,
+                ".*_hip_roll_joint": 139.0,
+                ".*_hip_pitch_joint": 88.0,
+                ".*_knee_joint": 139.0,
+                # Feet
+                ".*_ankle_pitch_joint": 50.0,
+                ".*_ankle_roll_joint": 50.0,
+                # Waist
+                "waist_roll_joint": 50.0,
+                "waist_pitch_joint": 50.0,
+                "waist_yaw_joint": 88.0,
+                # Arms
+                ".*_shoulder_pitch_joint": 25.0,
+                ".*_shoulder_roll_joint": 25.0,
+                ".*_shoulder_yaw_joint": 25.0,
+                ".*_elbow_joint": 25.0,
+                ".*_wrist_roll_joint": 25.0,
+                ".*_wrist_pitch_joint": 5.0,
+                ".*_wrist_yaw_joint": 5.0,
+            },
+            # Velocity limits: merge all groups.
+            velocity_limit_sim={
+                # Legs
+                ".*_hip_yaw_joint": 32.0,
+                ".*_hip_roll_joint": 20.0,
+                ".*_hip_pitch_joint": 32.0,
+                ".*_knee_joint": 20.0,
+                # Feet
+                ".*_ankle_pitch_joint": 37.0,
+                ".*_ankle_roll_joint": 37.0,
+                # Waist
+                "waist_roll_joint": 37.0,
+                "waist_pitch_joint": 37.0,
+                "waist_yaw_joint": 32.0,
+                # Arms
+                ".*_shoulder_pitch_joint": 37.0,
+                ".*_shoulder_roll_joint": 37.0,
+                ".*_shoulder_yaw_joint": 37.0,
+                ".*_elbow_joint": 37.0,
+                ".*_wrist_roll_joint": 37.0,
+                ".*_wrist_pitch_joint": 22.0,
+                ".*_wrist_yaw_joint": 22.0,
+            },
+            # Stiffness: reuse group-specific values.
+            stiffness={
+                # Legs
+                ".*_hip_pitch_joint": STIFFNESS_7520_14,
+                ".*_hip_roll_joint": STIFFNESS_7520_22,
+                ".*_hip_yaw_joint": STIFFNESS_7520_14,
+                ".*_knee_joint": STIFFNESS_7520_22,
+                # Feet
+                ".*_ankle_pitch_joint": 2.0 * STIFFNESS_5020,
+                ".*_ankle_roll_joint": 2.0 * STIFFNESS_5020,
+                # Waist
+                "waist_roll_joint": 2.0 * STIFFNESS_5020,
+                "waist_pitch_joint": 2.0 * STIFFNESS_5020,
+                "waist_yaw_joint": STIFFNESS_7520_14,
+                # Arms
+                ".*_shoulder_pitch_joint": STIFFNESS_5020,
+                ".*_shoulder_roll_joint": STIFFNESS_5020,
+                ".*_shoulder_yaw_joint": STIFFNESS_5020,
+                ".*_elbow_joint": STIFFNESS_5020,
+                ".*_wrist_roll_joint": STIFFNESS_5020,
+                ".*_wrist_pitch_joint": STIFFNESS_4010,
+                ".*_wrist_yaw_joint": STIFFNESS_4010,
+            },
+            # Damping: reuse group-specific values.
+            damping={
+                # Legs
+                ".*_hip_pitch_joint": DAMPING_7520_14,
+                ".*_hip_roll_joint": DAMPING_7520_22,
+                ".*_hip_yaw_joint": DAMPING_7520_14,
+                ".*_knee_joint": DAMPING_7520_22,
+                # Feet
+                ".*_ankle_pitch_joint": 2.0 * DAMPING_5020,
+                ".*_ankle_roll_joint": 2.0 * DAMPING_5020,
+                # Waist
+                "waist_roll_joint": 2.0 * DAMPING_5020,
+                "waist_pitch_joint": 2.0 * DAMPING_5020,
+                "waist_yaw_joint": DAMPING_7520_14,
+                # Arms
+                ".*_shoulder_pitch_joint": DAMPING_5020,
+                ".*_shoulder_roll_joint": DAMPING_5020,
+                ".*_shoulder_yaw_joint": DAMPING_5020,
+                ".*_elbow_joint": DAMPING_5020,
+                ".*_wrist_roll_joint": DAMPING_5020,
+                ".*_wrist_pitch_joint": DAMPING_4010,
+                ".*_wrist_yaw_joint": DAMPING_4010,
+            },
+            # Armature: reuse group-specific values.
+            armature={
+                # Legs
+                ".*_hip_pitch_joint": ARMATURE_7520_14,
+                ".*_hip_roll_joint": ARMATURE_7520_22,
+                ".*_hip_yaw_joint": ARMATURE_7520_14,
+                ".*_knee_joint": ARMATURE_7520_22,
+                # Feet
+                ".*_ankle_pitch_joint": 2.0 * ARMATURE_5020,
+                ".*_ankle_roll_joint": 2.0 * ARMATURE_5020,
+                # Waist
+                "waist_roll_joint": 2.0 * ARMATURE_5020,
+                "waist_pitch_joint": 2.0 * ARMATURE_5020,
+                "waist_yaw_joint": ARMATURE_7520_14,
+                # Arms
+                ".*_shoulder_pitch_joint": ARMATURE_5020,
+                ".*_shoulder_roll_joint": ARMATURE_5020,
+                ".*_shoulder_yaw_joint": ARMATURE_5020,
+                ".*_elbow_joint": ARMATURE_5020,
+                ".*_wrist_roll_joint": ARMATURE_5020,
+                ".*_wrist_pitch_joint": ARMATURE_4010,
+                ".*_wrist_yaw_joint": ARMATURE_4010,
+            },
+        ),
+    },
 )
 

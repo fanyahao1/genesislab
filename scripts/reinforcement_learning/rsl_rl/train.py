@@ -8,6 +8,7 @@ Kept for backwards compatibility with:
 import genesis as gs
 import torch
 import genesis_tasks.locomotion  # noqa: F401  (ensure tasks are registered)
+import genesis_tasks.imitation  # noqa: F401  (ensure tasks are registered)
 from genesis_rl.rsl_rl.cli.train import main
 
 if __name__ == "__main__":

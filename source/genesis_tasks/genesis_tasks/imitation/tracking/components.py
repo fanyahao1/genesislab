@@ -18,7 +18,7 @@ from genesislab.managers.termination_manager import TerminationTermCfg
 from genesislab.managers.curriculum_manager import CurriculumTermCfg
 from genesislab.managers import SceneEntityCfg, EventTermCfg
 from genesislab.utils.configclass import configclass
-from genesislab.components.sensors import ContactSensorCfg
+from genesislab.components.sensors.fake_sensors import FakeContactSensorCfg
 from genesislab.components.additional.noise.noise_cfg import UniformNoiseCfg
 
 import genesis_tasks.imitation.tracking.mdp as mdp
@@ -45,24 +45,15 @@ class TrackingSceneCfg(SceneCfg):
     viewer: bool = False
     sim_options: SimOptionsCfg = SimOptionsCfg(dt=0.005)
     terrain: TerrainCfg = TerrainCfg(
-        terrain_type="genesisbase",
-        terrain_details_cfg=GenesisTerrainMorphCfg(
-            pos=(-12.0, -12.0, 0.0),
-            n_subterrains=(1, 1),
-            subterrain_size=(24.0, 24.0),
-            vertical_scale=0.001,
-            subterrain_types=[["flat_terrain"]],
-            subterrain_parameters={"flat_terrain": FlatSubTerrainCfg()},
-        ),
-        surface_cfg=TerrainSurfaceCfg(diffuse_color=None),
+        terrain_type="plane",
     )
     robots: dict = {"robot": None}
     sensors: dict = {
-        "contact_forces": ContactSensorCfg(
-            entity_name="robot",
-            history_length=3,
-            track_air_time=True,
-        )
+        # "contact_forces": FakeContactSensorCfg(
+        #     entity_name="robot",
+        #     history_length=3,
+        #     track_air_time=True,
+        # )
     }
 
 
@@ -73,7 +64,7 @@ class CommandsCfg:
     motion: mdp.MotionCommandCfg = mdp.MotionCommandCfg(
         asset_name="robot",
         resampling_time_range=(1.0e9, 1.0e9),
-        motion_file=MISSING,
+        motion_file="data/datasets/dance1_subject1.npz",
         anchor_body_name=MISSING,
         body_names=MISSING,
         pose_range={
@@ -255,14 +246,14 @@ class RewardsCfg:
         weight=-10.0,
         params={"asset_cfg": SceneEntityCfg(entity_name="robot", joint_names=[".*"])},
     )
-    undesired_contacts: RewardTermCfg = RewardTermCfg(
-        func=mdp.undesired_contacts,
-        weight=-0.1,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names="base"),
-            "threshold": 1.0,
-        },
-    )
+    # undesired_contacts: RewardTermCfg = RewardTermCfg(
+    #     func=mdp.undesired_contacts,
+    #     weight=-0.1,
+    #     params={
+    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="base"),
+    #         "threshold": 1.0,
+    #     },
+    # )
 
 
 @configclass

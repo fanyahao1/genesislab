@@ -228,38 +228,11 @@ class SceneEntityCfg:
         Args:
             entity: The Genesis entity object with joint information.
         """
-        if not hasattr(entity, "get_joint"):
-            raise AttributeError(
-                f"Entity '{self.name}' does not have 'get_joint' method. "
-                "Cannot resolve joint names."
-            )
 
         # Get all joint names - we need to iterate to find all joints
         # This is a simplified approach; actual implementation may vary
-        joint_names = []
+        joint_names = entity.data.joint_names
         joint_index = 0
-        while True:
-            try:
-                # Try to get joint by index or name pattern
-                # This is a placeholder - actual Genesis API may differ
-                if hasattr(entity, "joint_names"):
-                    joint_names = list(entity.joint_names)
-                    break
-                elif hasattr(entity, "get_joint_names"):
-                    joint_names = list(entity.get_joint_names())
-                    break
-                else:
-                    # Try to get joint by index
-                    joint = entity.get_joint(joint_index)
-                    if joint is None:
-                        break
-                    if hasattr(joint, "name"):
-                        joint_names.append(joint.name)
-                    else:
-                        joint_names.append(f"joint_{joint_index}")
-                    joint_index += 1
-            except (AttributeError, IndexError, KeyError):
-                break
 
         if not joint_names:
             raise ValueError(

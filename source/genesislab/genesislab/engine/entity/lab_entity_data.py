@@ -42,6 +42,7 @@ class LabEntityData:
     _default_root_quat: torch.Tensor = None
     _default_root_lin_vel: torch.Tensor = None
     _default_root_ang_vel: torch.Tensor = None
+    _soft_joint_pos_limits: torch.Tensor = None
 
     # ------------------------------------------------------------------
     # Name accessors
@@ -229,6 +230,35 @@ class LabEntityData:
         return joint_acc
 
     @property
+    def soft_joint_pos_limits(self) -> torch.Tensor:
+        """Soft joint position limits. Shape: (num_envs, num_dofs, 2).
+
+        Limits are taken directly from Genesis DOF limits (per-DOF lower/upper)
+        and mapped into the joint subspace (excluding base DOFs).
+        """
+        if self._soft_joint_pos_limits is None:
+            # Genesis returns a tuple (lower, upper), each of shape (n_dofs,)
+            lower, upper = self._raw_entity.get_dofs_limit()
+            # Move to env device if needed
+            lower = lower.to(self._env.device)
+            upper = upper.to(self._env.device)
+
+            n_dofs_full = lower.shape[0]
+            base_offset = 6 if n_dofs_full > 6 else 0
+            # Joint DOFs only (exclude base)
+            lower_joint = lower[base_offset:]
+            upper_joint = upper[base_offset:]
+
+            # Stack into (num_joints, 2) as [min, max]
+            limits_joint = torch.stack([lower_joint, upper_joint], dim=-1)  # (num_joints, 2)
+            num_envs = self._env.num_envs
+
+            # Expand to (num_envs, num_joints, 2)
+            self._soft_joint_pos_limits = limits_joint.unsqueeze(0).expand(num_envs, -1, -1)
+
+        return self._soft_joint_pos_limits
+
+    @property
     def applied_torque(self) -> torch.Tensor:
         """Applied joint torques/efforts. Shape: (num_envs, num_dofs).
         
@@ -304,6 +334,51 @@ class LabEntityData:
         Returns the translation (position) of all links/bodies in the entity.
         """
         return self._raw_entity.get_links_pos()
+
+    # IsaacLab-style body accessors used by imitation/tracking MDP
+    @property
+    def body_pos_w(self) -> torch.Tensor:
+        """Alias for link positions in world frame. Shape: (num_envs, num_links, 3)."""
+        return self.link_pos_w
+
+    @property
+    def body_quat_w(self) -> torch.Tensor:
+        """All link orientations in world frame. Shape: (num_envs, num_links, 4).
+
+        Requires that the underlying Genesis entity exposes per-link quaternions.
+        """
+        if not hasattr(self._raw_entity, "get_links_quat"):
+            raise RuntimeError(
+                f"Raw entity for '{self._entity_name}' does not expose 'get_links_quat'. "
+                "Per-link orientations are required for imitation/tracking MDP."
+            )
+        return self._raw_entity.get_links_quat()  # type: ignore[attr-defined]
+
+    @property
+    def body_lin_vel_w(self) -> torch.Tensor:
+        """All link linear velocities in world frame. Shape: (num_envs, num_links, 3).
+
+        Requires that the underlying Genesis entity exposes per-link linear velocities.
+        """
+        if not hasattr(self._raw_entity, "get_links_vel"):
+            raise RuntimeError(
+                f"Raw entity for '{self._entity_name}' does not expose 'get_links_vel'. "
+                "Per-link linear velocities are required for imitation/tracking MDP."
+            )
+        return self._raw_entity.get_links_vel()  # type: ignore[attr-defined]
+
+    @property
+    def body_ang_vel_w(self) -> torch.Tensor:
+        """All link angular velocities in world frame. Shape: (num_envs, num_links, 3).
+
+        Requires that the underlying Genesis entity exposes per-link angular velocities.
+        """
+        if not hasattr(self._raw_entity, "get_links_ang"):
+            raise RuntimeError(
+                f"Raw entity for '{self._entity_name}' does not expose 'get_links_ang'. "
+                "Per-link angular velocities are required for imitation/tracking MDP."
+            )
+        return self._raw_entity.get_links_ang()  # type: ignore[attr-defined]
 
     @property
     def root_quat_w(self) -> torch.Tensor:

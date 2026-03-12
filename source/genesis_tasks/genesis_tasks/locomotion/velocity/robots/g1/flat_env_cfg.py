@@ -27,6 +27,11 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         if self.curriculum is not None:
             self.curriculum.terrain_levels = None
 
+        # G1 humanoid does not have a link named "base" — use pelvis instead for any
+        # base-related rewards/terminations if they exist.
+        if getattr(self, "rewards", None) is not None and hasattr(self.rewards, "undesired_contacts"):
+            self.rewards.undesired_contacts.params["sensor_cfg"].body_names = "pelvis"
+
 
 @configclass
 class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):

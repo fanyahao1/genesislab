@@ -163,6 +163,8 @@ class RewardsCfg:
         func=mdp.undesired_contacts,
         weight=-0.0,
         params={
+            # Default to "base" for quadrupeds; humanoids like G1 override or disable
+            # this in their task-specific configs if needed.
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names="base"),
             "threshold": 1.0,
         },

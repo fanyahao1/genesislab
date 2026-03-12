@@ -4,7 +4,7 @@ from genesislab.managers import SceneEntityCfg
 from genesislab.utils.configclass import configclass
 
 from ...base_velocity_env_cfg import BaseVelocityEnvCfg
-from genesis_assets.robots import G1_BEYONDMIMIC_CFG
+from genesis_assets.robots.g1.official import G1_FULL_ACT_CFG
 import genesis_tasks.locomotion.velocity.mdp as mdp
 
 
@@ -16,7 +16,7 @@ class G1RoughEnvCfg(BaseVelocityEnvCfg):
         # Post init of parent
         super().__post_init__()
 
-        self.scene.robots["robot"] = G1_BEYONDMIMIC_CFG
+        self.scene.robots["robot"] = G1_FULL_ACT_CFG
 
         # Scale down terrains for humanoid
         if hasattr(self.scene.terrain, "terrain_generator") and self.scene.terrain.terrain_generator is not None:
@@ -29,8 +29,10 @@ class G1RoughEnvCfg(BaseVelocityEnvCfg):
                     sub_terrains["random_rough"].noise_step = 0.01
 
         # Actions: align with genesis-forge style (G1 has multiple actuator groups)
+        # Use the merged "full" actuator so JointPositionAction sees all joints.
         self.actions.joint_pos.scale = 0.25
         self.actions.joint_pos.use_default_offset = True
+        self.actions.joint_pos.actuator_name = "full"
 
         # Rewards: align with IsaacLab-style velocity config
         self.rewards.dof_torques_l2.weight = -0.001
@@ -44,10 +46,11 @@ class G1RoughEnvCfg(BaseVelocityEnvCfg):
             if getattr(self.events, "add_base_mass", None) is not None:
                 self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 3.0)
                 if isinstance(self.events.add_base_mass.params.get("asset_cfg"), SceneEntityCfg):
-                    self.events.add_base_mass.params["asset_cfg"].body_names = "base"
+                    # Use pelvis as the base body for humanoid G1
+                    self.events.add_base_mass.params["asset_cfg"].body_names = "pelvis"
             if getattr(self.events, "base_external_force_torque", None) is not None:
                 if isinstance(self.events.base_external_force_torque.params.get("asset_cfg"), SceneEntityCfg):
-                    self.events.base_external_force_torque.params["asset_cfg"].body_names = "base"
+                    self.events.base_external_force_torque.params["asset_cfg"].body_names = "pelvis"
             if getattr(self.events, "reset_robot_joints", None) is not None:
                 self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
             if getattr(self.events, "reset_base", None) is not None:
@@ -71,9 +74,8 @@ class G1RoughEnvCfg(BaseVelocityEnvCfg):
             self.rewards.feet_air_time.params["command_name"] = "base_velocity"
             self.rewards.feet_air_time.params["threshold"] = 0.5
             self.rewards.feet_air_time.weight = 0.01
-
-        if hasattr(self.rewards, "undesired_contacts"):
-            self.rewards.undesired_contacts = None
+            
+        self.terminations.base_contact.params["sensor_cfg"] = SceneEntityCfg("contact_forces", body_names="pelvis")
 
 
 @configclass

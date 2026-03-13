@@ -22,6 +22,7 @@ from genesislab.envs.common import VecEnvObs, VecEnvStepReturn
 from genesislab.envs.manager_based_genesis_env import ManagerBasedGenesisEnv, ManagerBasedGenesisEnvCfg
 from genesislab.managers import CurriculumManager, NullCurriculumManager
 from genesislab.utils.configclass import configclass
+from genesislab.utils.timing import timed_block
 
 
 class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
@@ -104,6 +105,64 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
     # Core API overrides to integrate curriculum updates.
     # ----------------------------------------------------------------------
 
+    def step(self, action: torch.Tensor) -> VecEnvStepReturn:
+        """Step the environment with full RL semantics (rewards, terminations, curriculum).
+
+        This overrides :meth:`ManagerBasedGenesisEnv.step` by:
+
+        1. Using the shared simulation core (:meth:`_step_simulation`).
+        2. Computing terminations and rewards via the respective managers.
+        3. Resetting terminated environments with curriculum and events.
+        4. Updating commands and interval events.
+        5. Computing observations for the next step.
+        """
+        # Advance simulation (actions + physics + sensors + counters)
+        self._step_simulation(action)
+
+        # Compute terminations
+        with timed_block("terminations.compute"):
+            reset_buf = self.termination_manager.compute()
+        reset_terminated = self.termination_manager.terminated
+        reset_time_outs = self.termination_manager.time_outs
+
+        # Compute rewards
+        with timed_block("rewards.compute"):
+            reward_buf = self.reward_manager.compute(dt=self.step_dt)
+
+        # Reset terminated/timed-out environments and collect any episode metrics.
+        reset_env_ids = reset_buf.nonzero(as_tuple=False).squeeze(-1)
+        manager_extras: dict[str, Any] = {}
+        if len(reset_env_ids) > 0:
+            maybe_extras = self._reset_idx(reset_env_ids)
+            if isinstance(maybe_extras, dict):
+                manager_extras.update(maybe_extras)
+
+        # Update commands
+        with timed_block("commands.compute"):
+            self.command_manager.compute(dt=self.step_dt)
+
+        # Apply interval events if event manager is configured
+        if hasattr(self, "event_manager") and self.event_manager is not None:
+            if "interval" in self.event_manager.available_modes:
+                self.event_manager.apply(mode="interval", dt=self.step_dt)
+
+        # Debug visualization (if enabled)
+        if hasattr(self, "command_manager") and self.command_manager is not None:
+            self.command_manager.debug_vis(self._scene.gs_scene)
+
+        # Compute observations
+        with timed_block("observations.compute"):
+            obs_buf = self.observation_manager.compute(update_history=True)
+
+        # Build info dict, including any episode-level metrics produced at reset.
+        info: dict[str, dict] = {
+            "time_outs": reset_time_outs,
+            "terminated": reset_terminated,
+            "log": manager_extras,
+        }
+
+        return obs_buf, reward_buf, reset_terminated, reset_time_outs, info
+
     def reset(
         self,
         seed: int = None,
@@ -149,7 +208,7 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
         # Update curriculum state before resetting environments.
         self.curriculum_manager.compute(env_ids=env_ids)
 
-        # Reset scene
+        # Reset scene, do not use original reset
         # self._scene.controller.reset(env_ids=env_ids)
 
         # Reset episode counters

@@ -261,14 +261,47 @@ class ManagerBasedGenesisEnv:
         return obs_buf, info
 
     def step(self, action: torch.Tensor) -> VecEnvStepReturn:
-        """Step the environment.
+        """Step the environment (simulation-only for the base Genesis env).
+        
+        This method:
+        1. Processes actions via the ActionManager.
+        2. Advances physics (with decimation) and updates sensors.
+        3. Increments episode counters.
+        4. Computes observations via the ObservationManager.
+        
+        It does NOT compute rewards or terminations. Higher-level RL wrappers
+        such as :class:`ManagerBasedRlEnv` extend this behavior to include
+        reward and termination logic.
+        """
+        # Process actions and advance simulation
+        self._step_simulation(action)
 
-        Args:
-            action: Action tensor of shape (num_envs, action_dim).
+        # Compute observations only
+        with timed_block("observations.compute"):
+            obs_buf = self.observation_manager.compute(update_history=True)
 
-        Returns:
-            Tuple of (observations, rewards, terminated, truncated, info) following
-            Gymnasium API conventions.
+        # For non-RL usage, return zero rewards and no terminations by default.
+        reward_buf = torch.zeros(self.num_envs, device=self.device)
+        reset_terminated = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        reset_time_outs = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        info: dict[str, dict] = {
+            "time_outs": reset_time_outs,
+            "terminated": reset_terminated,
+            "log": {},
+        }
+
+        return obs_buf, reward_buf, reset_terminated, reset_time_outs, info
+
+    def _step_simulation(self, action: torch.Tensor) -> None:
+        """Advance the simulation by one environment step.
+
+        This helper encapsulates the core simulation pipeline shared across
+        RL and non-RL environments:
+
+        1. Process actions via ActionManager.
+        2. Apply actions and step physics (with decimation).
+        3. Update sensors.
+        4. Increment episode counters.
         """
         # Process actions
         self.action_manager.process_action(action.to(self.device))
@@ -287,49 +320,6 @@ class ManagerBasedGenesisEnv:
         # Update episode counters
         self.episode_length_buf += 1
         self.common_step_counter += 1
-
-        # Compute terminations
-        with timed_block("terminations.compute"):
-            reset_buf = self.termination_manager.compute()
-        reset_terminated = self.termination_manager.terminated
-        reset_time_outs = self.termination_manager.time_outs
-
-        # Compute rewards
-        with timed_block("rewards.compute"):
-            reward_buf = self.reward_manager.compute(dt=self.step_dt)
-
-        # Reset terminated/timed-out environments and collect any episode metrics.
-        reset_env_ids = reset_buf.nonzero(as_tuple=False).squeeze(-1)
-        manager_extras = {}
-        if len(reset_env_ids) > 0:
-            maybe_extras = self._reset_idx(reset_env_ids)
-            if isinstance(maybe_extras, dict):
-                manager_extras.update(maybe_extras)
-
-        # Update commands
-        with timed_block("commands.compute"):
-            self.command_manager.compute(dt=self.step_dt)
-
-        # Apply interval events if event manager is configured
-        if self.event_manager is not None and "interval" in self.event_manager.available_modes:
-            self.event_manager.apply(mode="interval", dt=self.step_dt)
-
-        # Debug visualization (if enabled)
-        if hasattr(self, "command_manager") and self.command_manager is not None:
-            self.command_manager.debug_vis(self._scene.gs_scene)
-
-        # Compute observations
-        with timed_block("observations.compute"):
-            obs_buf = self.observation_manager.compute(update_history=True)
-
-        # Build info dict, including any episode-level metrics produced at reset.
-        info: dict[str, dict] = {
-            "time_outs": reset_time_outs,
-            "terminated": reset_terminated,
-            "log": manager_extras
-        }
-
-        return obs_buf, reward_buf, reset_terminated, reset_time_outs, info
 
     def _update_sensors(self) -> None:
         """Update any scene-attached sensors after a physics step."""

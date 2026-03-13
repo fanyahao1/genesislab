@@ -10,7 +10,6 @@ import genesis as gs
 if TYPE_CHECKING:
     from .lab_scene import LabScene
     from genesislab.engine.scene import SceneCfg
-    from genesislab.components.entities.terrain_cfg import TerrainCfg as GeneratorTerrainCfg
     from genesislab.components.sensors import SensorBaseCfg
     from genesislab.components.sensors.fake_sensors import FakeSensorBaseCfg
     from genesislab.components.sensors.genesis_sensors import GenesisSensorBaseCfg

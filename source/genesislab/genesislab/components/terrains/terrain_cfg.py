@@ -1,12 +1,26 @@
-"""Terrain configuration: plane, Genesis native (genesisbase), and generator (stub)."""
+"""Unified scene-level terrain configuration for GenesisLab.
+
+This module is the single source of truth for terrain configuration and merges
+the previously split semantics from:
+
+- importer-style terrain config (plane / generator / usd)
+- Genesis native terrain config (genesisbase + surface)
+"""
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Tuple
+import logging
+import warnings
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Tuple
 
 from genesislab.utils.configclass import configclass
 
-TerrainType = Literal["plane", "genesisbase", "generator"]
+if TYPE_CHECKING:
+    from .terrain_generator_cfg import TerrainGeneratorCfg
+
+logger = logging.getLogger(__name__)
+
+TerrainType = Literal["plane", "genesisbase", "generator", "usd"]
 
 from .genesis_sub_terrain_cfg import SubTerrainBaseCfg, FlatSubTerrainCfg
 
@@ -78,17 +92,93 @@ class GenesisTerrainMorphCfg:
 
 @configclass
 class TerrainCfg:
-    """Scene terrain configuration: plane, genesisbase, or generator (stub)."""
+    """Unified scene terrain configuration.
+
+    Supported ``terrain_type`` values:
+
+    - ``"plane"``: flat plane terrain
+    - ``"genesisbase"``: Genesis native heightfield terrain
+    - ``"generator"``: procedural terrain via TerrainGeneratorCfg
+    - ``"usd"``: USD terrain (reserved)
+    """
 
     terrain_type: TerrainType = "plane"
-    """Terrain type: 'plane', 'genesisbase', or 'generator' (generator not implemented)."""
+    """Primary terrain mode."""
+
+    terrain_generator: "TerrainGeneratorCfg" = None
+    """Generator terrain config used when ``terrain_type == 'generator'``."""
+
+    usd_path: str = None
+    """USD path used when ``terrain_type == 'usd'``."""
+
+    env_spacing: float = None
+    """Grid spacing fallback when per-subterrain origins are not used."""
+
+    use_terrain_origins: bool = True
+    """Whether to use terrain sub-grid origins for env placement."""
+
+    max_init_terrain_level: int = None
+    """Maximum initial terrain level for curriculum placement."""
+
+    debug_vis: bool = False
+    """Whether to enable terrain debug visualization."""
 
     terrain_details_cfg: GenesisTerrainMorphCfg = None
-    """For terrain_type=='genesisbase': Genesis gs.morphs.Terrain options. Required when type is genesisbase."""
+    """Genesis native terrain morph options for ``terrain_type='genesisbase'``."""
 
     surface_cfg: TerrainSurfaceCfg = TerrainSurfaceCfg()
     """Surface configuration for the terrain (shared across terrain types)."""
 
-    # generator: leave empty for now (no TerrainImporter in add_terrain)
+    # ------------------------------------------------------------------
+    # Backward compatibility fields
+    # ------------------------------------------------------------------
+
     terrain_generator_cfg: Any = None
-    """Reserved for terrain_type=='generator'. Not used in current implementation."""
+    """Deprecated alias for ``terrain_generator``."""
+
+    type: str = None
+    """Deprecated alias for ``terrain_type``."""
+
+    def __post_init__(self) -> None:  # noqa: D105
+        if self.terrain_generator is None and self.terrain_generator_cfg is not None:
+            warnings.warn(
+                "TerrainCfg.terrain_generator_cfg is deprecated. Use TerrainCfg.terrain_generator instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self.terrain_generator = self.terrain_generator_cfg
+
+        if self.type is not None:
+            warnings.warn(
+                "TerrainCfg.type is deprecated. Use TerrainCfg.terrain_type instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self._resolve_legacy_type()
+
+    def _resolve_legacy_type(self) -> None:
+        legacy = self.type
+
+        if legacy == "plane":
+            self.terrain_type = "plane"
+        elif legacy == "genesisbase":
+            self.terrain_type = "genesisbase"
+        elif legacy == "rough":
+            self.terrain_type = "generator"
+            if self.terrain_generator is None:
+                from genesislab.components.terrains.config.rough import (
+                    ROUGH_TERRAINS_CFG,
+                )
+
+                self.terrain_generator = ROUGH_TERRAINS_CFG
+            else:
+                logger.debug(
+                    "TerrainCfg.type='rough' but terrain_generator is already set; keeping user-provided generator."
+                )
+        elif legacy in ("generator", "usd"):
+            self.terrain_type = legacy
+        else:
+            raise ValueError(
+                f"Unknown legacy terrain type '{legacy}'. "
+                "Accepted values are 'plane', 'genesisbase', 'rough', 'generator', 'usd'."
+            )

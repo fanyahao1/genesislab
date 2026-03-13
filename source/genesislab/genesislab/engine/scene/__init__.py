@@ -9,12 +9,15 @@ from .lab_scene_cfg import SceneCfg
 from .scene_controller import SceneController
 from .scene_builder import SceneBuilder
 from .actuator_manager import ActuatorManager
+from .terrain_runtime import TerrainRuntime
 from genesislab.components.terrains import TerrainCfg
 
 __all__ = [
     "LabScene",
+    "SceneCfg",
     "SceneController",
     "SceneBuilder",
     "ActuatorManager",
+    "TerrainRuntime",
     "TerrainCfg",
 ]

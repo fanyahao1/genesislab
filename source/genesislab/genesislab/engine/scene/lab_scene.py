@@ -6,7 +6,7 @@ including entities, sensors, scene construction, and coordination of query and c
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict
+from typing import Any, TYPE_CHECKING, Dict
 
 import genesis as gs
 import torch
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from .lab_scene_cfg import SceneCfg
     from genesislab.components.sensors import SensorBase
     from genesislab.engine.entity import LabEntity
+    from genesislab.engine.scene.terrain_runtime import TerrainRuntime
     from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv
 
 from genesislab.engine.scene.scene_builder import SceneBuilder
@@ -40,18 +41,65 @@ class LabScene:
             device: Device to use for tensors ('cuda' or 'cpu').
         """
         self.cfg = cfg
+        # Derive device from cfg.backend when not explicitly overridden.
+        # cfg.backend is 'cpu' or 'cuda'; if caller passes device explicitly it takes priority.
+        if device == "cuda" and getattr(cfg, "backend", "cuda") == "cpu":
+            device = "cpu"
         self.device = device
         self._gs_scene: gs.Scene = None
         self._entities: Dict[str, "LabEntity"] = {}
         self._sensors: Dict[str, "SensorBase"] = {}
         self._num_envs = cfg.num_envs
+        self._terrain: TerrainRuntime | None = None
         
         # Initialize helper components
         self._scene_builder = SceneBuilder(self)
         self._actuator_manager = ActuatorManager(self)
         self._controller = SceneController(self)
     
-    def build(self, env: "ManagerBasedRlEnv" = None) -> None:
+    @property
+    def gs_scene(self) -> gs.Scene:
+        """The underlying Genesis Scene instance."""
+        if self._gs_scene is None:
+            raise RuntimeError("Scene not built. Call build() first.")
+        return self._gs_scene
+    
+    @property
+    def entities(self) -> Dict[str, "LabEntity"]:
+        """Dictionary of entities keyed by name."""
+        return self._entities
+    
+    @property
+    def sensors(self) -> Dict[str, "SensorBase"]:
+        """Dictionary of sensors keyed by name."""
+        return self._sensors
+    
+    @property
+    def num_envs(self) -> int:
+        """Number of parallel environments."""
+        return self._num_envs
+    
+    @property
+    def terrain(self) -> "TerrainRuntime | None":
+        """The terrain runtime state, or ``None`` if no terrain is configured."""
+        return self._terrain
+
+    @property
+    def env_origins(self) -> torch.Tensor | None:
+        """Per-environment origins from terrain runtime.
+
+        Returns ``None`` if no terrain runtime is available.
+        """
+        if self._terrain is None:
+            return None
+        return self._terrain.env_origins
+
+    @property
+    def controller(self) -> "SceneController":
+        """Scene controller for control and state setting."""
+        return self._controller
+    
+    def build(self, env: Any = None) -> None:
         """Build the Genesis scene and entities.
         
         This method:
@@ -68,10 +116,10 @@ class LabScene:
         # Create Genesis scene
         self._gs_scene = self._scene_builder.create_scene()
         
-        # Add terrain if specified
+        # Add terrain if specified — stores the TerrainRuntime
         if self.cfg.terrain is not None:
-            terrain, surface = self._scene_builder.add_terrain(self._gs_scene)
-        
+            self._terrain = self._scene_builder.add_terrain(self._gs_scene)
+
         # Add robots
         for entity_name, robot_cfg in self.cfg.robots.items():
             lab_entity = self._scene_builder.add_robot(self._gs_scene, entity_name, robot_cfg, env=env)
@@ -130,33 +178,6 @@ class LabScene:
                 f"Available sensors: {list(self._sensors.keys())}"
             )
         return self._sensors[name]
-    
-    @property
-    def gs_scene(self) -> gs.Scene:
-        """The underlying Genesis Scene instance."""
-        if self._gs_scene is None:
-            raise RuntimeError("Scene not built. Call build() first.")
-        return self._gs_scene
-    
-    @property
-    def entities(self) -> Dict[str, "LabEntity"]:
-        """Dictionary of entities keyed by name."""
-        return self._entities
-    
-    @property
-    def sensors(self) -> Dict[str, "SensorBase"]:
-        """Dictionary of sensors keyed by name."""
-        return self._sensors
-    
-    @property
-    def num_envs(self) -> int:
-        """Number of parallel environments."""
-        return self._num_envs
-    
-    @property
-    def controller(self) -> "SceneController":
-        """Scene controller for control and state setting."""
-        return self._controller
     
     def __getattr__(self, name: str) -> object:
         """Delegate attribute access to the underlying Genesis Scene.

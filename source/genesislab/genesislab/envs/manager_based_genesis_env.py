@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import MISSING
+import logging
 import random
 from typing import ClassVar, TYPE_CHECKING, Dict
 
@@ -10,6 +11,7 @@ import torch
 
 from genesislab.engine.scene import SceneCfg
 from genesislab.utils.configclass import configclass
+from genesislab.utils.timing import timed_block
 
 from genesislab.engine.scene import LabScene
 from genesislab.engine.entity import LabEntity
@@ -23,6 +25,9 @@ from genesislab.managers import EventManager
 
 if TYPE_CHECKING:
     from genesislab.engine.gstype import gs
+
+
+logger = logging.getLogger(__name__)
 
 class ManagerBasedGenesisEnv:
     """Manager-based RL environment for Genesis.
@@ -269,12 +274,12 @@ class ManagerBasedGenesisEnv:
         self.action_manager.process_action(action.to(self.device))
 
         # Physics stepping loop (decimation)
-        for _ in range(self.cfg.decimation):
-            # Apply actions
-            self.action_manager.apply_action()
-
-            # Step physics
-            self._scene.controller.step()
+        with timed_block("physics (apply_action+step)"):
+            for _ in range(self.cfg.decimation):
+                # Apply actions
+                self.action_manager.apply_action()
+                # Step physics
+                self._scene.controller.step()
 
         # Update sensors (if any) at physics rate.
         self._update_sensors()
@@ -284,12 +289,14 @@ class ManagerBasedGenesisEnv:
         self.common_step_counter += 1
 
         # Compute terminations
-        reset_buf = self.termination_manager.compute()
+        with timed_block("terminations.compute"):
+            reset_buf = self.termination_manager.compute()
         reset_terminated = self.termination_manager.terminated
         reset_time_outs = self.termination_manager.time_outs
 
         # Compute rewards
-        reward_buf = self.reward_manager.compute(dt=self.step_dt)
+        with timed_block("rewards.compute"):
+            reward_buf = self.reward_manager.compute(dt=self.step_dt)
 
         # Reset terminated/timed-out environments and collect any episode metrics.
         reset_env_ids = reset_buf.nonzero(as_tuple=False).squeeze(-1)
@@ -300,7 +307,8 @@ class ManagerBasedGenesisEnv:
                 manager_extras.update(maybe_extras)
 
         # Update commands
-        self.command_manager.compute(dt=self.step_dt)
+        with timed_block("commands.compute"):
+            self.command_manager.compute(dt=self.step_dt)
 
         # Apply interval events if event manager is configured
         if self.event_manager is not None and "interval" in self.event_manager.available_modes:
@@ -311,7 +319,8 @@ class ManagerBasedGenesisEnv:
             self.command_manager.debug_vis(self._scene.gs_scene)
 
         # Compute observations
-        obs_buf = self.observation_manager.compute(update_history=True)
+        with timed_block("observations.compute"):
+            obs_buf = self.observation_manager.compute(update_history=True)
 
         # Build info dict, including any episode-level metrics produced at reset.
         info: dict[str, dict] = {

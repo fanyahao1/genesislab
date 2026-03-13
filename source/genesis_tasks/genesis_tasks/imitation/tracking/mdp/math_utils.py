@@ -3,11 +3,13 @@ from __future__ import annotations
 import torch
 
 
+@torch.jit.script
 def _normalize_quat(quat: torch.Tensor) -> torch.Tensor:
     """Normalize quaternion assumed in [x, y, z, w] format."""
     return quat / torch.norm(quat, dim=-1, keepdim=True).clamp_min(1e-8)
 
 
+@torch.jit.script
 def quat_mul(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
     """Quaternion multiplication for [x, y, z, w] format."""
     q1 = _normalize_quat(q1)
@@ -28,6 +30,7 @@ def quat_mul(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
     return torch.stack([x, y, z, w], dim=-1)
 
 
+@torch.jit.script
 def quat_inv(quat: torch.Tensor) -> torch.Tensor:
     """Quaternion inverse for [x, y, z, w] format."""
     quat = _normalize_quat(quat)
@@ -35,6 +38,7 @@ def quat_inv(quat: torch.Tensor) -> torch.Tensor:
     return torch.stack([-x, -y, -z, w], dim=-1)
 
 
+@torch.jit.script
 def quat_apply(quat: torch.Tensor, vec: torch.Tensor) -> torch.Tensor:
     """Rotate vector(s) by quaternion(s) (both broadcastable).
 
@@ -50,6 +54,7 @@ def quat_apply(quat: torch.Tensor, vec: torch.Tensor) -> torch.Tensor:
     return v + w.unsqueeze(-1) * t + torch.cross(xyz, t, dim=-1)
 
 
+@torch.jit.script
 def quat_apply_inverse(quat: torch.Tensor, vec: torch.Tensor) -> torch.Tensor:
     """Rotate vector(s) by inverse quaternion(s)."""
     quat = _normalize_quat(quat)
@@ -61,6 +66,7 @@ def quat_apply_inverse(quat: torch.Tensor, vec: torch.Tensor) -> torch.Tensor:
     return v - w.unsqueeze(-1) * t + torch.cross(xyz, t, dim=-1)
 
 
+@torch.jit.script
 def quat_from_euler_xyz(roll: torch.Tensor, pitch: torch.Tensor, yaw: torch.Tensor) -> torch.Tensor:
     """Create quaternion [x, y, z, w] from XYZ Euler angles (radians)."""
     cr = torch.cos(roll * 0.5)
@@ -77,12 +83,14 @@ def quat_from_euler_xyz(roll: torch.Tensor, pitch: torch.Tensor, yaw: torch.Tens
     return torch.stack([x, y, z, w], dim=-1)
 
 
+@torch.jit.script
 def yaw_quat(yaw: torch.Tensor) -> torch.Tensor:
     """Quaternion [x, y, z, w] for pure yaw rotation about +Z."""
     zero = torch.zeros_like(yaw)
     return quat_from_euler_xyz(zero, zero, yaw)
 
 
+@torch.jit.script
 def quat_error_magnitude(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
     """Angular distance between two quaternions (radians)."""
     dq = quat_mul(quat_inv(q1), q2)
@@ -104,6 +112,7 @@ def sample_uniform(
     return low_t + (high_t - low_t) * torch.rand(shape, device=device)
 
 
+@torch.jit.script
 def matrix_from_quat(quat: torch.Tensor) -> torch.Tensor:
     """Convert quaternion [x, y, z, w] to rotation matrix (..., 3, 3)."""
     quat = _normalize_quat(quat)
@@ -135,6 +144,7 @@ def matrix_from_quat(quat: torch.Tensor) -> torch.Tensor:
     )
 
 
+@torch.jit.script
 def subtract_frame_transforms(
     pos0: torch.Tensor,
     quat0: torch.Tensor,

@@ -108,7 +108,7 @@ class ActionTermCfg:
 	This is the name defined in the scene configuration file.
 	"""
 
-	clip: tuple[float, float] | dict[str, tuple[float, float]] = (-100, 100)
+	clip: tuple[float, float] | dict[str, tuple[float, float]] = (-10, 10)
 	"""Clip range for the action.
 	
 	All action terms support tuple clip (scalar clip) for uniform clipping of the

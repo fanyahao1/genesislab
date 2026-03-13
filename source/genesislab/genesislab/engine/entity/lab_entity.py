@@ -118,89 +118,58 @@ class LabEntity:
         joint_vel: torch.Tensor,
         env_ids: torch.Tensor | list[int] | None = None,
     ) -> None:
-        """Write joint positions and velocities into the underlying Genesis entity.
-
-        Args:
-            joint_pos: Tensor of shape (N, num_joints) where N == len(env_ids).
-            joint_vel: Tensor of shape (N, num_joints) where N == len(env_ids).
-            env_ids: Indices of environments to update. If None, updates all envs.
-        """
-        import torch as _torch  # local import to avoid circulars when TYPE_CHECKING
-
         # Infer DOF layout from entity
         dofs_pos_full = self._raw_entity.get_dofs_position()
         _, num_dofs_full = dofs_pos_full.shape
-        base_offset = 6 if num_dofs_full > 6 else 0
+        base_offset = 6
         joint_slice = slice(base_offset, num_dofs_full)
 
         # Normalize env_ids to a 1D LongTensor
         if env_ids is None:
-            env_ids_tensor = _torch.arange(self._env.num_envs, device=self._env.device, dtype=_torch.long)
-        elif isinstance(env_ids, _torch.Tensor):
-            env_ids_tensor = env_ids.to(device=self._env.device, dtype=_torch.long)
-        else:
-            env_ids_tensor = _torch.tensor(env_ids, device=self._env.device, dtype=_torch.long)
-
-        # Ensure tensors live on the correct device
-        joint_pos = joint_pos.to(device=self._env.device)
-        joint_vel = joint_vel.to(device=self._env.device)
+            env_ids = torch.arange(self._env.num_envs, device=self._env.device, dtype=torch.long)
 
         # Set joint DOFs only (exclude base)
         self._raw_entity.set_dofs_position(
             joint_pos,
             dofs_idx_local=joint_slice,
-            envs_idx=env_ids_tensor,
+            envs_idx=env_ids,
             zero_velocity=False,
         )
         self._raw_entity.set_dofs_velocity(
             joint_vel,
             dofs_idx_local=joint_slice,
-            envs_idx=env_ids_tensor,
+            envs_idx=env_ids,
         )
 
     def write_root_state_to_sim(
         self,
         root_state: torch.Tensor,
+        root_vel: torch.Tensor,
         env_ids: torch.Tensor | list[int] | None = None,
     ) -> None:
-        """Write root (base) pose and velocities into the underlying Genesis entity.
-
-        Args:
-            root_state: Tensor of shape (N, 13) with layout
-                [pos(3), quat(4 in [x,y,z,w]), lin_vel(3), ang_vel(3)].
-            env_ids: Indices of environments to update. If None, updates all envs.
-        """
-        import torch as _torch
-
         # Normalize env_ids to a 1D LongTensor
         if env_ids is None:
-            env_ids_tensor = _torch.arange(self._env.num_envs, device=self._env.device, dtype=_torch.long)
-        elif isinstance(env_ids, _torch.Tensor):
-            env_ids_tensor = env_ids.to(device=self._env.device, dtype=_torch.long)
-        else:
-            env_ids_tensor = _torch.tensor(env_ids, device=self._env.device, dtype=_torch.long)
+            env_ids = torch.arange(self._env.num_envs, device=self._env.device, dtype=torch.long)
 
-        root_state = root_state.to(device=self._env.device)
-
-        # Split components: [pos(3), quat(4), lin_vel(3), ang_vel(3)]
+        # Split components: [pos(3), rot(3), lin_vel(3), ang_vel(3)]
         pos = root_state[:, 0:3]
-        quat = root_state[:, 3:7]
-        lin_vel = root_state[:, 7:10]
-        ang_vel = root_state[:, 10:13]
+        rot = root_state[:, 3:6]
+        lin_vel = root_vel[:, 0:3]
+        ang_vel = root_vel[:, 3:6]
 
-        # Base generalized coordinates: first 7 DOFs (pos 3 + quat 4)
-        base_q = _torch.cat([pos, quat], dim=-1)
+        # Base generalized coordinates: first 6 DOFs (pos 3 + rot 3)
+        base_q = torch.cat([pos, rot], dim=-1)
         self._raw_entity.set_dofs_position(
             base_q,
-            dofs_idx_local=slice(0, 7),
-            envs_idx=env_ids_tensor,
+            dofs_idx_local=slice(0, 6),
+            envs_idx=env_ids,
             zero_velocity=False,
         )
 
         # Base velocities: first 6 DOFs (lin_vel 3 + ang_vel 3)
-        base_vel = _torch.cat([lin_vel, ang_vel], dim=-1)
+        base_vel = torch.cat([lin_vel, ang_vel], dim=-1)
         self._raw_entity.set_dofs_velocity(
             base_vel,
             dofs_idx_local=slice(0, 6),
-            envs_idx=env_ids_tensor,
+            envs_idx=env_ids,
         )

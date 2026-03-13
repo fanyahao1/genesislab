@@ -326,7 +326,7 @@ def build_gs_scene(
 
 def run_fk_for_motion(
     scene: gs.Scene,
-    robot_entity: any,
+    robot_entity: "gs.engine.entities.KinematicEntity",
     motion: MotionLoader,
     device: torch.device,
     show_window: bool = False,
@@ -353,6 +353,7 @@ def run_fk_for_motion(
         "joint_pos": [],
         "joint_vel": [],
         "body_pos_w": [],
+        "body_rot_w": [],
         "body_quat_w": [],
         "body_lin_vel_w": [],
         "body_ang_vel_w": [],
@@ -392,8 +393,9 @@ def run_fk_for_motion(
             scene.step()
             time.sleep(1.0 / motion.output_fps)
 
-        joint_pos_full = robot_entity.get_dofs_position()[:, joint_dof_indices]
-        joint_vel_full = robot_entity.get_dofs_velocity()[:, joint_dof_indices]
+        joint_pos_full = robot_entity.get_dofs_position()[:, 6:]
+        joint_vel_full = robot_entity.get_dofs_velocity()[:, 6:]
+        link_rot = robot_entity.get_dofs_position()[:, 3:6]
         link_pos = robot_entity.get_links_pos()
         link_quat = robot_entity.get_links_quat()
         link_lin_vel = robot_entity.get_links_vel()
@@ -403,6 +405,7 @@ def run_fk_for_motion(
         log["joint_vel"].append(joint_vel_full[0].cpu().numpy().copy())
         log["body_pos_w"].append(link_pos[0].cpu().numpy().copy())
         log["body_quat_w"].append(link_quat[0].cpu().numpy().copy())
+        log["body_rot_w"].append(link_rot[0].cpu().numpy().copy())
         log["body_lin_vel_w"].append(link_lin_vel[0].cpu().numpy().copy())
         log["body_ang_vel_w"].append(link_ang_vel[0].cpu().numpy().copy())
 

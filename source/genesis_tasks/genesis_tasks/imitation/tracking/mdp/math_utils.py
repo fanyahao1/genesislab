@@ -84,6 +84,26 @@ def quat_from_euler_xyz(roll: torch.Tensor, pitch: torch.Tensor, yaw: torch.Tens
 
 
 @torch.jit.script
+def quat_to_euler_xyz(quat: torch.Tensor) -> torch.Tensor:
+    """Convert quaternion [x, y, z, w] to XYZ Euler angles (roll, pitch, yaw)."""
+    quat = _normalize_quat(quat)
+    x, y, z, w = quat.unbind(-1)
+
+    sinp = 2.0 * (w * y - z * x)
+    sinp = sinp.clamp(-1.0, 1.0)
+    pitch = torch.asin(sinp)
+
+    sinr_cosr = 2.0 * (w * x + y * z)
+    cosr = 1.0 - 2.0 * (x * x + y * y)
+    roll = torch.atan2(sinr_cosr, cosr)
+
+    siny_cosy = 2.0 * (w * z + x * y)
+    cosy = 1.0 - 2.0 * (y * y + z * z)
+    yaw = torch.atan2(siny_cosy, cosy)
+
+    return torch.stack([roll, pitch, yaw], dim=-1)
+
+@torch.jit.script
 def yaw_quat(yaw: torch.Tensor) -> torch.Tensor:
     """Quaternion [x, y, z, w] for pure yaw rotation about +Z."""
     zero = torch.zeros_like(yaw)
@@ -168,6 +188,7 @@ __all__ = [
     "quat_apply",
     "quat_apply_inverse",
     "quat_from_euler_xyz",
+    "quat_to_euler_xyz",
     "yaw_quat",
     "quat_error_magnitude",
     "sample_uniform",

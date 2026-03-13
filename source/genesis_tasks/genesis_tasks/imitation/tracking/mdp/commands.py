@@ -15,6 +15,7 @@ from .math_utils import (
     quat_apply,
     quat_error_magnitude,
     quat_from_euler_xyz,
+    quat_to_euler_xyz,
     quat_inv,
     quat_mul,
     sample_uniform,
@@ -275,10 +276,11 @@ class MotionCommand(CommandTerm):
             joint_pos[env_ids], soft_joint_pos_limits[:, :, 0], soft_joint_pos_limits[:, :, 1]
         )
         self.robot.write_joint_state_to_sim(joint_pos[env_ids], joint_vel[env_ids], env_ids=env_ids)
-        self.robot.write_root_state_to_sim(
-            torch.cat([root_pos[env_ids], root_ori[env_ids], root_lin_vel[env_ids], root_ang_vel[env_ids]], dim=-1),
-            env_ids=env_ids,
-        )
+        # Engine expects base orientation in rot (Euler XYZ), convert from quat.
+        root_rot = quat_to_euler_xyz(root_ori)
+        root_state = torch.cat([root_pos, root_rot], dim=-1)
+        root_vel = torch.cat([root_lin_vel, root_ang_vel], dim=-1)
+        self.robot.write_root_state_to_sim(root_state[env_ids], root_vel[env_ids], env_ids=env_ids)
 
     def _update_command(self):
         self.time_steps += 1

@@ -55,24 +55,6 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
                 Used when cfg is None. This allows gym.register to pass config via kwargs.
             **kwargs: Additional keyword arguments (reserved for future use or other configs).
         """
-        # Load config from entry point if cfg is not provided
-        if cfg is None:
-            if env_cfg_entry_point is None:
-                raise ValueError(
-                    "Either 'cfg' or 'env_cfg_entry_point' must be provided to initialize the environment."
-                )
-            # Load config class from string entry point
-            mod_name, attr_name = env_cfg_entry_point.split(":")
-            mod = importlib.import_module(mod_name)
-            cfg_cls = getattr(mod, attr_name)
-            # Instantiate config if it's a class
-            if callable(cfg_cls) and not isinstance(cfg_cls, type):
-                cfg = cfg_cls()
-            elif isinstance(cfg_cls, type):
-                cfg = cfg_cls()
-            else:
-                cfg = cfg_cls
-
         super().__init__(cfg=cfg, device=device)
 
         # ------------------------------------------------------------------
@@ -82,22 +64,8 @@ class ManagerBasedRlEnv(ManagerBasedGenesisEnv):
         #   - Otherwise → real CurriculumManager
         # ------------------------------------------------------------------
         curriculum_cfg = getattr(self.cfg, "curriculum", None)
-        has_curriculum = False
-        if isinstance(curriculum_cfg, dict):
-            has_curriculum = len(curriculum_cfg) > 0
-        elif curriculum_cfg is not None:
-            # For configclass-style curriculum configs, treat any non-None
-            # instance as "enabled" and let CurriculumManager skip None/MISSING
-            # terms internally.
-            has_curriculum = True
-
-        if has_curriculum:
-            self.curriculum_manager = CurriculumManager(cfg=curriculum_cfg, env=self)
-        else:
-            self.curriculum_manager = NullCurriculumManager()
-
+        self.curriculum_manager = CurriculumManager(cfg=curriculum_cfg, env=self)
         print("[ManagerBasedRlEnv] Curriculum manager:", self.curriculum_manager)
-
         # Set a default render fps in metadata for viewers/wrappers.
         self.metadata["render_fps"] = 1.0 / self.step_dt
 

@@ -43,7 +43,11 @@ def bad_motion_body_pos(
     command: MotionCommand = env.command_manager.get_term(command_name)
 
     body_indexes = _get_body_indexes(command, body_names)
-    error = torch.norm(command.body_pos_relative_w[:, body_indexes] - command.robot_body_pos_w[:, body_indexes], dim=-1)
+    # Directly compute position error between motion bodies and robot bodies in world frame.
+    error = torch.norm(
+        command.body_pos_w[:, body_indexes] - command.robot_body_pos_w[:, body_indexes],
+        dim=-1,
+    )
     return torch.any(error > threshold, dim=-1)
 
 
@@ -53,5 +57,9 @@ def bad_motion_body_pos_z_only(
     command: MotionCommand = env.command_manager.get_term(command_name)
 
     body_indexes = _get_body_indexes(command, body_names)
-    error = torch.abs(command.body_pos_relative_w[:, body_indexes, -1] - command.robot_body_pos_w[:, body_indexes, -1])
+    # Same as above but only on the z-component of the position error.
+    error = torch.abs(
+        command.body_pos_w[:, body_indexes, -1]
+        - command.robot_body_pos_w[:, body_indexes, -1]
+    )
     return torch.any(error > threshold, dim=-1)

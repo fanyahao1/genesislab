@@ -12,6 +12,7 @@ import os
 import time
 from typing import Iterable
 
+from PIL import Image
 import numpy as np
 import torch
 import tqdm
@@ -305,7 +306,9 @@ def build_gs_scene(
         rigid_options=gs.options.RigidOptions(dt=dt),
         show_viewer=show_viewer,
     )
-    scene.add_entity(morph=gs.morphs.Plane())
+    scene.add_entity(
+        morph=gs.morphs.Plane(),
+    )
     robot_entity = scene.add_entity(
         gs.morphs.MJCF(
             file=G1_FULL_ACT_CFG.morph_path,
@@ -413,6 +416,7 @@ def run_fk_for_motion(
         "joint_pos",
         "joint_vel",
         "body_pos_w",
+        "body_rot_w",
         "body_quat_w",
         "body_lin_vel_w",
         "body_ang_vel_w",

@@ -355,6 +355,14 @@ class LabEntityData:
         return self._raw_entity.get_links_quat()  # type: ignore[attr-defined]
 
     @property
+    def body_rot_w(self) -> torch.Tensor:
+        """All link orientations in world frame. Shape: (num_envs, num_links, 4).
+
+        Requires that the underlying Genesis entity exposes per-link quaternions.
+        """
+        return self._raw_entity.get_dofs_position()[:, 3:6]  # type: ignore[attr-defined]
+
+    @property
     def body_lin_vel_w(self) -> torch.Tensor:
         """All link linear velocities in world frame. Shape: (num_envs, num_links, 3).
 

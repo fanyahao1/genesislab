@@ -19,7 +19,7 @@ import torch
 
 from genesislab.components.entities.scene_cfg import SceneCfg
 from genesislab.engine.assets.robot_cfg import RobotCfg
-from genesislab.components.entities.terrain_cfg import TerrainCfg
+from genesislab.components.terrains import TerrainCfg
 from genesislab.engine.binding import GenesisBinding
 
 

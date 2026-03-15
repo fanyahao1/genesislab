@@ -46,6 +46,8 @@ docker/artifacts/
 # Doc Outputs
 **/docs/_build/*
 **/generated/*
+docs/
+AGENTS.md
 
 # Isaac-Sim packman
 _isaac_sim*
@@ -67,6 +69,9 @@ _build
 
 # Tests
 tests/
+scripts/test/terrain/
+scripts/terrain/
+scripts/test/test_merge_imports.py
 
 # Docker history
 .isaac-lab-docker-history

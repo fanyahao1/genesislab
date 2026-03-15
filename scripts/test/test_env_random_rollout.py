@@ -17,7 +17,7 @@ import torch
 from genesislab.envs.manager_based_rl_env import ManagerBasedRlEnv, ManagerBasedRlEnvCfg
 from genesislab.engine.assets.robot_cfg import RobotCfg
 from genesislab.components.entities.scene_cfg import SceneCfg
-from genesislab.components.entities.terrain_cfg import TerrainCfg
+from genesislab.components.terrains import TerrainCfg
 from genesislab.managers.action_manager import ActionTerm, ActionTermCfg
 from genesislab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from genesislab.managers.reward_manager import RewardTermCfg

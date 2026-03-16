@@ -84,6 +84,13 @@ def quat_from_euler_xyz(roll: torch.Tensor, pitch: torch.Tensor, yaw: torch.Tens
 
 
 @torch.jit.script
+def quat_wxyz_to_xyzw(quat: torch.Tensor) -> torch.Tensor:
+    """Convert quaternion from [w, x, y, z] to [x, y, z, w] (e.g. engine → MDP)."""
+    w, x, y, z = quat.unbind(-1)
+    return torch.stack([x, y, z, w], dim=-1)
+
+
+@torch.jit.script
 def quat_to_euler_xyz(quat: torch.Tensor) -> torch.Tensor:
     """Convert quaternion [x, y, z, w] to XYZ Euler angles (roll, pitch, yaw)."""
     quat = _normalize_quat(quat)
@@ -189,6 +196,7 @@ __all__ = [
     "quat_apply_inverse",
     "quat_from_euler_xyz",
     "quat_to_euler_xyz",
+    "quat_wxyz_to_xyzw",
     "yaw_quat",
     "quat_error_magnitude",
     "sample_uniform",

@@ -68,15 +68,15 @@ class CommandsCfg:
         anchor_body_name=MISSING,
         body_names=MISSING,
         pose_range={
-            "x": (-0.05, 0.05),
-            "y": (-0.05, 0.05),
-            "z": (-0.01, 0.01),
-            "roll": (-0.1, 0.1),
-            "pitch": (-0.1, 0.1),
-            "yaw": (-0.2, 0.2),
+            "x": (-0.00, 0.00),
+            "y": (-0.00, 0.00),
+            "z": (-0.00, 0.00),
+            "roll": (-0.0, 0.0),
+            "pitch": (-0.0, 0.0),
+            "yaw": (-0.0, 0.0),
         },
         velocity_range=VELOCITY_RANGE,
-        joint_position_range=(-0.1, 0.1),
+        joint_position_range=(-0.0, 0.0),
     )
 
 

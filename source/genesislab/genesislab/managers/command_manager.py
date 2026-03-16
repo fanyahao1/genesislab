@@ -66,7 +66,11 @@ class CommandTerm(ManagerTermBase):
 			extras[metric_name] = torch.mean(metric_value[env_ids]).item()
 			metric_value[env_ids] = 0.0
 		self.command_counter[env_ids] = 0
+		# Resample commands for the reset environments and immediately update the
+		# internal command state so that subsequent terminations/rewards see a
+		# consistent command/robot pair on the very next step.
 		self._resample(env_ids)
+		self._update_command()
 		return extras
 
 	def compute(self, dt: float) -> None:

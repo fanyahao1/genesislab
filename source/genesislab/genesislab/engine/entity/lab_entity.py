@@ -147,17 +147,15 @@ class LabEntity:
         root_vel: torch.Tensor,
         env_ids: torch.Tensor | list[int] | None = None,
     ) -> None:
-        # Normalize env_ids to a 1D LongTensor
+        """Write root state. Base is always 6 DOFs: pos(3) + Euler XYZ(3). Same convention as FK."""
         if env_ids is None:
             env_ids = torch.arange(self._env.num_envs, device=self._env.device, dtype=torch.long)
 
-        # Split components: [pos(3), rot(3), lin_vel(3), ang_vel(3)]
         pos = root_state[:, 0:3]
         rot = root_state[:, 3:6]
         lin_vel = root_vel[:, 0:3]
         ang_vel = root_vel[:, 3:6]
 
-        # Base generalized coordinates: first 6 DOFs (pos 3 + rot 3)
         base_q = torch.cat([pos, rot], dim=-1)
         self._raw_entity.set_dofs_position(
             base_q,
@@ -165,8 +163,6 @@ class LabEntity:
             envs_idx=env_ids,
             zero_velocity=False,
         )
-
-        # Base velocities: first 6 DOFs (lin_vel 3 + ang_vel 3)
         base_vel = torch.cat([lin_vel, ang_vel], dim=-1)
         self._raw_entity.set_dofs_velocity(
             base_vel,
